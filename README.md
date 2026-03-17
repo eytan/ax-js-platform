@@ -112,8 +112,20 @@ The viz module (`ax-js/viz`) provides reusable building blocks for embedding GP 
 npm install
 npm run build:lib    # Build library (ESM + CJS + script bundles + types)
 npm run build        # Build library + demos
+npm run build:notebook  # Build Jupyter demo notebook + HTML export
 npm test             # Run all tests — generates test-report.txt
 npm run typecheck    # Type-check
+```
+
+### Jupyter notebook
+
+The demo notebook (`demo/ax-js-demo.ipynb`) shows all diagnostic visualizations using a real fixture. The exported HTML (`demo/ax-js-demo.html`) renders in any browser — no Jupyter required.
+
+```python
+# In your own notebook:
+from axjs_jupyter import setup_axjs, display_cross_validation
+setup_axjs()
+display_cross_validation(client, outcome="accuracy")
 ```
 
 ### Regenerate fixtures
