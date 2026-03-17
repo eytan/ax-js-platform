@@ -565,7 +565,7 @@ function renderFeatureImportanceStatic(
   const importances = ranked.map((d) => 1 / d.lengthscale);
   const maxImp = Math.max(...importances);
 
-  const W = (tooltipContainer ?? target).clientWidth || 500;
+  const W = Math.min((tooltipContainer ?? target).clientWidth || 500, 500);
   const labelW = 130;
   const barH = 24;
   const rowGap = 6;
@@ -1101,10 +1101,16 @@ export function renderSlicePlot(
     controlsDiv.appendChild(wrapper);
   }
 
-  createParamSliders(predictor, params, slidersDiv, fixedValues, () => { redraw(); });
+  function rebuildSliders() {
+    const dimOrd = computeDimOrder(predictor as DimensionRanker, predictor.paramNames.length, selectedOutcome);
+    createParamSliders(predictor, params, slidersDiv, fixedValues, () => { redraw(); },
+      { dimOrder: dimOrd });
+  }
+  rebuildSliders();
 
   function redraw() {
     plotsDiv.innerHTML = '';
+    rebuildSliders();
     renderSlicePlotStatic(plotsDiv, predictor, selectedOutcome, options, fixedValues as number[], tooltip, container);
   }
   redraw();
@@ -1138,7 +1144,10 @@ function renderSlicePlotStatic(
   const pw = W - margin.left - margin.right;
   const ph = H - margin.top - margin.bottom;
 
-  for (let dim = 0; dim < nDim; dim++) {
+  // Sort dimensions by importance (most important first)
+  const dimOrder = computeDimOrder(predictor as DimensionRanker, nDim, outcome);
+
+  for (const dim of dimOrder) {
     const [lo, hi] = bounds[dim];
     if (lo === hi) continue;
 
@@ -1322,8 +1331,10 @@ export function renderResponseSurface(
 
   container.innerHTML = '';
   let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
-  let selDimX = options?.dimX ?? 0;
-  let selDimY = options?.dimY ?? Math.min(1, predictor.paramNames.length - 1);
+  // Auto-select most important dimensions if not specified
+  const initOrder = computeDimOrder(predictor as DimensionRanker, predictor.paramNames.length, selectedOutcome);
+  let selDimX = options?.dimX ?? initOrder[0];
+  let selDimY = options?.dimY ?? (initOrder.length > 1 ? initOrder[1] : 0);
   const bounds = predictor.paramBounds;
   const fixedValues: (number | string | boolean)[] =
     options?.fixedValues?.slice() ??
@@ -1335,10 +1346,11 @@ export function renderResponseSurface(
   const tooltip = createTooltipDiv(container);
 
   const controlsDiv = document.createElement('div');
-  controlsDiv.style.cssText = CTRL_CSS;
+  controlsDiv.style.cssText = CTRL_CSS + 'padding:8px 16px;';
   const slidersDiv = document.createElement('div');
-  slidersDiv.style.cssText = 'margin-bottom:8px';
+  slidersDiv.style.cssText = 'margin-bottom:8px;padding:0 16px;';
   const plotsDiv = document.createElement('div');
+  plotsDiv.style.cssText = 'padding:4px 8px 12px;';
   container.appendChild(controlsDiv);
   container.appendChild(slidersDiv);
   container.appendChild(plotsDiv);
@@ -1371,8 +1383,9 @@ export function renderResponseSurface(
   makeDimSelect('Y axis:', selDimY, (v) => { selDimY = v; rebuildSliders(); });
 
   function rebuildSliders() {
+    const dimOrd = computeDimOrder(predictor as DimensionRanker, predictor.paramNames.length, selectedOutcome);
     createParamSliders(predictor, params, slidersDiv, fixedValues, () => { redraw(); },
-      { excludeDims: new Set([selDimX, selDimY]) });
+      { excludeDims: new Set([selDimX, selDimY]), dimOrder: dimOrd });
   }
   rebuildSliders();
 

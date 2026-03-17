@@ -11,8 +11,8 @@ Usage:
     # or: npm run build:notebook
 
 Output:
-    demo/ax-js-demo.ipynb  — notebook with pre-populated outputs
-    demo/ax-js-demo.html   — standalone HTML export
+    demo/jupyter-demo.ipynb  — notebook with pre-populated outputs
+    demo/jupyter-demo.html   — standalone HTML export
 """
 
 from __future__ import annotations
@@ -174,7 +174,7 @@ def build_notebook() -> nbformat.NotebookNode:
 
 def main():
     nb = build_notebook()
-    nb_path = ROOT / "demo" / "ax-js-demo.ipynb"
+    nb_path = ROOT / "demo" / "jupyter-demo.ipynb"
     nbformat.write(nb, str(nb_path))
     print(f"Notebook: {nb_path} ({nb_path.stat().st_size // 1024}KB)")
 
@@ -183,7 +183,7 @@ def main():
         exporter = HTMLExporter()
         exporter.template_name = "classic"
         body, _ = exporter.from_notebook_node(nb)
-        html_path = ROOT / "demo" / "ax-js-demo.html"
+        html_path = ROOT / "demo" / "jupyter-demo.html"
         html_path.write_text(body)
         print(f"HTML: {html_path} ({html_path.stat().st_size // 1024}KB)")
 

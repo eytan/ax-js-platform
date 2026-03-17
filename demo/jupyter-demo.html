@@ -7511,7 +7511,7 @@ a.anchor-link {
 <!-- End of mermaid configuration --></head>
 <body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light">
 <main>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=aed44459">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=37706c17">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7523,7 +7523,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=ce71abc7">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=92e8ec7b">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -10016,7 +10016,7 @@ var Ax;
     const barColors = ["#7c6ff7", "#6fa0f7", "#6fcff7", "#6ff7c8", "#a0f76f", "#f7e06f", "#f7a06f", "#f76f6f"];
     const importances = ranked.map((d) => 1 / d.lengthscale);
     const maxImp = Math.max(...importances);
-    const W = (tooltipContainer ?? target).clientWidth || 500;
+    const W = Math.min((tooltipContainer ?? target).clientWidth || 500, 500);
     const labelW = 130;
     const barH = 24;
     const rowGap = 6;
@@ -10472,11 +10472,23 @@ var Ax;
       });
       controlsDiv.appendChild(wrapper);
     }
-    createParamSliders(predictor, params, slidersDiv, fixedValues, () => {
-      redraw();
-    });
+    function rebuildSliders() {
+      const dimOrd = computeDimOrder(predictor, predictor.paramNames.length, selectedOutcome);
+      createParamSliders(
+        predictor,
+        params,
+        slidersDiv,
+        fixedValues,
+        () => {
+          redraw();
+        },
+        { dimOrder: dimOrd }
+      );
+    }
+    rebuildSliders();
     function redraw() {
       plotsDiv.innerHTML = "";
+      rebuildSliders();
       renderSlicePlotStatic(plotsDiv, predictor, selectedOutcome, options, fixedValues, tooltip, container);
     }
     redraw();
@@ -10495,7 +10507,8 @@ var Ax;
     const margin = { top: 28, right: 18, bottom: 40, left: 68 };
     const pw = W - margin.left - margin.right;
     const ph = H - margin.top - margin.bottom;
-    for (let dim = 0; dim < nDim; dim++) {
+    const dimOrder = computeDimOrder(predictor, nDim, outcome);
+    for (const dim of dimOrder) {
       const [lo, hi] = bounds[dim];
       if (lo === hi) continue;
       const xs = [];
@@ -10664,8 +10677,9 @@ var Ax;
     }
     container.innerHTML = "";
     let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
-    let selDimX = options?.dimX ?? 0;
-    let selDimY = options?.dimY ?? Math.min(1, predictor.paramNames.length - 1);
+    const initOrder = computeDimOrder(predictor, predictor.paramNames.length, selectedOutcome);
+    let selDimX = options?.dimX ?? initOrder[0];
+    let selDimY = options?.dimY ?? (initOrder.length > 1 ? initOrder[1] : 0);
     const bounds = predictor.paramBounds;
     const fixedValues = options?.fixedValues?.slice() ?? bounds.map(([lo, hi]) => (lo + hi) / 2);
     const params = bounds.map(([lo, hi]) => ({
@@ -10674,10 +10688,11 @@ var Ax;
     }));
     const tooltip = createTooltipDiv(container);
     const controlsDiv = document.createElement("div");
-    controlsDiv.style.cssText = CTRL_CSS;
+    controlsDiv.style.cssText = CTRL_CSS + "padding:8px 16px;";
     const slidersDiv = document.createElement("div");
-    slidersDiv.style.cssText = "margin-bottom:8px";
+    slidersDiv.style.cssText = "margin-bottom:8px;padding:0 16px;";
     const plotsDiv = document.createElement("div");
+    plotsDiv.style.cssText = "padding:4px 8px 12px;";
     container.appendChild(controlsDiv);
     container.appendChild(slidersDiv);
     container.appendChild(plotsDiv);
@@ -10714,6 +10729,7 @@ var Ax;
       rebuildSliders();
     });
     function rebuildSliders() {
+      const dimOrd = computeDimOrder(predictor, predictor.paramNames.length, selectedOutcome);
       createParamSliders(
         predictor,
         params,
@@ -10722,7 +10738,7 @@ var Ax;
         () => {
           redraw();
         },
-        { excludeDims: /* @__PURE__ */ new Set([selDimX, selDimY]) }
+        { excludeDims: /* @__PURE__ */ new Set([selDimX, selDimY]), dimOrder: dimOrd }
       );
     }
     rebuildSliders();
@@ -10938,7 +10954,7 @@ window.__AXJS_STATE__={"search_space": {"parameters": [{"name": "culture_volume"
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=62e4e995">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=f3b447e6">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -10948,7 +10964,7 @@ window.__AXJS_STATE__={"search_space": {"parameters": [{"name": "culture_volume"
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=08de1d9f">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=7ce07284">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -10975,7 +10991,7 @@ window.__AXJS_STATE__={"search_space": {"parameters": [{"name": "culture_volume"
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=afdb6a27">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=83901b6e">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -10985,7 +11001,7 @@ window.__AXJS_STATE__={"search_space": {"parameters": [{"name": "culture_volume"
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=8d3482ad">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=51eb4026">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -11012,7 +11028,7 @@ window.__AXJS_STATE__={"search_space": {"parameters": [{"name": "culture_volume"
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=c48077c9">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=ef1c7650">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -11022,7 +11038,7 @@ window.__AXJS_STATE__={"search_space": {"parameters": [{"name": "culture_volume"
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=b75c3f92">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=e961742e">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -11049,7 +11065,7 @@ window.__AXJS_STATE__={"search_space": {"parameters": [{"name": "culture_volume"
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=5e3f79f5">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=ff6721a8">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -11059,7 +11075,7 @@ window.__AXJS_STATE__={"search_space": {"parameters": [{"name": "culture_volume"
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=fd0fd02a">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=a4546239">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -11086,7 +11102,7 @@ window.__AXJS_STATE__={"search_space": {"parameters": [{"name": "culture_volume"
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=d01e96d6">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=3439ced7">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -11096,7 +11112,7 @@ window.__AXJS_STATE__={"search_space": {"parameters": [{"name": "culture_volume"
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=7e2bc3d1">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=287982df">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -11123,7 +11139,7 @@ window.__AXJS_STATE__={"search_space": {"parameters": [{"name": "culture_volume"
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=9a16c05c">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=e0e50c07">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>

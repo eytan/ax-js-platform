@@ -121,7 +121,7 @@ npm run typecheck    # Type-check
 
 **End-to-end demo** (`demo/ax-js-e2e.ipynb`): Full workflow — set up Ax experiment, run BO, export model, render interactive visualizations. Execute all cells in Jupyter.
 
-**Pre-built demo** (`demo/ax-js-demo.ipynb`): All diagnostic visualizations with pre-populated outputs — no execution required. Also exported as standalone HTML (`demo/ax-js-demo.html`).
+**Pre-built demo** (`demo/jupyter-demo.ipynb`): All diagnostic visualizations with pre-populated outputs — no execution required. Also exported as standalone HTML (`demo/jupyter-demo.html`).
 
 ```python
 # In your own notebook:
