@@ -1138,9 +1138,6 @@
     ],
     "adapter_transforms": [
       {
-        "type": "BilogY"
-      },
-      {
         "type": "StandardizeY",
         "Ymean": {
           "CO2_byproduct": 210.16129032258064,
@@ -1169,14 +1166,844 @@
           "minimize": false
         }
       ]
-    }
+    },
+    "observations": [
+      {
+        "arm_name": "0_0",
+        "parameters": {
+          "culture_volume": 90.0,
+          "bioreactor_vol": 9.025,
+          "culture_temp": 298.0,
+          "aeration_rate": 9.025,
+          "agitator_power": 0.255,
+          "substrate_feed_conc": 600.0,
+          "substrate_feed_rate": 5.75
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 314.0
+          },
+          "fermentation_time": {
+            "mean": 47.04080286015856
+          },
+          "penicillin_yield": {
+            "mean": -10.988702173357101
+          }
+        }
+      },
+      {
+        "arm_name": "10_0",
+        "parameters": {
+          "culture_volume": 120.0,
+          "bioreactor_vol": 0.05,
+          "culture_temp": 293.0,
+          "aeration_rate": 9.296489622615306,
+          "agitator_power": 0.5,
+          "substrate_feed_conc": 700.0,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 335.0
+          },
+          "fermentation_time": {
+            "mean": 82.13492605970046
+          },
+          "penicillin_yield": {
+            "mean": -13.820955009453957
+          }
+        }
+      },
+      {
+        "arm_name": "11_0",
+        "parameters": {
+          "culture_volume": 60.0,
+          "bioreactor_vol": 18.0,
+          "culture_temp": 293.0,
+          "aeration_rate": 0.05,
+          "agitator_power": 0.3786607955234735,
+          "substrate_feed_conc": 500.0,
+          "substrate_feed_rate": 6.5
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 330.0
+          },
+          "fermentation_time": {
+            "mean": 55.08244197435368
+          },
+          "penicillin_yield": {
+            "mean": -11.19878336827005
+          }
+        }
+      },
+      {
+        "arm_name": "12_0",
+        "parameters": {
+          "culture_volume": 60.0,
+          "bioreactor_vol": 18.0,
+          "culture_temp": 293.0,
+          "aeration_rate": 18.0,
+          "agitator_power": 0.3845535867896108,
+          "substrate_feed_conc": 700.0,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 358.0
+          },
+          "fermentation_time": {
+            "mean": 80.92033575677932
+          },
+          "penicillin_yield": {
+            "mean": -12.788307776641636
+          }
+        }
+      },
+      {
+        "arm_name": "13_0",
+        "parameters": {
+          "culture_volume": 60.0,
+          "bioreactor_vol": 18.0,
+          "culture_temp": 293.0,
+          "aeration_rate": 18.0,
+          "agitator_power": 0.07161020252552437,
+          "substrate_feed_conc": 700.0,
+          "substrate_feed_rate": 6.5
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 290.0
+          },
+          "fermentation_time": {
+            "mean": 65.9380728901508
+          },
+          "penicillin_yield": {
+            "mean": -12.85727092139666
+          }
+        }
+      },
+      {
+        "arm_name": "14_0",
+        "parameters": {
+          "culture_volume": 60.0,
+          "bioreactor_vol": 0.05,
+          "culture_temp": 293.0,
+          "aeration_rate": 18.0,
+          "agitator_power": 0.354721546415329,
+          "substrate_feed_conc": 500.0,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 305.0
+          },
+          "fermentation_time": {
+            "mean": 57.68778873641581
+          },
+          "penicillin_yield": {
+            "mean": -10.067524310351338
+          }
+        }
+      },
+      {
+        "arm_name": "15_0",
+        "parameters": {
+          "culture_volume": 60.0,
+          "bioreactor_vol": 18.0,
+          "culture_temp": 293.0,
+          "aeration_rate": 0.05,
+          "agitator_power": 0.5,
+          "substrate_feed_conc": 500.0,
+          "substrate_feed_rate": 6.5
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 3.0
+          },
+          "fermentation_time": {
+            "mean": 0.3780514338120844
+          },
+          "penicillin_yield": {
+            "mean": -0.05970367941901477
+          }
+        }
+      },
+      {
+        "arm_name": "16_0",
+        "parameters": {
+          "culture_volume": 60.0,
+          "bioreactor_vol": 18.0,
+          "culture_temp": 293.0,
+          "aeration_rate": 18.0,
+          "agitator_power": 0.44305431821267705,
+          "substrate_feed_conc": 700.0,
+          "substrate_feed_rate": 6.5
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 351.0
+          },
+          "fermentation_time": {
+            "mean": 80.40256474993944
+          },
+          "penicillin_yield": {
+            "mean": -13.313711542565793
+          }
+        }
+      },
+      {
+        "arm_name": "17_0",
+        "parameters": {
+          "culture_volume": 95.57359668360213,
+          "bioreactor_vol": 0.05,
+          "culture_temp": 293.0,
+          "aeration_rate": 18.0,
+          "agitator_power": 0.2731956383031798,
+          "substrate_feed_conc": 500.0,
+          "substrate_feed_rate": 6.5
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 307.0
+          },
+          "fermentation_time": {
+            "mean": 54.97827682049906
+          },
+          "penicillin_yield": {
+            "mean": -11.345852787512397
+          }
+        }
+      },
+      {
+        "arm_name": "18_0",
+        "parameters": {
+          "culture_volume": 120.0,
+          "bioreactor_vol": 18.0,
+          "culture_temp": 293.0,
+          "aeration_rate": 0.05,
+          "agitator_power": 0.2826500747886887,
+          "substrate_feed_conc": 500.0,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 319.0
+          },
+          "fermentation_time": {
+            "mean": 52.63912098147318
+          },
+          "penicillin_yield": {
+            "mean": -11.092763017869114
+          }
+        }
+      },
+      {
+        "arm_name": "19_0",
+        "parameters": {
+          "culture_volume": 60.0,
+          "bioreactor_vol": 18.0,
+          "culture_temp": 293.0,
+          "aeration_rate": 0.05,
+          "agitator_power": 0.4543568366134556,
+          "substrate_feed_conc": 500.0,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 3.0
+          },
+          "fermentation_time": {
+            "mean": 0.3326663876748145
+          },
+          "penicillin_yield": {
+            "mean": -0.06014146532845794
+          }
+        }
+      },
+      {
+        "arm_name": "1_0",
+        "parameters": {
+          "culture_volume": 66.25801088288426,
+          "bioreactor_vol": 12.335324419522658,
+          "culture_temp": 300.51322949305177,
+          "aeration_rate": 15.90226907506585,
+          "agitator_power": 0.1971506217867136,
+          "substrate_feed_conc": 504.7986911609769,
+          "substrate_feed_rate": 5.515919690951705
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 280.0
+          },
+          "fermentation_time": {
+            "mean": 31.140098246216212
+          },
+          "penicillin_yield": {
+            "mean": -9.603070046078967
+          }
+        }
+      },
+      {
+        "arm_name": "20_0",
+        "parameters": {
+          "culture_volume": 60.0,
+          "bioreactor_vol": 0.05,
+          "culture_temp": 293.0,
+          "aeration_rate": 18.0,
+          "agitator_power": 0.25621954778847894,
+          "substrate_feed_conc": 700.0,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 327.0
+          },
+          "fermentation_time": {
+            "mean": 81.98046731100466
+          },
+          "penicillin_yield": {
+            "mean": -12.017641490888872
+          }
+        }
+      },
+      {
+        "arm_name": "21_0",
+        "parameters": {
+          "culture_volume": 60.0,
+          "bioreactor_vol": 0.05,
+          "culture_temp": 293.0,
+          "aeration_rate": 18.0,
+          "agitator_power": 0.4013421787877121,
+          "substrate_feed_conc": 500.0,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 305.0
+          },
+          "fermentation_time": {
+            "mean": 57.950251516562794
+          },
+          "penicillin_yield": {
+            "mean": -10.884917532044087
+          }
+        }
+      },
+      {
+        "arm_name": "22_0",
+        "parameters": {
+          "culture_volume": 60.0,
+          "bioreactor_vol": 18.0,
+          "culture_temp": 303.0,
+          "aeration_rate": 18.0,
+          "agitator_power": 0.290618474244211,
+          "substrate_feed_conc": 700.0,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 303.0
+          },
+          "fermentation_time": {
+            "mean": 42.524370328780364
+          },
+          "penicillin_yield": {
+            "mean": -10.150587631656137
+          }
+        }
+      },
+      {
+        "arm_name": "23_0",
+        "parameters": {
+          "culture_volume": 120.0,
+          "bioreactor_vol": 18.0,
+          "culture_temp": 303.0,
+          "aeration_rate": 18.0,
+          "agitator_power": 0.06800773462422971,
+          "substrate_feed_conc": 500.0,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 5.0
+          },
+          "fermentation_time": {
+            "mean": 1.3206844053762212
+          },
+          "penicillin_yield": {
+            "mean": -0.011383251853906762
+          }
+        }
+      },
+      {
+        "arm_name": "24_0",
+        "parameters": {
+          "culture_volume": 60.0,
+          "bioreactor_vol": 18.0,
+          "culture_temp": 303.0,
+          "aeration_rate": 18.0,
+          "agitator_power": 0.3754863763103625,
+          "substrate_feed_conc": 500.0,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 285.0
+          },
+          "fermentation_time": {
+            "mean": 29.771451051899458
+          },
+          "penicillin_yield": {
+            "mean": -8.843905230526635
+          }
+        }
+      },
+      {
+        "arm_name": "25_0",
+        "parameters": {
+          "culture_volume": 60.0,
+          "bioreactor_vol": 18.0,
+          "culture_temp": 303.0,
+          "aeration_rate": 18.0,
+          "agitator_power": 0.01,
+          "substrate_feed_conc": 500.0,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 5.0
+          },
+          "fermentation_time": {
+            "mean": 1.2776197971599876
+          },
+          "penicillin_yield": {
+            "mean": -0.0151230713791189
+          }
+        }
+      },
+      {
+        "arm_name": "26_0",
+        "parameters": {
+          "culture_volume": 120.0,
+          "bioreactor_vol": 18.0,
+          "culture_temp": 293.0,
+          "aeration_rate": 0.05,
+          "agitator_power": 0.09546785869417626,
+          "substrate_feed_conc": 695.9195882799022,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 304.0
+          },
+          "fermentation_time": {
+            "mean": 62.72864191379832
+          },
+          "penicillin_yield": {
+            "mean": -12.309110980320927
+          }
+        }
+      },
+      {
+        "arm_name": "27_0",
+        "parameters": {
+          "culture_volume": 60.0,
+          "bioreactor_vol": 0.05,
+          "culture_temp": 293.0,
+          "aeration_rate": 0.05,
+          "agitator_power": 0.41390683206112155,
+          "substrate_feed_conc": 500.0,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 3.0
+          },
+          "fermentation_time": {
+            "mean": 0.0024341770418220654
+          },
+          "penicillin_yield": {
+            "mean": -0.0001667349428665389
+          }
+        }
+      },
+      {
+        "arm_name": "28_0",
+        "parameters": {
+          "culture_volume": 60.0,
+          "bioreactor_vol": 0.05,
+          "culture_temp": 293.0,
+          "aeration_rate": 0.05,
+          "agitator_power": 0.3951627927063143,
+          "substrate_feed_conc": 602.7678383174219,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 3.0
+          },
+          "fermentation_time": {
+            "mean": 0.0024425038312971123
+          },
+          "penicillin_yield": {
+            "mean": -0.00016537578187175763
+          }
+        }
+      },
+      {
+        "arm_name": "29_0",
+        "parameters": {
+          "culture_volume": 60.0,
+          "bioreactor_vol": 0.05,
+          "culture_temp": 293.0,
+          "aeration_rate": 0.05,
+          "agitator_power": 0.5,
+          "substrate_feed_conc": 572.0434147313761,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 2.0
+          },
+          "fermentation_time": {
+            "mean": 0.0015085531005961136
+          },
+          "penicillin_yield": {
+            "mean": -0.00016592112355506353
+          }
+        }
+      },
+      {
+        "arm_name": "2_0",
+        "parameters": {
+          "culture_volume": 102.07989513874054,
+          "bioreactor_vol": 5.973184563731774,
+          "culture_temp": 293.3644657507539,
+          "aeration_rate": 6.646111942548305,
+          "agitator_power": 0.2883910004422069,
+          "substrate_feed_conc": 695.6671725958586,
+          "substrate_feed_rate": 5.784760326612741
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 354.0
+          },
+          "fermentation_time": {
+            "mean": 77.79184658423789
+          },
+          "penicillin_yield": {
+            "mean": -12.803560060721146
+          }
+        }
+      },
+      {
+        "arm_name": "30_0",
+        "parameters": {
+          "culture_volume": 60.0,
+          "bioreactor_vol": 0.05,
+          "culture_temp": 293.0,
+          "aeration_rate": 0.05,
+          "agitator_power": 0.5,
+          "substrate_feed_conc": 647.6861820144753,
+          "substrate_feed_rate": 6.5
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 2.0
+          },
+          "fermentation_time": {
+            "mean": 0.0016861004814255588
+          },
+          "penicillin_yield": {
+            "mean": -0.00016534255163152607
+          }
+        }
+      },
+      {
+        "arm_name": "31_0",
+        "parameters": {
+          "culture_volume": 61.94275734276793,
+          "bioreactor_vol": 4.493359709835532,
+          "culture_temp": 293.0,
+          "aeration_rate": 5.452032956482413,
+          "agitator_power": 0.5,
+          "substrate_feed_conc": 680.4940535637318,
+          "substrate_feed_rate": 5.787258293164839
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 357.0
+          },
+          "fermentation_time": {
+            "mean": 80.13129151961337
+          },
+          "penicillin_yield": {
+            "mean": -12.390210036196374
+          }
+        }
+      },
+      {
+        "arm_name": "32_0",
+        "parameters": {
+          "culture_volume": 120.0,
+          "bioreactor_vol": 18.0,
+          "culture_temp": 293.0,
+          "aeration_rate": 18.0,
+          "agitator_power": 0.3097283558479074,
+          "substrate_feed_conc": 700.0,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 340.0
+          },
+          "fermentation_time": {
+            "mean": 78.01751512321614
+          },
+          "penicillin_yield": {
+            "mean": -12.545319370162913
+          }
+        }
+      },
+      {
+        "arm_name": "33_0",
+        "parameters": {
+          "culture_volume": 120.0,
+          "bioreactor_vol": 18.0,
+          "culture_temp": 293.0,
+          "aeration_rate": 6.323372486693234,
+          "agitator_power": 0.5,
+          "substrate_feed_conc": 700.0,
+          "substrate_feed_rate": 6.5
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 348.0
+          },
+          "fermentation_time": {
+            "mean": 79.26099030350038
+          },
+          "penicillin_yield": {
+            "mean": -13.403014002954396
+          }
+        }
+      },
+      {
+        "arm_name": "34_0",
+        "parameters": {
+          "culture_volume": 60.0,
+          "bioreactor_vol": 18.0,
+          "culture_temp": 293.0,
+          "aeration_rate": 0.05,
+          "agitator_power": 0.15933000212170567,
+          "substrate_feed_conc": 550.1916669843835,
+          "substrate_feed_rate": 6.499981725400847
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 323.0
+          },
+          "fermentation_time": {
+            "mean": 58.74515705269698
+          },
+          "penicillin_yield": {
+            "mean": -11.457453748650106
+          }
+        }
+      },
+      {
+        "arm_name": "35_0",
+        "parameters": {
+          "culture_volume": 120.0,
+          "bioreactor_vol": 18.0,
+          "culture_temp": 293.0,
+          "aeration_rate": 4.756537816233673,
+          "agitator_power": 0.38798770057836557,
+          "substrate_feed_conc": 500.0,
+          "substrate_feed_rate": 6.5
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 316.0
+          },
+          "fermentation_time": {
+            "mean": 53.22933710654731
+          },
+          "penicillin_yield": {
+            "mean": -11.007090454169957
+          }
+        }
+      },
+      {
+        "arm_name": "3_0",
+        "parameters": {
+          "culture_volume": 109.39854780212045,
+          "bioreactor_vol": 14.181004816200584,
+          "culture_temp": 298.9259326197207,
+          "aeration_rate": 9.927023949334398,
+          "agitator_power": 0.4773574133682996,
+          "substrate_feed_conc": 640.7828005030751,
+          "substrate_feed_rate": 5.322175104636699
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 317.0
+          },
+          "fermentation_time": {
+            "mean": 49.66151487174404
+          },
+          "penicillin_yield": {
+            "mean": -11.284633292858418
+          }
+        }
+      },
+      {
+        "arm_name": "4_0",
+        "parameters": {
+          "culture_volume": 89.0602046996355,
+          "bioreactor_vol": 3.6103920156136153,
+          "culture_temp": 296.6996569111943,
+          "aeration_rate": 3.475561739271506,
+          "agitator_power": 0.01882813767530024,
+          "substrate_feed_conc": 556.5548207610846,
+          "substrate_feed_rate": 6.377647655084729
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 6.0
+          },
+          "fermentation_time": {
+            "mean": 0.2956414728705493
+          },
+          "penicillin_yield": {
+            "mean": -0.021615063773808157
+          }
+        }
+      },
+      {
+        "arm_name": "5_0",
+        "parameters": {
+          "culture_volume": 107.99521075540657,
+          "bioreactor_vol": 5.807055624991278,
+          "culture_temp": 293.0,
+          "aeration_rate": 6.046802002953758,
+          "agitator_power": 0.18662710369866792,
+          "substrate_feed_conc": 700.0,
+          "substrate_feed_rate": 6.5
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 353.0
+          },
+          "fermentation_time": {
+            "mean": 77.90450138086025
+          },
+          "penicillin_yield": {
+            "mean": -14.494718340380665
+          }
+        }
+      },
+      {
+        "arm_name": "6_0",
+        "parameters": {
+          "culture_volume": 60.0,
+          "bioreactor_vol": 3.6425934545839627,
+          "culture_temp": 293.0,
+          "aeration_rate": 8.623347877917992,
+          "agitator_power": 0.5,
+          "substrate_feed_conc": 700.0,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 365.0
+          },
+          "fermentation_time": {
+            "mean": 83.35514500955219
+          },
+          "penicillin_yield": {
+            "mean": -13.044222755274522
+          }
+        }
+      },
+      {
+        "arm_name": "7_0",
+        "parameters": {
+          "culture_volume": 120.0,
+          "bioreactor_vol": 7.003577371374231,
+          "culture_temp": 293.0,
+          "aeration_rate": 3.590081144550625,
+          "agitator_power": 0.5,
+          "substrate_feed_conc": 700.0,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 366.0
+          },
+          "fermentation_time": {
+            "mean": 81.86089088825015
+          },
+          "penicillin_yield": {
+            "mean": -13.713905604283502
+          }
+        }
+      },
+      {
+        "arm_name": "8_0",
+        "parameters": {
+          "culture_volume": 105.77580245900036,
+          "bioreactor_vol": 5.0247262505637496,
+          "culture_temp": 293.0,
+          "aeration_rate": 10.39785320008446,
+          "agitator_power": 0.01,
+          "substrate_feed_conc": 700.0,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 10.0
+          },
+          "fermentation_time": {
+            "mean": 0.8422343722542512
+          },
+          "penicillin_yield": {
+            "mean": -0.014030004726938949
+          }
+        }
+      },
+      {
+        "arm_name": "9_0",
+        "parameters": {
+          "culture_volume": 60.0,
+          "bioreactor_vol": 9.67653926885379,
+          "culture_temp": 295.3254406615641,
+          "aeration_rate": 5.488245656435147,
+          "agitator_power": 0.01,
+          "substrate_feed_conc": 700.0,
+          "substrate_feed_rate": 5.0
+        },
+        "metrics": {
+          "CO2_byproduct": {
+            "mean": 5.0
+          },
+          "fermentation_time": {
+            "mean": 0.44902243552767185
+          },
+          "penicillin_yield": {
+            "mean": -0.05741726577050192
+          }
+        }
+      }
+    ]
   },
   "test": {
     "metadata": {
       "botorch_version": "0.17.2",
       "gpytorch_version": "1.15.2",
       "torch_version": "2.11.0.dev20260124",
-      "generated_at": "2026-03-16T08:41:38.934695+00:00",
+      "generated_at": "2026-03-17T01:34:28.365217+00:00",
       "seed": 42,
       "ax_pipeline": true
     },

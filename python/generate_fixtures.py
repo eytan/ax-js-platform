@@ -426,7 +426,7 @@ FIXTURE_SPECS = [
         name="vsip_modellist",
         benchmark="VSIP",
         model_class="ModelListGP",
-        n_train=30,
+        n_train=20,
         n_test=15,
         seed=79,
         n_outcomes=9,
@@ -711,16 +711,32 @@ def _generate_fixture(spec: FixtureSpec, benchmarks: dict) -> dict:
 def generate_all(
     output_dir: str = "test/fixtures",
     check: bool = False,
+    names: list[str] | None = None,
 ) -> None:
-    """Generate all fixtures and update manifest."""
+    """Generate all fixtures and update manifest.
+
+    Args:
+        names: If provided, only generate fixtures whose name matches.
+    """
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
+
+    if names:
+        name_set = set(names)
+        unknown = name_set - {s.name for s in FIXTURE_SPECS}
+        if unknown:
+            print(f"ERROR: Unknown fixture names: {unknown}", file=sys.stderr)
+            print(f"Available: {sorted(s.name for s in FIXTURE_SPECS)}", file=sys.stderr)
+            sys.exit(1)
+        specs = [s for s in FIXTURE_SPECS if s.name in name_set]
+    else:
+        specs = list(FIXTURE_SPECS)
 
     benchmarks = make_benchmarks()
     manifest_entries = []
     failed = []
 
-    for spec in FIXTURE_SPECS:
+    for spec in specs:
         filename = f"{spec.name}.json"
         filepath = out / filename
 
@@ -762,6 +778,17 @@ def generate_all(
             print(f"FAILED: {e}")
             failed.append(spec.name)
 
+    # When filtering by --names, merge with existing manifest entries
+    if names:
+        manifest_path = out / "manifest.json"
+        if manifest_path.exists():
+            with open(manifest_path) as f:
+                existing_manifest = json.load(f)
+            regenerated = {e["name"] for e in manifest_entries}
+            for entry in existing_manifest.get("fixtures", []):
+                if entry["name"] not in regenerated:
+                    manifest_entries.append(entry)
+
     # Sort by name for stability
     manifest_entries.sort(key=lambda e: e["name"])
 
@@ -770,16 +797,17 @@ def generate_all(
         json.dump(manifest, f, indent=2)
     print(f"\nManifest updated: {out / 'manifest.json'}")
 
-    # Spec↔manifest validation
-    spec_names = {s.name for s in FIXTURE_SPECS}
-    manifest_names = {e["name"] for e in manifest_entries}
-    missing = spec_names - manifest_names
-    if missing:
-        print(
-            f"ERROR: {len(missing)} specs not in manifest: {missing}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+    # Spec↔manifest validation (only when generating all)
+    if not names:
+        spec_names = {s.name for s in FIXTURE_SPECS}
+        manifest_names = {e["name"] for e in manifest_entries}
+        missing = spec_names - manifest_names
+        if missing:
+            print(
+                f"ERROR: {len(missing)} specs not in manifest: {missing}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
     if failed:
         print(f"ERROR: {len(failed)} fixtures failed: {failed}", file=sys.stderr)
@@ -798,5 +826,10 @@ if __name__ == "__main__":
         action="store_true",
         help="Check version compatibility without regenerating",
     )
+    parser.add_argument(
+        "--names",
+        nargs="+",
+        help="Only generate these fixtures (by name)",
+    )
     args = parser.parse_args()
-    generate_all(args.output_dir, args.check)
+    generate_all(args.output_dir, args.check, names=args.names)

@@ -16,4 +16,11 @@ export default defineConfig([
     sourcemap: false,
     clean: false,
   },
+  {
+    entry: ["src/acquisition/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/acquisition",
+    clean: false,
+  },
 ]);

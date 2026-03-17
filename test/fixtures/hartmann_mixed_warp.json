@@ -427,7 +427,7 @@
       "botorch_version": "0.17.2",
       "gpytorch_version": "1.15.2",
       "torch_version": "2.11.0.dev20260124",
-      "generated_at": "2026-03-16T15:28:45.992300+00:00",
+      "generated_at": "2026-03-17T03:14:12.308579+00:00",
       "seed": 61,
       "benchmark": "Hartmann"
     },

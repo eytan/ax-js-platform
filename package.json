@@ -11,6 +11,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./acquisition": {
+      "types": "./dist/acquisition/index.d.ts",
+      "import": "./dist/acquisition/index.js",
+      "require": "./dist/acquisition/index.cjs"
     }
   },
   "files": ["dist"],
