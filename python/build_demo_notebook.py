@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 """
-Build and export an ax-js demo notebook as HTML.
-
-Creates a Jupyter notebook that demonstrates all ax-js diagnostic
-visualizations using a real fixture, with pre-populated outputs.
-Exports to standalone HTML that works in any browser.
+Build the ax-js Jupyter demo notebook with pre-populated outputs.
 
 Usage:
     python python/build_demo_notebook.py
@@ -18,6 +14,7 @@ Output:
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import nbformat
@@ -27,49 +24,32 @@ ROOT = Path(__file__).parent.parent
 DIST = ROOT / "dist"
 FIXTURES = ROOT / "test" / "fixtures"
 
+# Make axjs_jupyter importable
+sys.path.insert(0, str(ROOT / "python"))
+from axjs_jupyter import _load_bundles, _render, _SETUP_DONE
+import axjs_jupyter  # noqa: E402
 
-def _load_fixture(name: str = "penicillin_modellist.json") -> dict:
+
+def _load_fixture(name="penicillin_modellist.json"):
     data = json.loads((FIXTURES / name).read_text())
     return data["experiment"] if "experiment" in data else data
 
 
-def _viz_html(viz_code: str, cid: str, width: str = "100%",
-              height: str = "400px", title: str = "") -> str:
-    """Build HTML for a viz cell (bundles + data loaded in setup cell)."""
-    title_html = (
-        f'<div style="color:#aaa;font-size:14px;font-weight:500;'
-        f'margin-bottom:8px">{title}</div>'
-        if title else ""
-    )
-    return (
-        f"{title_html}"
-        f'<div id="{cid}" style="width:{width};min-height:{height};'
-        f'position:relative;background:#0f0f11;border-radius:8px;'
-        f'overflow:visible;padding:12px"></div>'
-        f"<script>(function(){{"
-        f"var c=document.getElementById('{cid}');"
-        f"var p=new Ax.Predictor(window.__AXJS_STATE__);"
-        f"{viz_code}"
-        f"}})()</script>"
-    )
-
-
-def _output(html: str):
+def _output(html):
     return nbformat.v4.new_output(
         output_type="display_data", data={"text/html": html}
     )
 
 
-def _viz_cell(viz_code: str, cid: str, **kw) -> nbformat.NotebookNode:
-    html = _viz_html(viz_code, cid, **kw)
-    cell = new_code_cell(f"display(HTML('''{html}'''))")
+def _viz_cell(code, viz_call, state, **render_kw):
+    cell = new_code_cell(code)
+    html = _render(viz_call, use_global_state=True, state=state, **render_kw)
     cell.outputs = [_output(html)]
     return cell
 
 
-def build_notebook() -> nbformat.NotebookNode:
-    ax_js = (DIST / "ax.js").read_text()
-    viz_js = (DIST / "ax-viz.js").read_text()
+def build_notebook():
+    ax_js, viz_js = _load_bundles()
     state = _load_fixture("penicillin_modellist.json")
     state_json = json.dumps(state)
     outcomes = state.get("outcome_names", ["y"])
@@ -79,17 +59,15 @@ def build_notebook() -> nbformat.NotebookNode:
         "display_name": "Python 3", "language": "python", "name": "python3"
     }
 
-    # Title
     nb.cells.append(new_markdown_cell(
-        "# ax-js Visualization Demo\n\n"
-        "Interactive GP diagnostics rendered client-side. "
-        "All predictions computed in JavaScript — no Python backend required.\n\n"
+        "# ax-js Jupyter Demo\n\n"
+        "Interactive GP diagnostics rendered client-side.\n\n"
         f"**Fixture**: Penicillin benchmark ({len(outcomes)} outcomes: "
         f"{', '.join(outcomes)})\n\n"
         "Export with `jupyter nbconvert --to html` for a standalone page."
     ))
 
-    # Setup cell — loads bundles + fixture data ONCE
+    # Setup
     setup_html = (
         f"<script>\n{ax_js}\n{viz_js}\n"
         f"window.__AXJS_STATE__={state_json};\n"
@@ -98,75 +76,59 @@ def build_notebook() -> nbformat.NotebookNode:
         f"ax-js loaded. {len(outcomes)} outcomes available.</div>"
     )
     setup_cell = new_code_cell(
-        "from IPython.display import display, HTML\n\n"
-        "# Load ax-js bundles and fixture data\n"
-        "display(HTML(setup_html))"
+        "import sys; sys.path.insert(0, 'python')\n"
+        "from axjs_jupyter import setup_axjs\n"
+        "import json\n\n"
+        "state = json.load(open('test/fixtures/penicillin_modellist.json'))['experiment']\n"
+        "setup_axjs(state)"
     )
     setup_cell.outputs = [_output(setup_html)]
+    axjs_jupyter._SETUP_DONE = True  # so subsequent _render calls skip bundle inlining
     nb.cells.append(setup_cell)
 
-    # Slice plots (interactive: outcome selector + sliders)
-    nb.cells.append(new_markdown_cell(
-        "## 1D Slice Plots\n"
-        "Posterior mean ± 2σ along each parameter dimension. "
-        "Use the sliders to adjust the fixed values of non-plotted dimensions."
-    ))
-    nb.cells.append(_viz_cell(
-        'Ax.viz.renderSlicePlot(c,p,{interactive:true});',
-        "sp_0", height="600px",
-    ))
+    import_cell = new_code_cell(
+        "from axjs_jupyter import (\n"
+        "    slice_plot, response_surface,\n"
+        "    feature_importance, cross_validation, optimization_trace,\n"
+        ")"
+    )
+    import_cell.outputs = []
+    nb.cells.append(import_cell)
 
-    # Response surface (interactive: axis selectors + sliders)
-    nb.cells.append(new_markdown_cell(
-        "## 2D Response Surface\n"
-        "Posterior mean heatmap with training points. "
-        "Select axes and adjust non-plotted dimensions with sliders."
-    ))
+    nb.cells.append(new_markdown_cell("## 1D Slice Plots"))
     nb.cells.append(_viz_cell(
-        'Ax.viz.renderResponseSurface(c,p,{interactive:true,width:400,height:400});',
-        "rs_0", width="500px", height="520px",
-    ))
+        "slice_plot()", 'Ax.viz.renderSlicePlot(c,p,{interactive:true});',
+        state, height="600px"))
 
-    # Feature importance (interactive: outcome selector + tooltips)
-    nb.cells.append(new_markdown_cell(
-        "## Feature Importance\n"
-        "Dimension importance from kernel lengthscales (shorter = more important)."
-    ))
+    nb.cells.append(new_markdown_cell("## 2D Response Surface"))
     nb.cells.append(_viz_cell(
+        "response_surface()",
+        'Ax.viz.renderResponseSurface(c,p,{interactive:true,width:460,height:460});',
+        state, width="500px", height="520px"))
+
+    nb.cells.append(new_markdown_cell("## Feature Importance"))
+    nb.cells.append(_viz_cell(
+        "feature_importance()",
         'Ax.viz.renderFeatureImportance(c,p,{interactive:true});',
-        "fi_0", height="280px",
-    ))
+        state, width="500px", height="280px"))
 
-    # Cross-validation (interactive: outcome selector + tooltips)
-    nb.cells.append(new_markdown_cell(
-        "## Leave-One-Out Cross-Validation\n"
-        "Observed vs predicted with ±2σ confidence intervals and R²."
-    ))
+    nb.cells.append(new_markdown_cell("## Leave-One-Out Cross-Validation"))
     nb.cells.append(_viz_cell(
-        'Ax.viz.renderCrossValidation(c,p,{interactive:true,'
-        'width:c.offsetWidth||400,height:c.offsetHeight||380});',
-        "cv_0", width="450px", height="450px",
-    ))
+        "cross_validation()",
+        'Ax.viz.renderCrossValidation(c,p,{interactive:true,width:460,height:460});',
+        state, width="500px", height="500px"))
 
-    # Optimization trace (interactive: outcome selector + tooltips)
-    nb.cells.append(new_markdown_cell(
-        "## Optimization Trace\n"
-        "Trial progression with running best-so-far."
-    ))
+    nb.cells.append(new_markdown_cell("## Optimization Trace"))
     nb.cells.append(_viz_cell(
-        'Ax.viz.renderOptimizationTrace(c,p,{interactive:true,'
-        'width:c.offsetWidth||650,height:c.offsetHeight||350});',
-        "ot_0", width="700px", height="420px",
-    ))
+        "optimization_trace()",
+        'Ax.viz.renderOptimizationTrace(c,p,{interactive:true,width:660,height:380});',
+        state, width="700px", height="420px"))
 
-    # About
     nb.cells.append(new_markdown_cell(
         "---\n## About\n\n"
         "All visualizations rendered by "
         "[ax-js](https://github.com/eytan/ax-js-platform). "
-        "GP predictions computed entirely in JavaScript from an exported "
-        "BoTorch model state.\n\n"
-        "**Bundle sizes**: ax.js (70KB) + ax-viz.js (20KB) = 90KB total."
+        "GP predictions computed entirely in JavaScript."
     ))
 
     return nb
@@ -187,8 +149,7 @@ def main():
         html_path.write_text(body)
         print(f"HTML: {html_path} ({html_path.stat().st_size // 1024}KB)")
 
-        # Verify
-        for tag in ["sp_0", "rs_0", "fi_0", "cv_0", "ot_0", "Ax.Predictor", "renderSlicePlot", "renderResponseSurface"]:
+        for tag in ["Ax.Predictor", "renderSlicePlot", "renderResponseSurface"]:
             assert tag in body, f"Missing: {tag}"
         print("Verification: all expected content present")
     except ImportError:
