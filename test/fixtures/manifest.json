@@ -1,0 +1,229 @@
+{
+  "fixtures": [
+    {
+      "name": "ax_branin_bilogy",
+      "file": "ax_branin_bilogy.json",
+      "description": "Ax-level: SingleTaskGP + BilogY adapter transform"
+    },
+    {
+      "name": "ax_branin_bilogy_standardize",
+      "file": "ax_branin_bilogy_standardize.json",
+      "description": "Ax-level: SingleTaskGP + BilogY adapter + Standardize model"
+    },
+    {
+      "name": "ax_branin_log_standardize",
+      "file": "ax_branin_log_standardize.json",
+      "description": "Ax-level: LogY adapter + Standardize model outcome transform"
+    },
+    {
+      "name": "ax_branin_logy",
+      "file": "ax_branin_logy.json",
+      "description": "Ax-level: SingleTaskGP + LogY adapter transform"
+    },
+    {
+      "name": "ax_branin_powery",
+      "file": "ax_branin_powery.json",
+      "description": "Ax-level: SingleTaskGP + PowerTransformY adapter"
+    },
+    {
+      "name": "ax_branin_standardizey",
+      "file": "ax_branin_standardizey.json",
+      "description": "Ax-level: SingleTaskGP + StandardizeY adapter transform"
+    },
+    {
+      "name": "ax_branincurrin_batched",
+      "file": "ax_branincurrin_batched.json",
+      "description": "Ax-level: batched SingleTaskGP (Ax default MOO) \u2192 ModelListGP"
+    },
+    {
+      "name": "ax_branincurrin_logy",
+      "file": "ax_branincurrin_logy.json",
+      "description": "Ax-level: ModelListGP + LogY on both metrics"
+    },
+    {
+      "name": "ax_branincurrin_relative",
+      "file": "ax_branincurrin_relative.json",
+      "description": "Ax-level: ModelListGP + status quo for multi-output relativization"
+    },
+    {
+      "name": "ax_multitask_all_tasks",
+      "file": "ax_multitask_all_tasks.json",
+      "description": "Ax-level: MultiTaskGP with predictions for all tasks"
+    },
+    {
+      "name": "ax_multitask_relative",
+      "file": "ax_multitask_relative.json",
+      "description": "Ax-level: MultiTaskGP + status quo for relativization"
+    },
+    {
+      "name": "branin_1pt",
+      "file": "branin_1pt.json",
+      "description": "Branin 2D, edge case: n_train=1"
+    },
+    {
+      "name": "branin_additive",
+      "file": "branin_additive.json",
+      "description": "Branin 2D, AdditiveKernel(Matern(x0) + Matern(x1))"
+    },
+    {
+      "name": "branin_bilog",
+      "file": "branin_bilog.json",
+      "description": "Branin 2D, Bilog outcome transform (consistency test only)"
+    },
+    {
+      "name": "branin_chained_log_std",
+      "file": "branin_chained_log_std.json",
+      "description": "Branin 2D, Chained(Log, Standardize) outcome transform"
+    },
+    {
+      "name": "branin_fixed_noise",
+      "file": "branin_fixed_noise.json",
+      "description": "Branin 2D, FixedNoiseGP with per-point noise"
+    },
+    {
+      "name": "branin_heteroscedastic",
+      "file": "branin_heteroscedastic.json",
+      "description": "Branin 2D, FixedNoiseGP with heteroscedastic noise (var \u221d |y|)"
+    },
+    {
+      "name": "branin_log",
+      "file": "branin_log.json",
+      "description": "Branin 2D, Log outcome transform (exact log-normal moments)"
+    },
+    {
+      "name": "branin_matern05",
+      "file": "branin_matern05.json",
+      "description": "Branin 2D, Mat\u00e9rn \u03bd=0.5 (exponential kernel)"
+    },
+    {
+      "name": "branin_matern15",
+      "file": "branin_matern15.json",
+      "description": "Branin 2D, Mat\u00e9rn \u03bd=1.5"
+    },
+    {
+      "name": "branin_matern25",
+      "file": "branin_matern25.json",
+      "description": "Branin 2D, Mat\u00e9rn 5/2, ARD, Normalize+Standardize"
+    },
+    {
+      "name": "branin_multitask",
+      "file": "branin_multitask.json",
+      "description": "Branin 2D, MultiTaskGP with 2 tasks (ICM)"
+    },
+    {
+      "name": "branin_pairwise",
+      "file": "branin_pairwise.json",
+      "description": "Branin 2D, PairwiseGP (BOPE), Laplace+LU"
+    },
+    {
+      "name": "branin_power",
+      "file": "branin_power.json",
+      "description": "Branin 2D, Power(\u03bb=0.5) outcome transform (consistency test only)"
+    },
+    {
+      "name": "branin_rbf",
+      "file": "branin_rbf.json",
+      "description": "Branin 2D, RBF kernel (BoTorch 0.16 default)"
+    },
+    {
+      "name": "branin_relative",
+      "file": "branin_relative.json",
+      "description": "Branin 2D, SingleTaskGP + relativize vs center status quo"
+    },
+    {
+      "name": "branin_relative_fixed_noise",
+      "file": "branin_relative_fixed_noise.json",
+      "description": "Branin 2D, FixedNoiseGP + relativize vs center (noisy)"
+    },
+    {
+      "name": "branin_warp",
+      "file": "branin_warp.json",
+      "description": "Branin 2D, Kumaraswamy input warping"
+    },
+    {
+      "name": "branincurrin_fixednoise_modellist",
+      "file": "branincurrin_fixednoise_modellist.json",
+      "description": "BraninCurrin 2D, ModelListGP with FixedNoiseGP sub-models"
+    },
+    {
+      "name": "branincurrin_modellist",
+      "file": "branincurrin_modellist.json",
+      "description": "BraninCurrin 2D, ModelListGP with 2 outcomes"
+    },
+    {
+      "name": "branincurrin_warp_fixednoise_modellist",
+      "file": "branincurrin_warp_fixednoise_modellist.json",
+      "description": "BraninCurrin 2D, ModelListGP + FixedNoise + Warp + heteroscedastic"
+    },
+    {
+      "name": "c2dtlz2_constrained_moo",
+      "file": "c2dtlz2_constrained_moo.json",
+      "description": "C2DTLZ2: 4D, 2 objectives + 1 constraint, constrained MOO"
+    },
+    {
+      "name": "discbrake_constrained_moo",
+      "file": "discbrake_constrained_moo.json",
+      "description": "DiscBrake: 4D, 2 obj + 4 constraints, engineering MOO"
+    },
+    {
+      "name": "hartmann_6d",
+      "file": "hartmann_6d.json",
+      "description": "Hartmann 6D, strong ARD lengthscales"
+    },
+    {
+      "name": "hartmann_integer",
+      "file": "hartmann_integer.json",
+      "description": "Hartmann 6D, dims 4-5 as integer [0,4]"
+    },
+    {
+      "name": "hartmann_mixed",
+      "file": "hartmann_mixed.json",
+      "description": "Hartmann 6D, Product(Mat\u00e9rn(dims 0-3) * Categorical(dims 4-5))"
+    },
+    {
+      "name": "hartmann_mixed_warp",
+      "file": "hartmann_mixed_warp.json",
+      "description": "Hartmann 6D, 2 cat dims + warp on cont dims"
+    },
+    {
+      "name": "multitask_mixed",
+      "file": "multitask_mixed.json",
+      "description": "Branin 2D, MultiTaskGP + categorical dim"
+    },
+    {
+      "name": "multitask_warp",
+      "file": "multitask_warp.json",
+      "description": "Branin 2D, MultiTaskGP + input warping"
+    },
+    {
+      "name": "pairwise_warp",
+      "file": "pairwise_warp.json",
+      "description": "Branin 2D, PairwiseGP + input warping"
+    },
+    {
+      "name": "pressure_vessel_constrained",
+      "file": "pressure_vessel_constrained.json",
+      "description": "PressureVessel: 4D, 1 obj + 4 constraints, engineering design"
+    },
+    {
+      "name": "saas_highdim_map",
+      "file": "saas_highdim_map.json",
+      "description": "20D (6 signal + 14 noise), multi-restart MAP ensemble"
+    },
+    {
+      "name": "saas_highdim_nuts",
+      "file": "saas_highdim_nuts.json",
+      "description": "20D (6 signal + 14 noise), fully Bayesian SAAS (NUTS)"
+    },
+    {
+      "name": "trajectory_planning_30d",
+      "file": "trajectory_planning_30d.json",
+      "description": "TrajectoryPlanning: 30D, high-dimensional single objective"
+    },
+    {
+      "name": "vsip_modellist",
+      "file": "vsip_modellist.json",
+      "description": "Vehicle Side-Impact 7D, ModelListGP with 9 outcomes (3 obj + 6 con)"
+    }
+  ]
+}

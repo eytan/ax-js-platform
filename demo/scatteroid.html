@@ -1,0 +1,3498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>axjs — Multi-Outcome Scatterplot</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #0f0f11; color: #e0e0e0;
+  padding: 1.5rem 2rem; min-height: 100vh;
+}
+h1 { font-size: 17px; font-weight: 500; color: #f0f0f0; margin-bottom: 3px; }
+.subtitle { font-size: 12px; color: #777; margin-bottom: 16px; }
+.controls {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;
+}
+label { font-size: 13px; color: #aaa; }
+select, button {
+  font-size: 13px; padding: 4px 9px; border-radius: 6px;
+  border: 0.5px solid #444; background: #1a1a1d; color: #e0e0e0; cursor: pointer; outline: none;
+}
+button:hover { background: #252528; }
+.cb-label { font-size: 13px; color: #aaa; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.main-area { display: flex; gap: 20px; align-items: flex-start; }
+.scatter-wrap { position: relative; flex-shrink: 0; }
+#scatterSvg { display: block; }
+.right-panel {
+  background: #141418; border: 0.5px solid #222; border-radius: 8px;
+  padding: 14px 16px; flex-shrink: 0;
+}
+.rp-title {
+  font-size: 11px; color: #555; letter-spacing: 0.06em;
+  text-transform: uppercase; margin-bottom: 14px;
+}
+#rpBars svg { display: block; }
+.slider-section {
+  border-top: 0.5px solid #2a2a30; margin-top: 14px; padding-top: 12px;
+}
+.slider-section .section-title {
+  font-size: 11px; color: #555; letter-spacing: 0.06em;
+  text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+}
+.clone-btn {
+  font-size: 10px; padding: 2px 8px; border-radius: 4px;
+  border: 0.5px solid #555; background: #1e1e24; color: #aaa; cursor: pointer;
+  text-transform: none; letter-spacing: 0;
+}
+.clone-btn:hover { background: #2a2a30; color: #ddd; }
+.param-row {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 5px;
+}
+.param-row label {
+  font-size: 10px; color: #777; width: 100px; text-align: right; flex-shrink: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.param-row input[type=range] {
+  flex: 1; height: 4px; -webkit-appearance: none; appearance: none;
+  background: #2a2a30; border-radius: 2px; outline: none; cursor: pointer;
+}
+.param-row input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 12px; height: 12px;
+  border-radius: 50%; background: #7c8cc8; cursor: pointer; border: none;
+}
+.param-row input[type=range]:disabled { opacity: 0.4; cursor: default; }
+.param-row input[type=range]:disabled::-webkit-slider-thumb { background: #666; cursor: default; }
+.param-row .param-val {
+  font-size: 10px; color: #888; width: 42px; text-align: left; flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.delete-btn {
+  font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: auto;
+  border: 0.5px solid #555; background: #2a1a1a; color: #c66; cursor: pointer;
+  text-transform: none; letter-spacing: 0;
+}
+.delete-btn:hover { background: #3a2020; color: #f88; }
+</style>
+</head>
+<body>
+
+<h1>Multi-Outcome Scatterplot</h1>
+<p class="subtitle" id="subtitle">Training arms relativized vs status quo</p>
+
+<div class="controls">
+  <label>X axis <select id="selX"></select></label>
+  <label>Y axis <select id="selY"></select></label>
+  <label style="margin-left:8px">Status Quo: <select id="selSQ"></select></label>
+  <label class="cb-label" style="margin-left:8px">
+    <input type="checkbox" id="cbNearby"> nearby points only
+  </label>
+  <button id="btnResample">resample ↺</button>
+</div>
+
+<div class="main-area">
+  <div class="scatter-wrap">
+    <svg id="scatterSvg" width="520" height="460"></svg>
+  </div>
+  <div class="right-panel" id="rightPanel">
+    <div class="rp-title" id="rpTitle">Click an arm to see all outcomes</div>
+    <div id="rpBars"></div>
+    <div id="rpSliders"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var axjs = (() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+  var __copyProps = (to, from, except, desc) => {
+    if (from && typeof from === "object" || typeof from === "function") {
+      for (let key of __getOwnPropNames(from))
+        if (!__hasOwnProp.call(to, key) && key !== except)
+          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    }
+    return to;
+  };
+  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+  // src/index.ts
+  var index_exports = {};
+  __export(index_exports, {
+    ActiveDimsKernel: () => ActiveDimsKernel,
+    AdditiveKernel: () => AdditiveKernel,
+    BilogUntransform: () => BilogUntransform,
+    CategoricalKernel: () => CategoricalKernel,
+    ChainedOutcomeUntransform: () => ChainedOutcomeUntransform,
+    ConstantMean: () => ConstantMean,
+    EUBO: () => EUBO,
+    EnsembleGP: () => EnsembleGP,
+    ExactGP: () => ExactGP,
+    ExpectedImprovement: () => ExpectedImprovement,
+    IndexKernel: () => IndexKernel,
+    InputNormalize: () => InputNormalize,
+    InputWarp: () => InputWarp,
+    LogExpectedImprovement: () => LogExpectedImprovement,
+    LogUntransform: () => LogUntransform,
+    MaternKernel: () => MaternKernel,
+    Matrix: () => Matrix,
+    ModelListGP: () => ModelListGP,
+    MultiTaskGP: () => MultiTaskGP,
+    MultitaskKernel: () => MultitaskKernel,
+    OutputUntransform: () => StandardizeUntransform,
+    PairwiseGP: () => PairwiseGP,
+    PowerUntransform: () => PowerUntransform,
+    Predictor: () => Predictor,
+    ProductKernel: () => ProductKernel,
+    RBFKernel: () => RBFKernel,
+    Rng: () => Rng,
+    ScaleKernel: () => ScaleKernel,
+    SingleTaskGP: () => SingleTaskGP,
+    StandardizeUntransform: () => StandardizeUntransform,
+    ThompsonSampling: () => ThompsonSampling,
+    UpperConfidenceBound: () => UpperConfidenceBound,
+    add: () => add,
+    backSolve: () => backSolve,
+    buildKernel: () => buildKernel,
+    buildOutcomeUntransform: () => buildOutcomeUntransform,
+    cdist: () => cdist,
+    cdistSquared: () => cdistSquared,
+    cholesky: () => cholesky,
+    createPairwiseGP: () => createPairwiseGP,
+    dot: () => dot,
+    forwardSolve: () => forwardSolve,
+    kernelDiag: () => kernelDiag,
+    loadModel: () => loadModel,
+    logNormalCdf: () => logNormalCdf,
+    logNormalPdf: () => logNormalPdf,
+    matmul: () => matmul,
+    normalCdf: () => normalCdf,
+    normalPdf: () => normalPdf,
+    optimizeAcqf: () => optimizeAcqf,
+    posteriorCovariance: () => posteriorCovariance,
+    posteriorMean: () => posteriorMean,
+    relativize: () => relativize,
+    relativizePredictions: () => relativizePredictions,
+    sampleMVN: () => sampleMVN,
+    scale: () => scale,
+    solveCholesky: () => solveCholesky,
+    solveLU: () => solveLU,
+    thompsonSamples: () => thompsonSamples,
+    transpose: () => transpose,
+    unrelativize: () => unrelativize
+  });
+
+  // src/linalg/matrix.ts
+  var Matrix = class _Matrix {
+    data;
+    rows;
+    cols;
+    constructor(rows, cols, data) {
+      this.rows = rows;
+      this.cols = cols;
+      this.data = data ?? new Float64Array(rows * cols);
+    }
+    static from2D(arr) {
+      const rows = arr.length;
+      const cols = arr[0]?.length ?? 0;
+      const m = new _Matrix(rows, cols);
+      for (let i = 0; i < rows; i++) {
+        for (let j = 0; j < cols; j++) {
+          m.data[i * cols + j] = arr[i][j];
+        }
+      }
+      return m;
+    }
+    static fromFlat(rows, cols, data) {
+      return new _Matrix(rows, cols, Float64Array.from(data));
+    }
+    static zeros(rows, cols) {
+      return new _Matrix(rows, cols);
+    }
+    static eye(n) {
+      const m = new _Matrix(n, n);
+      for (let i = 0; i < n; i++) m.data[i * n + i] = 1;
+      return m;
+    }
+    static vector(arr) {
+      return new _Matrix(arr.length, 1, Float64Array.from(arr));
+    }
+    get(i, j) {
+      return this.data[i * this.cols + j];
+    }
+    set(i, j, v) {
+      this.data[i * this.cols + j] = v;
+    }
+    row(i) {
+      return this.data.subarray(i * this.cols, (i + 1) * this.cols);
+    }
+    col(j) {
+      const c = new Float64Array(this.rows);
+      for (let i = 0; i < this.rows; i++) c[i] = this.data[i * this.cols + j];
+      return c;
+    }
+    addDiag(value) {
+      const n = Math.min(this.rows, this.cols);
+      for (let i = 0; i < n; i++) {
+        this.data[i * this.cols + i] += value;
+      }
+    }
+    addDiagVec(values) {
+      const n = Math.min(this.rows, this.cols, values.length);
+      for (let i = 0; i < n; i++) {
+        this.data[i * this.cols + i] += values[i];
+      }
+    }
+    clone() {
+      return new _Matrix(this.rows, this.cols, new Float64Array(this.data));
+    }
+    toArray() {
+      const result = [];
+      for (let i = 0; i < this.rows; i++) {
+        result.push(Array.from(this.row(i)));
+      }
+      return result;
+    }
+  };
+
+  // src/linalg/cholesky.ts
+  function cholesky(A) {
+    const result = choleskyRaw(A);
+    if (result !== null) return result;
+    const jitters = [1e-6, 1e-5, 1e-4, 1e-3];
+    for (const jitter of jitters) {
+      const Aj = A.clone();
+      Aj.addDiag(jitter);
+      const result2 = choleskyRaw(Aj);
+      if (result2 !== null) return result2;
+    }
+    throw new Error("Cholesky decomposition failed even with jitter 1e-3");
+  }
+  function choleskyRaw(A) {
+    const n = A.rows;
+    const L = Matrix.zeros(n, n);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j <= i; j++) {
+        let s = A.get(i, j);
+        for (let k = 0; k < j; k++) {
+          s -= L.get(i, k) * L.get(j, k);
+        }
+        if (i === j) {
+          if (s <= 0) return null;
+          L.set(i, j, Math.sqrt(s));
+        } else {
+          L.set(i, j, s / L.get(j, j));
+        }
+      }
+    }
+    return L;
+  }
+
+  // src/linalg/solve.ts
+  function forwardSolve(L, b) {
+    const n = L.rows;
+    const x = Matrix.zeros(n, b.cols);
+    for (let col = 0; col < b.cols; col++) {
+      for (let i = 0; i < n; i++) {
+        let s = b.get(i, col);
+        for (let j = 0; j < i; j++) {
+          s -= L.get(i, j) * x.get(j, col);
+        }
+        x.set(i, col, s / L.get(i, i));
+      }
+    }
+    return x;
+  }
+  function backSolve(L, b) {
+    const n = L.rows;
+    const x = Matrix.zeros(n, b.cols);
+    for (let col = 0; col < b.cols; col++) {
+      for (let i = n - 1; i >= 0; i--) {
+        let s = b.get(i, col);
+        for (let j = i + 1; j < n; j++) {
+          s -= L.get(j, i) * x.get(j, col);
+        }
+        x.set(i, col, s / L.get(i, i));
+      }
+    }
+    return x;
+  }
+  function solveCholesky(L, b) {
+    return backSolve(L, forwardSolve(L, b));
+  }
+
+  // src/linalg/lu.ts
+  function lu(A) {
+    const n = A.rows;
+    const M = A.clone();
+    const perm = Array.from({ length: n }, (_, i) => i);
+    for (let k = 0; k < n; k++) {
+      let maxVal = Math.abs(M.get(k, k));
+      let maxRow = k;
+      for (let i = k + 1; i < n; i++) {
+        const v = Math.abs(M.get(i, k));
+        if (v > maxVal) {
+          maxVal = v;
+          maxRow = i;
+        }
+      }
+      if (maxRow !== k) {
+        [perm[k], perm[maxRow]] = [perm[maxRow], perm[k]];
+        for (let j = 0; j < n; j++) {
+          const tmp = M.get(k, j);
+          M.set(k, j, M.get(maxRow, j));
+          M.set(maxRow, j, tmp);
+        }
+      }
+      const pivot = M.get(k, k);
+      if (Math.abs(pivot) < 1e-15) continue;
+      for (let i = k + 1; i < n; i++) {
+        const factor = M.get(i, k) / pivot;
+        M.set(i, k, factor);
+        for (let j = k + 1; j < n; j++) {
+          M.set(i, j, M.get(i, j) - factor * M.get(k, j));
+        }
+      }
+    }
+    const L = Matrix.eye(n);
+    const U = Matrix.zeros(n, n);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (j < i) {
+          L.set(i, j, M.get(i, j));
+        } else {
+          U.set(i, j, M.get(i, j));
+        }
+      }
+    }
+    return { L, U, perm };
+  }
+  function solveLU(A, b) {
+    const n = A.rows;
+    const { L, U, perm } = lu(A);
+    const x = Matrix.zeros(n, b.cols);
+    for (let col = 0; col < b.cols; col++) {
+      const pb = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        pb[i] = b.get(perm[i], col);
+      }
+      const y = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        let s = pb[i];
+        for (let j = 0; j < i; j++) {
+          s -= L.get(i, j) * y[j];
+        }
+        y[i] = s;
+      }
+      const xCol = new Float64Array(n);
+      for (let i = n - 1; i >= 0; i--) {
+        let s = y[i];
+        for (let j = i + 1; j < n; j++) {
+          s -= U.get(i, j) * xCol[j];
+        }
+        xCol[i] = s / U.get(i, i);
+      }
+      for (let i = 0; i < n; i++) {
+        x.set(i, col, xCol[i]);
+      }
+    }
+    return x;
+  }
+
+  // src/linalg/ops.ts
+  function transpose(a) {
+    const result = new Matrix(a.cols, a.rows);
+    for (let i = 0; i < a.rows; i++) {
+      for (let j = 0; j < a.cols; j++) {
+        result.data[j * a.rows + i] = a.data[i * a.cols + j];
+      }
+    }
+    return result;
+  }
+  function matmul(a, b) {
+    const result = new Matrix(a.rows, b.cols);
+    for (let i = 0; i < a.rows; i++) {
+      for (let k = 0; k < a.cols; k++) {
+        const aik = a.data[i * a.cols + k];
+        if (aik === 0) continue;
+        for (let j = 0; j < b.cols; j++) {
+          result.data[i * b.cols + j] += aik * b.data[k * b.cols + j];
+        }
+      }
+    }
+    return result;
+  }
+  function add(a, b) {
+    const result = new Matrix(a.rows, a.cols);
+    for (let i = 0; i < a.data.length; i++) {
+      result.data[i] = a.data[i] + b.data[i];
+    }
+    return result;
+  }
+  function scale(a, s) {
+    const result = new Matrix(a.rows, a.cols);
+    for (let i = 0; i < a.data.length; i++) {
+      result.data[i] = a.data[i] * s;
+    }
+    return result;
+  }
+  function dot(a, b) {
+    let s = 0;
+    for (let i = 0; i < a.length; i++) s += a[i] * b[i];
+    return s;
+  }
+
+  // src/kernels/distance.ts
+  function cdistSquared(x1, x2) {
+    const n = x1.rows;
+    const m = x2.rows;
+    const d = x1.cols;
+    const result = new Matrix(n, m);
+    const norms1 = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      let s = 0;
+      for (let k = 0; k < d; k++) {
+        const v = x1.get(i, k);
+        s += v * v;
+      }
+      norms1[i] = s;
+    }
+    const norms2 = new Float64Array(m);
+    for (let j = 0; j < m; j++) {
+      let s = 0;
+      for (let k = 0; k < d; k++) {
+        const v = x2.get(j, k);
+        s += v * v;
+      }
+      norms2[j] = s;
+    }
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < m; j++) {
+        let dot2 = 0;
+        for (let k = 0; k < d; k++) {
+          dot2 += x1.get(i, k) * x2.get(j, k);
+        }
+        const val = norms1[i] + norms2[j] - 2 * dot2;
+        result.set(i, j, Math.max(val, 0));
+      }
+    }
+    return result;
+  }
+  function cdist(x1, x2) {
+    const sq = cdistSquared(x1, x2);
+    const result = new Matrix(sq.rows, sq.cols);
+    for (let i = 0; i < sq.data.length; i++) {
+      result.data[i] = Math.sqrt(Math.max(sq.data[i], 1e-30));
+      result.data[i] = Math.max(result.data[i], 1e-15);
+    }
+    return result;
+  }
+
+  // src/kernels/matern.ts
+  var MaternKernel = class {
+    lengthscale;
+    nu;
+    constructor(lengthscale, nu = 2.5) {
+      this.lengthscale = Float64Array.from(lengthscale);
+      this.nu = nu;
+    }
+    compute(x1, x2) {
+      const d = x1.cols;
+      const mean = new Float64Array(d);
+      for (let j = 0; j < d; j++) {
+        let s = 0;
+        for (let i = 0; i < x1.rows; i++) s += x1.get(i, j);
+        mean[j] = s / x1.rows;
+      }
+      const x1s = new Matrix(x1.rows, d);
+      for (let i = 0; i < x1.rows; i++) {
+        for (let j = 0; j < d; j++) {
+          x1s.set(i, j, (x1.get(i, j) - mean[j]) / this.lengthscale[j]);
+        }
+      }
+      const x2s = new Matrix(x2.rows, d);
+      for (let i = 0; i < x2.rows; i++) {
+        for (let j = 0; j < d; j++) {
+          x2s.set(i, j, (x2.get(i, j) - mean[j]) / this.lengthscale[j]);
+        }
+      }
+      const dist = cdist(x1s, x2s);
+      const result = new Matrix(x1.rows, x2.rows);
+      if (this.nu === 2.5) {
+        const sqrt5 = Math.sqrt(5);
+        for (let i = 0; i < dist.data.length; i++) {
+          const r = dist.data[i];
+          const sr = sqrt5 * r;
+          result.data[i] = (1 + sr + 5 * r * r / 3) * Math.exp(-sr);
+        }
+      } else if (this.nu === 1.5) {
+        const sqrt3 = Math.sqrt(3);
+        for (let i = 0; i < dist.data.length; i++) {
+          const r = dist.data[i];
+          const sr = sqrt3 * r;
+          result.data[i] = (1 + sr) * Math.exp(-sr);
+        }
+      } else {
+        for (let i = 0; i < dist.data.length; i++) {
+          result.data[i] = Math.exp(-dist.data[i]);
+        }
+      }
+      return result;
+    }
+    computeDiag(x) {
+      const diag = new Float64Array(x.rows);
+      diag.fill(1);
+      return diag;
+    }
+  };
+
+  // src/kernels/rbf.ts
+  var RBFKernel = class {
+    lengthscale;
+    constructor(lengthscale) {
+      this.lengthscale = Float64Array.from(lengthscale);
+    }
+    compute(x1, x2) {
+      const d = x1.cols;
+      const x1s = new Matrix(x1.rows, d);
+      for (let i = 0; i < x1.rows; i++) {
+        for (let j = 0; j < d; j++) {
+          x1s.set(i, j, x1.get(i, j) / this.lengthscale[j]);
+        }
+      }
+      const x2s = new Matrix(x2.rows, d);
+      for (let i = 0; i < x2.rows; i++) {
+        for (let j = 0; j < d; j++) {
+          x2s.set(i, j, x2.get(i, j) / this.lengthscale[j]);
+        }
+      }
+      const sq = cdistSquared(x1s, x2s);
+      const result = new Matrix(x1.rows, x2.rows);
+      for (let i = 0; i < sq.data.length; i++) {
+        result.data[i] = Math.exp(-sq.data[i] / 2);
+      }
+      return result;
+    }
+    computeDiag(x) {
+      const diag = new Float64Array(x.rows);
+      diag.fill(1);
+      return diag;
+    }
+  };
+
+  // src/kernels/scale.ts
+  var ScaleKernel = class {
+    base;
+    outputscale;
+    constructor(base, outputscale) {
+      this.base = base;
+      this.outputscale = outputscale;
+    }
+    compute(x1, x2) {
+      const K = this.base.compute(x1, x2);
+      for (let i = 0; i < K.data.length; i++) {
+        K.data[i] *= this.outputscale;
+      }
+      return K;
+    }
+    computeDiag(x) {
+      if (this.base.computeDiag) {
+        const diag2 = this.base.computeDiag(x);
+        for (let i = 0; i < diag2.length; i++) diag2[i] *= this.outputscale;
+        return diag2;
+      }
+      const K = this.base.compute(x, x);
+      const diag = new Float64Array(x.rows);
+      for (let i = 0; i < x.rows; i++) diag[i] = K.get(i, i) * this.outputscale;
+      return diag;
+    }
+  };
+
+  // src/kernels/categorical.ts
+  var CategoricalKernel = class {
+    lengthscales;
+    constructor(lengthscale) {
+      if (typeof lengthscale === "number") {
+        this.lengthscales = Float64Array.from([lengthscale]);
+      } else {
+        this.lengthscales = Float64Array.from(lengthscale);
+      }
+    }
+    compute(x1, x2) {
+      const result = new Matrix(x1.rows, x2.rows);
+      const d = x1.cols;
+      const ard = this.lengthscales.length > 1;
+      for (let i = 0; i < x1.rows; i++) {
+        for (let j = 0; j < x2.rows; j++) {
+          let dist = 0;
+          for (let k = 0; k < d; k++) {
+            if (Math.abs(x1.get(i, k) - x2.get(j, k)) > 1e-8) {
+              dist += 1 / (ard ? this.lengthscales[k] : this.lengthscales[0]);
+            }
+          }
+          result.set(i, j, Math.exp(-dist / d));
+        }
+      }
+      return result;
+    }
+    computeDiag(x) {
+      const diag = new Float64Array(x.rows);
+      diag.fill(1);
+      return diag;
+    }
+  };
+
+  // src/kernels/composite.ts
+  function extractActiveDims(x, activeDims) {
+    const result = new Matrix(x.rows, activeDims.length);
+    for (let i = 0; i < x.rows; i++) {
+      for (let j = 0; j < activeDims.length; j++) {
+        result.set(i, j, x.get(i, activeDims[j]));
+      }
+    }
+    return result;
+  }
+  var ActiveDimsKernel = class {
+    base;
+    activeDims;
+    constructor(base, activeDims) {
+      this.base = base;
+      this.activeDims = activeDims;
+    }
+    compute(x1, x2) {
+      return this.base.compute(
+        extractActiveDims(x1, this.activeDims),
+        extractActiveDims(x2, this.activeDims)
+      );
+    }
+    computeDiag(x) {
+      if (this.base.computeDiag) {
+        return this.base.computeDiag(extractActiveDims(x, this.activeDims));
+      }
+      const K = this.compute(x, x);
+      const diag = new Float64Array(x.rows);
+      for (let i = 0; i < x.rows; i++) diag[i] = K.get(i, i);
+      return diag;
+    }
+  };
+  var AdditiveKernel = class {
+    kernels;
+    constructor(kernels) {
+      this.kernels = kernels;
+    }
+    compute(x1, x2) {
+      const result = this.kernels[0].compute(x1, x2);
+      for (let k = 1; k < this.kernels.length; k++) {
+        const K = this.kernels[k].compute(x1, x2);
+        for (let i = 0; i < result.data.length; i++) {
+          result.data[i] += K.data[i];
+        }
+      }
+      return result;
+    }
+    computeDiag(x) {
+      const diag = kernelDiag(this.kernels[0], x);
+      for (let k = 1; k < this.kernels.length; k++) {
+        const d = kernelDiag(this.kernels[k], x);
+        for (let i = 0; i < diag.length; i++) diag[i] += d[i];
+      }
+      return diag;
+    }
+  };
+  var ProductKernel = class {
+    kernels;
+    constructor(kernels) {
+      this.kernels = kernels;
+    }
+    compute(x1, x2) {
+      const result = this.kernels[0].compute(x1, x2);
+      for (let k = 1; k < this.kernels.length; k++) {
+        const K = this.kernels[k].compute(x1, x2);
+        for (let i = 0; i < result.data.length; i++) {
+          result.data[i] *= K.data[i];
+        }
+      }
+      return result;
+    }
+    computeDiag(x) {
+      const diag = kernelDiag(this.kernels[0], x);
+      for (let k = 1; k < this.kernels.length; k++) {
+        const d = kernelDiag(this.kernels[k], x);
+        for (let i = 0; i < diag.length; i++) diag[i] *= d[i];
+      }
+      return diag;
+    }
+  };
+  function kernelDiag(kernel, x) {
+    if (kernel.computeDiag) {
+      return kernel.computeDiag(x);
+    }
+    const K = kernel.compute(x, x);
+    const diag = new Float64Array(x.rows);
+    for (let i = 0; i < x.rows; i++) diag[i] = K.get(i, i);
+    return diag;
+  }
+
+  // src/kernels/multitask.ts
+  var IndexKernel = class {
+    taskCovar;
+    /**
+     * Build task covariance matrix B.
+     *
+     * Supports three modes:
+     * 1. Pre-computed covariance matrix (new BoTorch 0.16+ with PositiveIndexKernel)
+     * 2. covar_factor + log_var: B = W @ W^T + diag(exp(log_var))
+     * 3. covar_factor + var: B = W @ W^T + diag(var)
+     */
+    constructor(covarFactor, diagVar, varIsLog = true, precomputedMatrix) {
+      if (precomputedMatrix) {
+        this.taskCovar = Matrix.from2D(precomputedMatrix);
+      } else {
+        const numTasks = diagVar.length;
+        const W = Matrix.from2D(covarFactor);
+        const WtW = matmul(W, transpose(W));
+        this.taskCovar = WtW;
+        for (let i = 0; i < numTasks; i++) {
+          this.taskCovar.data[i * numTasks + i] += varIsLog ? Math.exp(diagVar[i]) : diagVar[i];
+        }
+      }
+    }
+    compute(x1, x2) {
+      const result = new Matrix(x1.rows, x2.rows);
+      for (let i = 0; i < x1.rows; i++) {
+        const t1 = Math.round(x1.get(i, 0));
+        for (let j = 0; j < x2.rows; j++) {
+          const t2 = Math.round(x2.get(j, 0));
+          result.set(i, j, this.taskCovar.get(t1, t2));
+        }
+      }
+      return result;
+    }
+    computeDiag(x) {
+      const diag = new Float64Array(x.rows);
+      for (let i = 0; i < x.rows; i++) {
+        const t = Math.round(x.get(i, 0));
+        diag[i] = this.taskCovar.get(t, t);
+      }
+      return diag;
+    }
+  };
+  var MultitaskKernel = class {
+    dataKernel;
+    indexKernel;
+    taskFeature;
+    constructor(dataKernel, covarFactor, diagVar, taskFeature = -1, varIsLog = true, precomputedMatrix) {
+      this.dataKernel = dataKernel;
+      this.indexKernel = new IndexKernel(
+        covarFactor,
+        diagVar,
+        varIsLog,
+        precomputedMatrix
+      );
+      this.taskFeature = taskFeature;
+    }
+    splitDataTask(x) {
+      const tf = this.taskFeature < 0 ? x.cols + this.taskFeature : this.taskFeature;
+      const dataCols = [];
+      for (let j = 0; j < x.cols; j++) {
+        if (j !== tf) dataCols.push(j);
+      }
+      const data = new Matrix(x.rows, dataCols.length);
+      const tasks = new Matrix(x.rows, 1);
+      for (let i = 0; i < x.rows; i++) {
+        for (let j = 0; j < dataCols.length; j++) {
+          data.set(i, j, x.get(i, dataCols[j]));
+        }
+        tasks.set(i, 0, x.get(i, tf));
+      }
+      return { data, tasks };
+    }
+    compute(x1, x2) {
+      const { data: d1, tasks: t1 } = this.splitDataTask(x1);
+      const { data: d2, tasks: t2 } = this.splitDataTask(x2);
+      const Kdata = this.dataKernel.compute(d1, d2);
+      const Ktask = this.indexKernel.compute(t1, t2);
+      const result = new Matrix(x1.rows, x2.rows);
+      for (let i = 0; i < result.data.length; i++) {
+        result.data[i] = Kdata.data[i] * Ktask.data[i];
+      }
+      return result;
+    }
+    computeDiag(x) {
+      const { data, tasks } = this.splitDataTask(x);
+      const dataDiag = kernelDiag(this.dataKernel, data);
+      const taskDiag = this.indexKernel.computeDiag(tasks);
+      const diag = new Float64Array(x.rows);
+      for (let i = 0; i < x.rows; i++) {
+        diag[i] = dataDiag[i] * taskDiag[i];
+      }
+      return diag;
+    }
+  };
+
+  // src/kernels/build.ts
+  function _validateLengthscale(ls, kernelType) {
+    for (let i = 0; i < ls.length; i++) {
+      if (ls[i] <= 0 || !isFinite(ls[i])) {
+        throw new Error(
+          `${kernelType} kernel: lengthscale[${i}] = ${ls[i]} must be positive and finite`
+        );
+      }
+    }
+  }
+  function buildKernel(state) {
+    let kernel;
+    switch (state.type) {
+      case "Matern":
+        _validateLengthscale(state.lengthscale, "Matern");
+        kernel = new MaternKernel(state.lengthscale, state.nu ?? 2.5);
+        break;
+      case "RBF":
+        _validateLengthscale(state.lengthscale, "RBF");
+        kernel = new RBFKernel(state.lengthscale);
+        break;
+      case "Categorical":
+        kernel = new CategoricalKernel(
+          state.lengthscale && state.lengthscale.length > 1 ? state.lengthscale : state.lengthscale?.[0] ?? 1
+        );
+        break;
+      case "Scale":
+        kernel = new ScaleKernel(
+          buildKernel(state.base_kernel),
+          state.outputscale
+        );
+        break;
+      case "Additive":
+        kernel = new AdditiveKernel(state.kernels.map(buildKernel));
+        break;
+      case "Product":
+        kernel = new ProductKernel(state.kernels.map(buildKernel));
+        break;
+      default:
+        throw new Error(`Unknown kernel type: ${state.type}`);
+    }
+    if (state.type !== "Scale" && state.outputscale !== void 0) {
+      kernel = new ScaleKernel(kernel, state.outputscale);
+    }
+    if (state.active_dims) {
+      kernel = new ActiveDimsKernel(kernel, state.active_dims);
+    }
+    return kernel;
+  }
+
+  // src/means/constant.ts
+  var ConstantMean = class {
+    constant;
+    constructor(constant) {
+      this.constant = constant;
+    }
+    forward(x) {
+      const result = new Matrix(x.rows, 1);
+      for (let i = 0; i < x.rows; i++) {
+        result.data[i] = this.constant;
+      }
+      return result;
+    }
+  };
+
+  // src/transforms/normalize.ts
+  var InputNormalize = class {
+    offset;
+    coefficient;
+    constructor(offset, coefficient) {
+      this.offset = Float64Array.from(offset);
+      this.coefficient = Float64Array.from(coefficient);
+    }
+    forward(X) {
+      const result = new Matrix(X.rows, X.cols);
+      for (let i = 0; i < X.rows; i++) {
+        for (let j = 0; j < X.cols; j++) {
+          result.set(i, j, (X.get(i, j) - this.offset[j]) / this.coefficient[j]);
+        }
+      }
+      return result;
+    }
+  };
+
+  // src/transforms/outcome.ts
+  var StandardizeUntransform = class {
+    mean;
+    std;
+    constructor(mean, std) {
+      this.mean = mean;
+      this.std = std;
+    }
+    untransform(mu, variance) {
+      return {
+        mean: this.mean + this.std * mu,
+        variance: this.std * this.std * variance
+      };
+    }
+  };
+  var LogUntransform = class {
+    untransform(mu, variance) {
+      return {
+        mean: Math.exp(mu + variance / 2),
+        variance: Math.expm1(variance) * Math.exp(2 * mu + variance)
+      };
+    }
+  };
+  var BilogUntransform = class {
+    untransform(mu, variance) {
+      const absmu = Math.abs(mu);
+      const deriv = Math.exp(absmu);
+      return {
+        mean: mu >= 0 ? Math.exp(mu) - 1 : -(Math.exp(-mu) - 1),
+        variance: deriv * deriv * variance
+      };
+    }
+  };
+  var PowerUntransform = class {
+    power;
+    scalerMean;
+    scalerScale;
+    /**
+     * @param power - Yeo-Johnson lambda parameter
+     * @param scalerMean - sklearn PowerTransformer's built-in scaler mean
+     * @param scalerScale - sklearn PowerTransformer's built-in scaler scale (std)
+     *
+     * sklearn's PowerTransformer standardizes AFTER the YJ transform.
+     * To invert: un-standardize first (z * scale + mean), then inverse YJ.
+     *
+     * Variance is propagated using CI-width matching (same as Ax), not delta
+     * method, because the YJ inverse can be highly nonlinear and the delta
+     * method underestimates variance.
+     */
+    constructor(power, scalerMean, scalerScale) {
+      this.power = power;
+      this.scalerMean = scalerMean;
+      this.scalerScale = scalerScale;
+    }
+    untransform(mu, variance) {
+      const fullInverse = (z) => {
+        let v = z;
+        if (this.scalerScale !== void 0 && this.scalerMean !== void 0) {
+          v = v * this.scalerScale + this.scalerMean;
+        }
+        return this._inverseYeoJohnson(v);
+      };
+      const newMean = fullInverse(mu);
+      const FAC = 1.959963984540054;
+      const sem = Math.sqrt(variance);
+      const right = fullInverse(mu + FAC * sem);
+      const left = fullInverse(mu - FAC * sem);
+      const newSem = (right - left) / (2 * FAC);
+      return {
+        mean: newMean,
+        variance: newSem * newSem
+      };
+    }
+    _inverseYeoJohnson(z) {
+      const lam = this.power;
+      if (z >= 0) {
+        if (Math.abs(lam) < 1e-10) {
+          return Math.exp(z) - 1;
+        }
+        return Math.pow(z * lam + 1, 1 / lam) - 1;
+      } else {
+        if (Math.abs(lam - 2) < 1e-10) {
+          return 1 - Math.exp(-z);
+        }
+        return 1 - Math.pow(-z * (2 - lam) + 1, 1 / (2 - lam));
+      }
+    }
+  };
+  var ChainedOutcomeUntransform = class {
+    transforms;
+    constructor(transforms) {
+      this.transforms = [...transforms].reverse();
+    }
+    untransform(mu, variance) {
+      let result = { mean: mu, variance };
+      for (const tf of this.transforms) {
+        result = tf.untransform(result.mean, result.variance);
+      }
+      return result;
+    }
+  };
+
+  // src/transforms/warp.ts
+  var InputWarp = class {
+    concentration0;
+    concentration1;
+    indices;
+    constructor(concentration0, concentration1, indices) {
+      this.concentration0 = Float64Array.from(concentration0);
+      this.concentration1 = Float64Array.from(concentration1);
+      this.indices = indices ?? null;
+    }
+    forward(X) {
+      const result = X.clone();
+      const dims = this.indices ?? Array.from({ length: X.cols }, (_, i) => i);
+      const eps = 1e-7;
+      const range = 1 - 2 * eps;
+      for (let i = 0; i < X.rows; i++) {
+        for (let k = 0; k < dims.length; k++) {
+          const j = dims[k];
+          const x = result.get(i, j);
+          const a = this.concentration1[k];
+          const b = this.concentration0[k];
+          const xn = Math.max(eps, Math.min(1 - eps, x * range + eps));
+          result.set(i, j, 1 - Math.pow(1 - Math.pow(xn, a), b));
+        }
+      }
+      return result;
+    }
+  };
+
+  // src/transforms/build_outcome.ts
+  function buildOutcomeUntransform(state) {
+    if (!("type" in state) || state.type === void 0 || state.type === "Standardize") {
+      const s = state;
+      const mean = Array.isArray(s.mean) ? s.mean[0] : s.mean;
+      const std = Array.isArray(s.std) ? s.std[0] : s.std;
+      return new StandardizeUntransform(mean, std);
+    }
+    switch (state.type) {
+      case "Log":
+        return new LogUntransform();
+      case "Bilog":
+        return new BilogUntransform();
+      case "Power":
+        return new PowerUntransform(state.power);
+      case "Chained": {
+        const transforms = state.transforms.map(buildOutcomeUntransform);
+        return new ChainedOutcomeUntransform(transforms);
+      }
+      default:
+        throw new Error(`Unknown outcome transform type: ${state.type}`);
+    }
+  }
+
+  // src/transforms/relativize.ts
+  function relativize(meanT, semT, meanC, semC, opts = {}) {
+    const {
+      covariance = 0,
+      biasCorrection = true,
+      asPercent = true,
+      controlAsConstant = false
+    } = opts;
+    if (meanT === meanC && semT === semC) {
+      return { mean: 0, sem: 0 };
+    }
+    const absMC = Math.abs(meanC);
+    if (absMC === 0) {
+      throw new Error(
+        "Cannot relativize: control mean is zero. Relative effects are undefined when the baseline is zero."
+      );
+    }
+    let rHat;
+    let sem;
+    if (controlAsConstant) {
+      rHat = (meanT - meanC) / absMC;
+      sem = semT / absMC;
+    } else {
+      rHat = (meanT - meanC) / absMC;
+      if (biasCorrection) {
+        rHat -= meanT * semC * semC / (absMC * absMC * absMC);
+      }
+      const c = meanT / meanC;
+      const varT = semT * semT;
+      const varC = semC * semC;
+      const relVar = (varT - 2 * c * covariance + c * c * varC) / (meanC * meanC);
+      sem = Math.sqrt(Math.max(0, relVar));
+    }
+    if (asPercent) {
+      rHat *= 100;
+      sem *= 100;
+    }
+    return { mean: rHat, sem };
+  }
+  function unrelativize(relMean, relSem, meanC, semC, opts = {}) {
+    const {
+      covariance = 0,
+      biasCorrection = true,
+      asPercent = true,
+      controlAsConstant = false
+    } = opts;
+    let rHat = relMean;
+    let rSem = relSem;
+    if (asPercent) {
+      rHat /= 100;
+      rSem /= 100;
+    }
+    const absMC = Math.abs(meanC);
+    if (absMC === 0) {
+      throw new Error("Cannot unrelativize: control mean is zero.");
+    }
+    let meanT;
+    let semT;
+    if (controlAsConstant) {
+      meanT = rHat * absMC + meanC;
+      semT = rSem * absMC;
+    } else {
+      meanT = rHat * absMC + meanC;
+      if (biasCorrection) {
+        const corrFactor = 1 - semC * semC / (absMC * absMC);
+        if (Math.abs(corrFactor) < 1e-15) {
+          throw new Error(
+            "Cannot unrelativize with bias correction: control SEM \u2248 |control mean|."
+          );
+        }
+        meanT /= corrFactor;
+      }
+      const c = meanT / meanC;
+      const relVar = rSem * rSem;
+      const varC = semC * semC;
+      const varT = relVar * meanC * meanC + 2 * c * covariance - c * c * varC;
+      semT = Math.sqrt(Math.max(0, varT));
+    }
+    return { mean: meanT, sem: semT };
+  }
+  function relativizePredictions(means, variances, sqMean, sqVariance, opts = {}, covariances) {
+    const n = means.length;
+    const relMeans = new Float64Array(n);
+    const relVariances = new Float64Array(n);
+    const sqSem = Math.sqrt(sqVariance);
+    for (let i = 0; i < n; i++) {
+      const sem = Math.sqrt(variances[i]);
+      const cov = covariances ? covariances[i] : 0;
+      const result = relativize(means[i], sem, sqMean, sqSem, {
+        ...opts,
+        covariance: cov
+      });
+      relMeans[i] = result.mean;
+      relVariances[i] = result.sem * result.sem;
+    }
+    return { mean: relMeans, variance: relVariances };
+  }
+
+  // src/models/gp.ts
+  var ExactGP = class {
+    kernel;
+    mean;
+    inputTransform;
+    inputWarp;
+    outcomeTransform;
+    trainXNorm;
+    L;
+    alpha;
+    constructor(trainX, trainY, kernel, mean, noiseVariance, inputTransform, outcomeTransform, inputWarp) {
+      this.kernel = kernel;
+      this.mean = mean;
+      this.inputTransform = inputTransform ?? null;
+      this.inputWarp = inputWarp ?? null;
+      this.outcomeTransform = outcomeTransform ?? null;
+      let xNorm = inputTransform ? inputTransform.forward(trainX) : trainX.clone();
+      if (inputWarp) {
+        xNorm = inputWarp.forward(xNorm);
+      }
+      this.trainXNorm = xNorm;
+      const K = kernel.compute(this.trainXNorm, this.trainXNorm);
+      if (typeof noiseVariance === "number") {
+        K.addDiag(noiseVariance);
+      } else {
+        K.addDiagVec(noiseVariance);
+      }
+      this.L = cholesky(K);
+      const meanVals = mean.forward(this.trainXNorm);
+      const residuals = new Matrix(trainY.rows, 1);
+      for (let i = 0; i < trainY.rows; i++) {
+        residuals.data[i] = trainY.get(i, 0) - meanVals.data[i];
+      }
+      this.alpha = solveCholesky(this.L, residuals);
+    }
+    /** Transform test inputs through normalize + warp pipeline. */
+    transformInputs(testX) {
+      let testXNorm = this.inputTransform ? this.inputTransform.forward(testX) : testX;
+      if (this.inputWarp) {
+        testXNorm = this.inputWarp.forward(testXNorm);
+      }
+      return testXNorm;
+    }
+    /** Compute V = L⁻¹ @ K*ᵀ for a set of transformed test points. */
+    computeV(Kstar, nTest) {
+      const KstarT = new Matrix(this.trainXNorm.rows, nTest);
+      for (let i = 0; i < Kstar.rows; i++) {
+        for (let j = 0; j < Kstar.cols; j++) {
+          KstarT.set(j, i, Kstar.get(i, j));
+        }
+      }
+      return forwardSolve(this.L, KstarT);
+    }
+    predict(testX) {
+      const testXNorm = this.transformInputs(testX);
+      const Kstar = this.kernel.compute(testXNorm, this.trainXNorm);
+      const meanPrior = this.mean.forward(testXNorm);
+      const mu = new Float64Array(testX.rows);
+      for (let i = 0; i < testX.rows; i++) {
+        let dot2 = 0;
+        for (let j = 0; j < this.trainXNorm.rows; j++) {
+          dot2 += Kstar.get(i, j) * this.alpha.get(j, 0);
+        }
+        mu[i] = meanPrior.data[i] + dot2;
+      }
+      const kssDiag = kernelDiag(this.kernel, testXNorm);
+      const V = this.computeV(Kstar, testX.rows);
+      const variance = new Float64Array(testX.rows);
+      for (let i = 0; i < testX.rows; i++) {
+        let vSq = 0;
+        for (let j = 0; j < this.trainXNorm.rows; j++) {
+          const vji = V.get(j, i);
+          vSq += vji * vji;
+        }
+        variance[i] = Math.max(0, kssDiag[i] - vSq);
+      }
+      if (this.outcomeTransform) {
+        for (let i = 0; i < mu.length; i++) {
+          const ut = this.outcomeTransform.untransform(mu[i], variance[i]);
+          mu[i] = ut.mean;
+          variance[i] = ut.variance;
+        }
+      }
+      return { mean: mu, variance };
+    }
+    /**
+     * Compute posterior covariance between each test point and a reference point.
+     *
+     * Cov(f(x_i), f(x_ref)) = k(x_i, x_ref) - v_i · v_ref
+     * where v = L⁻¹ @ k(X, x)
+     *
+     * Note: returns covariance in the MODEL's transformed space (before outcome
+     * untransform). For Standardize this scales by std²; for nonlinear transforms
+     * the covariance in original space requires additional delta-method terms.
+     * For relativization, the Standardize scaling cancels out in the ratio.
+     */
+    predictCovarianceWith(testX, refX) {
+      const testXNorm = this.transformInputs(testX);
+      const refXNorm = this.transformInputs(refX);
+      const KstarTest = this.kernel.compute(testXNorm, this.trainXNorm);
+      const KstarRef = this.kernel.compute(refXNorm, this.trainXNorm);
+      const Vtest = this.computeV(KstarTest, testX.rows);
+      const Vref = this.computeV(KstarRef, refX.rows);
+      const Ktr = this.kernel.compute(testXNorm, refXNorm);
+      const n = testX.rows;
+      const covariance = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        let vDot = 0;
+        for (let j = 0; j < this.trainXNorm.rows; j++) {
+          vDot += Vtest.get(j, i) * Vref.get(j, 0);
+        }
+        covariance[i] = Ktr.get(i, 0) - vDot;
+      }
+      if (this.outcomeTransform) {
+        const tf = this.outcomeTransform;
+        if (typeof tf.std === "number") {
+          const s2 = tf.std * tf.std;
+          for (let i = 0; i < n; i++) {
+            covariance[i] *= s2;
+          }
+        }
+      }
+      return covariance;
+    }
+  };
+
+  // src/models/single_task.ts
+  var SingleTaskGP = class {
+    gp;
+    trainDim;
+    constructor(state) {
+      if (state.train_X.length === 0) {
+        throw new Error("train_X must not be empty");
+      }
+      const trainX = Matrix.from2D(state.train_X);
+      this.trainDim = trainX.cols;
+      const trainY = Matrix.vector(state.train_Y);
+      const kernel = buildKernel(state.kernel);
+      const mean = new ConstantMean(state.mean_constant);
+      const noiseVariance = Array.isArray(state.noise_variance) ? Float64Array.from(state.noise_variance) : state.noise_variance;
+      const inputTransform = state.input_transform ? new InputNormalize(
+        state.input_transform.offset,
+        state.input_transform.coefficient
+      ) : void 0;
+      const inputWarp = state.input_warp ? new InputWarp(
+        state.input_warp.concentration0,
+        state.input_warp.concentration1,
+        state.input_warp.indices
+      ) : void 0;
+      const outcomeTransform = state.outcome_transform ? buildOutcomeUntransform(state.outcome_transform) : void 0;
+      this.gp = new ExactGP(
+        trainX,
+        trainY,
+        kernel,
+        mean,
+        noiseVariance,
+        inputTransform,
+        outcomeTransform,
+        inputWarp
+      );
+    }
+    predict(testPoints) {
+      if (testPoints.length === 0) {
+        throw new Error("testPoints must not be empty");
+      }
+      if (testPoints[0].length !== this.trainDim) {
+        throw new Error(
+          `Dimension mismatch: test has ${testPoints[0].length} dims, model trained on ${this.trainDim}`
+        );
+      }
+      const testX = Matrix.from2D(testPoints);
+      return this.gp.predict(testX);
+    }
+    /**
+     * Compute posterior covariance between each test point and a reference point.
+     * Returns Cov(f(x_i), f(x_ref)) for use in relativization.
+     */
+    predictCovarianceWith(testPoints, refPoint) {
+      const testX = Matrix.from2D(testPoints);
+      const refX = Matrix.from2D([refPoint]);
+      return this.gp.predictCovarianceWith(testX, refX);
+    }
+  };
+
+  // src/models/model_list.ts
+  var ModelListGP = class {
+    outcomeNames;
+    models;
+    constructor(state) {
+      this.outcomeNames = state.outcome_names;
+      this.models = state.models.map((s) => new SingleTaskGP(s));
+    }
+    predict(testPoints) {
+      return this.models.map((m) => m.predict(testPoints));
+    }
+    predictOutcome(index, testPoints) {
+      return this.models[index].predict(testPoints);
+    }
+    /**
+     * Posterior covariance with a reference point, per output.
+     * Each sub-model is independent, so no cross-output covariance.
+     */
+    predictCovarianceWith(testPoints, refPoint) {
+      return this.models.map(
+        (m) => m.predictCovarianceWith(testPoints, refPoint)
+      );
+    }
+  };
+
+  // src/models/pairwise_gp.ts
+  var PairwiseGP = class {
+    kernel;
+    mean;
+    inputTransform;
+    inputWarp;
+    trainXNorm;
+    alpha;
+    likelihoodHess;
+    CKI;
+    constructor(trainX, utility, kernel, mean, likelihoodHess, inputTransform, inputWarp) {
+      this.kernel = kernel;
+      this.mean = mean;
+      this.inputTransform = inputTransform ?? null;
+      this.inputWarp = inputWarp ?? null;
+      this.likelihoodHess = likelihoodHess;
+      let xNorm = inputTransform ? inputTransform.forward(trainX) : trainX.clone();
+      if (this.inputWarp) {
+        xNorm = this.inputWarp.forward(xNorm);
+      }
+      this.trainXNorm = xNorm;
+      const K = kernel.compute(this.trainXNorm, this.trainXNorm);
+      const L = cholesky(K);
+      const meanVals = mean.forward(this.trainXNorm);
+      const residuals = new Matrix(utility.rows, 1);
+      for (let i = 0; i < utility.rows; i++) {
+        residuals.data[i] = utility.get(i, 0) - meanVals.data[i];
+      }
+      this.alpha = solveCholesky(L, residuals);
+      const CK = matmul(likelihoodHess, K);
+      this.CKI = CK;
+      this.CKI.addDiag(1);
+    }
+    /** Transform inputs through normalize + warp pipeline. */
+    transformInputs(testX) {
+      let testXNorm = this.inputTransform ? this.inputTransform.forward(testX) : testX;
+      if (this.inputWarp) {
+        testXNorm = this.inputWarp.forward(testXNorm);
+      }
+      return testXNorm;
+    }
+    predict(testPoints) {
+      if (testPoints.length === 0) {
+        throw new Error("testPoints must not be empty");
+      }
+      if (testPoints[0].length !== this.trainXNorm.cols) {
+        throw new Error(
+          `Dimension mismatch: test has ${testPoints[0].length} dims, model trained on ${this.trainXNorm.cols}`
+        );
+      }
+      const testXNorm = this.transformInputs(Matrix.from2D(testPoints));
+      const Kstar = this.kernel.compute(testXNorm, this.trainXNorm);
+      const kssDiag = kernelDiag(this.kernel, testXNorm);
+      const meanPrior = this.mean.forward(testXNorm);
+      const mu = new Float64Array(testXNorm.rows);
+      for (let i = 0; i < testXNorm.rows; i++) {
+        let dot2 = 0;
+        for (let j = 0; j < this.trainXNorm.rows; j++) {
+          dot2 += Kstar.get(i, j) * this.alpha.get(j, 0);
+        }
+        mu[i] = meanPrior.data[i] + dot2;
+      }
+      const KstarT = transpose(Kstar);
+      const C_KstarT = matmul(this.likelihoodHess, KstarT);
+      const fac = solveLU(this.CKI, C_KstarT);
+      const correction = matmul(Kstar, fac);
+      const variance = new Float64Array(testXNorm.rows);
+      for (let i = 0; i < testXNorm.rows; i++) {
+        variance[i] = Math.max(0, kssDiag[i] - correction.get(i, i));
+      }
+      return { mean: mu, variance };
+    }
+    /**
+     * Posterior covariance between each test point and a reference point.
+     *
+     * For PairwiseGP (Laplace approximation):
+     *   Cov(f(a), f(b)) = k(a,b) - K(a,X) @ (CK+I)⁻¹ @ C @ K(X,b)
+     *
+     * where C = likelihood Hessian, K = prior covariance, CK+I is NOT symmetric.
+     */
+    predictCovarianceWith(testPoints, refPoint) {
+      const testXNorm = this.transformInputs(Matrix.from2D(testPoints));
+      const refXNorm = this.transformInputs(Matrix.from2D([refPoint]));
+      const KstarTest = this.kernel.compute(testXNorm, this.trainXNorm);
+      const KstarRef = this.kernel.compute(refXNorm, this.trainXNorm);
+      const KstarRefT = transpose(KstarRef);
+      const C_KstarRefT = matmul(this.likelihoodHess, KstarRefT);
+      const facRef = solveLU(this.CKI, C_KstarRefT);
+      const Ktr = this.kernel.compute(testXNorm, refXNorm);
+      const n = testPoints.length;
+      const covariance = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        let dot2 = 0;
+        for (let j = 0; j < this.trainXNorm.rows; j++) {
+          dot2 += KstarTest.get(i, j) * facRef.get(j, 0);
+        }
+        covariance[i] = Ktr.get(i, 0) - dot2;
+      }
+      return covariance;
+    }
+  };
+  function createPairwiseGP(state) {
+    const trainX = Matrix.from2D(state.train_X);
+    const utility = Matrix.vector(state.utility);
+    const likelihoodHess = Matrix.from2D(state.likelihood_hess);
+    const kernel = buildKernel(state.kernel);
+    const mean = new ConstantMean(state.mean_constant);
+    const inputTransform = state.input_transform ? new InputNormalize(
+      state.input_transform.offset,
+      state.input_transform.coefficient
+    ) : void 0;
+    const inputWarp = state.input_warp ? new InputWarp(
+      state.input_warp.concentration0,
+      state.input_warp.concentration1,
+      state.input_warp.indices
+    ) : void 0;
+    return new PairwiseGP(
+      trainX,
+      utility,
+      kernel,
+      mean,
+      likelihoodHess,
+      inputTransform,
+      inputWarp
+    );
+  }
+
+  // src/models/multi_task.ts
+  var MultiTaskGP = class {
+    kernel;
+    meanConstants;
+    inputTransform;
+    inputWarp;
+    outcomeTransform;
+    trainXFull;
+    L;
+    alpha;
+    taskFeature;
+    dataDim;
+    numTasks;
+    constructor(state) {
+      if (state.train_X.length === 0) {
+        throw new Error("train_X must not be empty");
+      }
+      this.numTasks = state.num_tasks;
+      this.taskFeature = state.task_feature;
+      if (Array.isArray(state.mean_constant)) {
+        this.meanConstants = state.mean_constant;
+      } else {
+        this.meanConstants = Array(state.num_tasks).fill(state.mean_constant);
+      }
+      this.inputTransform = state.input_transform ? new InputNormalize(
+        state.input_transform.offset,
+        state.input_transform.coefficient
+      ) : null;
+      this.inputWarp = state.input_warp ? new InputWarp(
+        state.input_warp.concentration0,
+        state.input_warp.concentration1,
+        state.input_warp.indices
+      ) : null;
+      this.outcomeTransform = state.outcome_transform ? buildOutcomeUntransform(state.outcome_transform) : null;
+      this.dataDim = state.train_X[0].length - 1;
+      const dataKernel = buildKernel(state.data_kernel);
+      const diagVar = state.task_covar.var ?? state.task_covar.log_var ?? [];
+      const varIsLog = !state.task_covar.var;
+      this.kernel = new MultitaskKernel(
+        dataKernel,
+        state.task_covar.covar_factor,
+        diagVar,
+        state.task_feature,
+        varIsLog,
+        state.task_covar.covar_matrix
+      );
+      const trainXRaw = Matrix.from2D(state.train_X);
+      this.trainXFull = this.applyTransforms(trainXRaw);
+      const K = this.kernel.compute(this.trainXFull, this.trainXFull);
+      const noiseVariance = state.noise_variance;
+      if (typeof noiseVariance === "number") {
+        K.addDiag(noiseVariance);
+      } else {
+        K.addDiagVec(Float64Array.from(noiseVariance));
+      }
+      this.L = cholesky(K);
+      const trainY = Matrix.vector(state.train_Y);
+      const tf = this.taskFeature < 0 ? this.trainXFull.cols + this.taskFeature : this.taskFeature;
+      const residuals = new Matrix(trainY.rows, 1);
+      for (let i = 0; i < trainY.rows; i++) {
+        const taskIdx = Math.round(this.trainXFull.get(i, tf));
+        residuals.data[i] = trainY.get(i, 0) - this.meanConstants[taskIdx];
+      }
+      this.alpha = solveCholesky(this.L, residuals);
+    }
+    applyTransforms(X) {
+      const tf = this.taskFeature < 0 ? X.cols + this.taskFeature : this.taskFeature;
+      const dataCols = [];
+      for (let j = 0; j < X.cols; j++) {
+        if (j !== tf) dataCols.push(j);
+      }
+      let dataX = new Matrix(X.rows, dataCols.length);
+      for (let i = 0; i < X.rows; i++) {
+        for (let j = 0; j < dataCols.length; j++) {
+          dataX.set(i, j, X.get(i, dataCols[j]));
+        }
+      }
+      if (this.inputTransform) {
+        dataX = this.inputTransform.forward(dataX);
+      }
+      if (this.inputWarp) {
+        dataX = this.inputWarp.forward(dataX);
+      }
+      const result = new Matrix(X.rows, X.cols);
+      for (let i = 0; i < X.rows; i++) {
+        let dk = 0;
+        for (let j = 0; j < X.cols; j++) {
+          if (j === tf) {
+            result.set(i, j, X.get(i, j));
+          } else {
+            result.set(i, j, dataX.get(i, dk));
+            dk++;
+          }
+        }
+      }
+      return result;
+    }
+    /** Prepare test points with task index and apply transforms. */
+    prepareTestPoints(testPoints, taskIndex) {
+      const tf = this.taskFeature < 0 ? testPoints[0].length + 1 + this.taskFeature : this.taskFeature;
+      const testWithTask = testPoints.map((pt) => {
+        const row = [...pt];
+        row.splice(tf, 0, taskIndex);
+        return row;
+      });
+      return this.applyTransforms(Matrix.from2D(testWithTask));
+    }
+    /** Compute V = L⁻¹ @ K*ᵀ for cross-covariance matrix. */
+    computeV(Kstar, n) {
+      const KstarT = new Matrix(this.trainXFull.rows, n);
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < this.trainXFull.rows; j++) {
+          KstarT.set(j, i, Kstar.get(i, j));
+        }
+      }
+      return forwardSolve(this.L, KstarT);
+    }
+    predict(testPoints, taskIndex) {
+      if (testPoints.length === 0) {
+        throw new Error("testPoints must not be empty");
+      }
+      if (testPoints[0].length !== this.dataDim) {
+        throw new Error(
+          `Dimension mismatch: test has ${testPoints[0].length} dims, model trained on ${this.dataDim} data dims`
+        );
+      }
+      const testXNorm = this.prepareTestPoints(testPoints, taskIndex);
+      const Kstar = this.kernel.compute(testXNorm, this.trainXFull);
+      const taskMean = this.meanConstants[taskIndex];
+      const n = testPoints.length;
+      const mu = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        let dot2 = 0;
+        for (let j = 0; j < this.trainXFull.rows; j++) {
+          dot2 += Kstar.get(i, j) * this.alpha.get(j, 0);
+        }
+        mu[i] = taskMean + dot2;
+      }
+      const kssDiag = kernelDiag(this.kernel, testXNorm);
+      const V = this.computeV(Kstar, n);
+      const variance = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        let vSq = 0;
+        for (let j = 0; j < this.trainXFull.rows; j++) {
+          const vji = V.get(j, i);
+          vSq += vji * vji;
+        }
+        variance[i] = Math.max(0, kssDiag[i] - vSq);
+      }
+      if (this.outcomeTransform) {
+        for (let i = 0; i < n; i++) {
+          const ut = this.outcomeTransform.untransform(mu[i], variance[i]);
+          mu[i] = ut.mean;
+          variance[i] = ut.variance;
+        }
+      }
+      return { mean: mu, variance };
+    }
+    /**
+     * Posterior covariance between each test point and a reference point.
+     * Both test points and ref point are for the same task.
+     *
+     * Cov(f(x_i, t), f(x_ref, t)) = K_mt(x_i_t, x_ref_t) - v_i · v_ref
+     */
+    predictCovarianceWith(testPoints, taskIndex, refPoint) {
+      const testXNorm = this.prepareTestPoints(testPoints, taskIndex);
+      const refXNorm = this.prepareTestPoints([refPoint], taskIndex);
+      const KstarTest = this.kernel.compute(testXNorm, this.trainXFull);
+      const KstarRef = this.kernel.compute(refXNorm, this.trainXFull);
+      const Vtest = this.computeV(KstarTest, testPoints.length);
+      const Vref = this.computeV(KstarRef, 1);
+      const Ktr = this.kernel.compute(testXNorm, refXNorm);
+      const n = testPoints.length;
+      const covariance = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        let vDot = 0;
+        for (let j = 0; j < this.trainXFull.rows; j++) {
+          vDot += Vtest.get(j, i) * Vref.get(j, 0);
+        }
+        covariance[i] = Ktr.get(i, 0) - vDot;
+      }
+      if (this.outcomeTransform) {
+        const tf = this.outcomeTransform;
+        if (typeof tf.std === "number") {
+          const s2 = tf.std * tf.std;
+          for (let i = 0; i < n; i++) {
+            covariance[i] *= s2;
+          }
+        }
+      }
+      return covariance;
+    }
+  };
+
+  // src/models/ensemble_gp.ts
+  var EnsembleGP = class {
+    models;
+    constructor(state) {
+      if (!state.models || state.models.length === 0) {
+        throw new Error("EnsembleGP requires at least one model");
+      }
+      this.models = state.models.map((ms) => new SingleTaskGP(ms));
+    }
+    predict(testPoints) {
+      if (testPoints.length === 0) {
+        throw new Error("testPoints must not be empty");
+      }
+      const results = this.models.map((m) => m.predict(testPoints));
+      const n = testPoints.length;
+      const K = results.length;
+      const mean = new Float64Array(n);
+      const variance = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        let sumMu = 0;
+        let sumVar = 0;
+        let sumMu2 = 0;
+        for (let k = 0; k < K; k++) {
+          const mu_k = results[k].mean[i];
+          sumMu += mu_k;
+          sumVar += results[k].variance[i];
+          sumMu2 += mu_k * mu_k;
+        }
+        mean[i] = sumMu / K;
+        variance[i] = sumVar / K + (sumMu2 / K - mean[i] * mean[i]);
+      }
+      return { mean, variance };
+    }
+    /**
+     * Posterior covariance with a reference point, averaged across ensemble.
+     *
+     * Law of total covariance:
+     *   Cov(f(a), f(b)) = E_k[Cov_k(f(a), f(b))] + Cov_k(mu_k(a), mu_k(b))
+     *
+     * First term: average within-model covariance.
+     * Second term: sample covariance of per-model means.
+     */
+    predictCovarianceWith(testPoints, refPoint) {
+      const K = this.models.length;
+      const n = testPoints.length;
+      const covs = this.models.map(
+        (m) => m.predictCovarianceWith(testPoints, refPoint)
+      );
+      const testResults = this.models.map((m) => m.predict(testPoints));
+      const refResults = this.models.map((m) => m.predict([refPoint]));
+      const result = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        let sumCov = 0;
+        let sumMuA = 0;
+        let sumMuB = 0;
+        let sumMuAB = 0;
+        for (let k = 0; k < K; k++) {
+          sumCov += covs[k][i];
+          const muA = testResults[k].mean[i];
+          const muB = refResults[k].mean[0];
+          sumMuA += muA;
+          sumMuB += muB;
+          sumMuAB += muA * muB;
+        }
+        result[i] = sumCov / K + (sumMuAB / K - sumMuA / K * (sumMuB / K));
+      }
+      return result;
+    }
+  };
+
+  // src/io/deserialize.ts
+  function validateNumericFields(state) {
+    const check = (arr, label) => {
+      if (!arr) return;
+      const flat = Array.isArray(arr[0]) ? arr.flat() : arr;
+      for (let i = 0; i < flat.length; i++) {
+        if (!isFinite(flat[i])) {
+          throw new Error(
+            `Invalid ${label}[${i}] = ${flat[i]}. Model state contains NaN/Inf. Regenerate with: python python/generate_fixtures.py`
+          );
+        }
+      }
+    };
+    if ("train_X" in state) {
+      check(state.train_X, "train_X");
+    }
+    if ("train_Y" in state && Array.isArray(state.train_Y)) {
+      check(state.train_Y, "train_Y");
+    }
+  }
+  function loadModel(state) {
+    validateNumericFields(state);
+    switch (state.model_type) {
+      case "ModelListGP":
+        return new ModelListGP(state);
+      case "PairwiseGP":
+        return createPairwiseGP(state);
+      case "MultiTaskGP":
+        return new MultiTaskGP(state);
+      case "EnsembleGP":
+        return new EnsembleGP(state);
+      default:
+        return new SingleTaskGP(state);
+    }
+  }
+
+  // src/predictor.ts
+  var Predictor = class {
+    outcomeNames;
+    paramNames;
+    paramBounds;
+    paramSpecs;
+    statusQuoPoint;
+    model;
+    adapterUntransforms;
+    constructor(exported) {
+      this.model = loadModel(exported.model_state);
+      this.paramSpecs = exported.search_space.parameters;
+      this.paramNames = exported.search_space.parameters.map((p) => p.name);
+      this.paramBounds = exported.search_space.parameters.map(
+        (p) => p.bounds || [0, 1]
+      );
+      this.statusQuoPoint = exported.status_quo?.point ?? null;
+      if (exported.outcome_names) {
+        this.outcomeNames = exported.outcome_names;
+      } else if (this.model instanceof ModelListGP) {
+        this.outcomeNames = this.model.outcomeNames;
+      } else {
+        this.outcomeNames = ["y"];
+      }
+      this.adapterUntransforms = buildAdapterUntransforms(
+        exported.adapter_transforms,
+        this.outcomeNames
+      );
+    }
+    /**
+     * Predict at one or more points (raw parameter space).
+     * Points are positional arrays matching search_space parameter order.
+     * The model's input_transform handles normalization if present.
+     *
+     * Returns predictions keyed by outcome name.
+     */
+    predict(points) {
+      if (this.model instanceof ModelListGP) {
+        const results = this.model.predict(points);
+        const out = {};
+        for (let k = 0; k < results.length; k++) {
+          out[this.outcomeNames[k]] = this.applyAdapterUntransform(
+            this.outcomeNames[k],
+            results[k]
+          );
+        }
+        return out;
+      }
+      if (this.model instanceof MultiTaskGP) {
+        const out = {};
+        for (let t = 0; t < this.model.numTasks; t++) {
+          const result2 = this.model.predict(points, t);
+          const name = this.outcomeNames[t] || `task_${t}`;
+          out[name] = this.applyAdapterUntransform(name, result2);
+        }
+        return out;
+      }
+      const result = this.model.predict(points);
+      return {
+        [this.outcomeNames[0]]: this.applyAdapterUntransform(
+          this.outcomeNames[0],
+          result
+        )
+      };
+    }
+    /**
+     * Predict relative effects (% change vs status quo) at given points.
+     * Requires status_quo to be set in ExperimentState.
+     * Returns predictions keyed by outcome name with relativized mean/variance.
+     *
+     * By default, uses model covariance between test and status quo points for
+     * tighter confidence intervals. Pass `useCovariance: false` to assume
+     * independence (matches Ax's default `cov_means=0` behavior).
+     */
+    predictRelative(points, opts) {
+      if (!this.statusQuoPoint) {
+        throw new Error("Cannot relativize: no status_quo defined");
+      }
+      const absPreds = this.predict(points);
+      const sqPreds = this.predict([this.statusQuoPoint]);
+      const useCovariance = opts?.useCovariance !== false;
+      const out = {};
+      for (const name of Object.keys(absPreds)) {
+        const sqMean = sqPreds[name].mean[0];
+        const sqVar = sqPreds[name].variance[0];
+        const covariances = useCovariance ? this.getCovariances(name, points) : void 0;
+        out[name] = relativizePredictions(
+          absPreds[name].mean,
+          absPreds[name].variance,
+          sqMean,
+          sqVar,
+          opts,
+          covariances
+        );
+      }
+      return out;
+    }
+    /**
+     * Get covariances between predictions at points and the status quo.
+     * Used internally by predictRelative for tighter confidence intervals.
+     */
+    getCovariances(outcomeName, points) {
+      if (!this.statusQuoPoint) return void 0;
+      const sqPoint = this.statusQuoPoint;
+      if (this.model instanceof ModelListGP) {
+        const idx = this.outcomeNames.indexOf(outcomeName);
+        if (idx < 0) return void 0;
+        const covs = this.model.predictCovarianceWith(points, sqPoint);
+        return covs[idx];
+      }
+      if (this.model instanceof MultiTaskGP) {
+        const taskIdx = this.outcomeNames.indexOf(outcomeName);
+        if (taskIdx < 0) return void 0;
+        return this.model.predictCovarianceWith(points, taskIdx, sqPoint);
+      }
+      const m = this.model;
+      if (typeof m.predictCovarianceWith === "function") {
+        return m.predictCovarianceWith(points, sqPoint);
+      }
+      return void 0;
+    }
+    applyAdapterUntransform(outcomeName, result) {
+      if (!this.adapterUntransforms) return result;
+      const untransform = this.adapterUntransforms.get(outcomeName);
+      if (!untransform) return result;
+      const n = result.mean.length;
+      const mean = new Float64Array(n);
+      const variance = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        const ut = untransform.untransform(result.mean[i], result.variance[i]);
+        mean[i] = ut.mean;
+        variance[i] = ut.variance;
+      }
+      return { mean, variance };
+    }
+  };
+  function buildAdapterUntransforms(transforms, outcomeNames) {
+    if (!transforms || transforms.length === 0) return null;
+    const perMetric = /* @__PURE__ */ new Map();
+    for (const tf of transforms) {
+      const metrics = "metrics" in tf && tf.metrics ? tf.metrics : outcomeNames;
+      switch (tf.type) {
+        case "LogY":
+          for (const metric of metrics) {
+            if (!perMetric.has(metric)) perMetric.set(metric, []);
+            perMetric.get(metric).push(new LogUntransform());
+          }
+          break;
+        case "BilogY":
+          for (const metric of metrics) {
+            if (!perMetric.has(metric)) perMetric.set(metric, []);
+            perMetric.get(metric).push(new BilogUntransform());
+          }
+          break;
+        case "StandardizeY":
+          if (tf.Ymean && tf.Ystd) {
+            for (const metric of metrics) {
+              if (metric in tf.Ymean && metric in tf.Ystd) {
+                if (!perMetric.has(metric)) perMetric.set(metric, []);
+                perMetric.get(metric).push(
+                  new StandardizeUntransform(tf.Ymean[metric], tf.Ystd[metric])
+                );
+              }
+            }
+          }
+          break;
+        case "PowerTransformY":
+          if (tf.power_params) {
+            for (const metric of metrics) {
+              if (metric in tf.power_params) {
+                const entry = tf.power_params[metric];
+                const lambdas = Array.isArray(entry) ? entry : entry.lambdas;
+                const scalerMean = Array.isArray(entry) ? void 0 : entry.scaler_mean?.[0];
+                const scalerScale = Array.isArray(entry) ? void 0 : entry.scaler_scale?.[0];
+                if (!perMetric.has(metric)) perMetric.set(metric, []);
+                perMetric.get(metric).push(new PowerUntransform(lambdas[0], scalerMean, scalerScale));
+              }
+            }
+          }
+          break;
+      }
+    }
+    if (perMetric.size === 0) return null;
+    const map = /* @__PURE__ */ new Map();
+    for (const [metric, tfs] of perMetric) {
+      if (tfs.length === 1) {
+        map.set(metric, tfs[0]);
+      } else {
+        map.set(metric, new ChainedOutcomeUntransform(tfs));
+      }
+    }
+    return map.size > 0 ? map : null;
+  }
+
+  // src/acquisition/normal.ts
+  var SQRT2 = Math.SQRT2;
+  var SQRT2PI = Math.sqrt(2 * Math.PI);
+  var LOG_SQRT2PI = Math.log(SQRT2PI);
+  function normalPdf(x) {
+    return Math.exp(-0.5 * x * x) / SQRT2PI;
+  }
+  function logNormalPdf(x) {
+    return -0.5 * x * x - LOG_SQRT2PI;
+  }
+  function normalCdf(x) {
+    return 0.5 * erfc(-x / SQRT2);
+  }
+  function logNormalCdf(x) {
+    if (x > 6) {
+      return -normalPdf(x) / x;
+    }
+    if (x < -6) {
+      const x2 = x * x;
+      return -0.5 * x2 - LOG_SQRT2PI - Math.log(-x) - 1 / x2 + 3 / (x2 * x2);
+    }
+    return Math.log(normalCdf(x));
+  }
+  function erfc(x) {
+    if (x < 0) return 2 - erfc(-x);
+    if (x < 0.5) {
+      return 1 - erf(x);
+    }
+    const t = 2 / (2 + x);
+    const ty = 4 * t - 2;
+    const c = [
+      -1.3026537197817094,
+      0.6419697923564902,
+      0.019476473204185836,
+      -0.00956151478680863,
+      -946595344482036e-18,
+      366839497852761e-18,
+      42523324806907e-18,
+      -20278578112534e-18,
+      -1624290004647e-18,
+      130365583558e-17,
+      15626441722e-18,
+      -85238095915e-18,
+      6529054439e-18,
+      5059343495e-18,
+      -991364156e-18,
+      -227365122e-18,
+      96467911e-18,
+      2394038e-18,
+      -6886027e-18,
+      894487e-18,
+      313092e-18,
+      -112708e-18,
+      381e-18,
+      7106e-18,
+      -1523e-18,
+      -94e-18,
+      121e-18,
+      -28e-18
+    ];
+    const ncof = c.length;
+    let d = 0;
+    let dd = 0;
+    for (let j = ncof - 1; j > 0; j--) {
+      const tmp = d;
+      d = ty * d - dd + c[j];
+      dd = tmp;
+    }
+    return t * Math.exp(-x * x + 0.5 * (c[0] + ty * d) - dd);
+  }
+  function erf(x) {
+    const x2 = x * x;
+    let sum = 1;
+    let term = 1;
+    for (let k = 1; k <= 20; k++) {
+      term *= -x2 / k;
+      sum += term / (2 * k + 1);
+    }
+    return 2 / Math.sqrt(Math.PI) * x * sum;
+  }
+
+  // src/acquisition/ucb.ts
+  var UpperConfidenceBound = class {
+    constructor(model, beta = 2) {
+      this.model = model;
+      this.beta = beta;
+    }
+    evaluate(candidates) {
+      const { mean, variance } = this.model.predict(candidates);
+      const n = mean.length;
+      const values = new Float64Array(n);
+      const sqrtBeta = Math.sqrt(this.beta);
+      for (let i = 0; i < n; i++) {
+        values[i] = mean[i] + sqrtBeta * Math.sqrt(variance[i]);
+      }
+      return values;
+    }
+  };
+
+  // src/acquisition/log_ei.ts
+  var LogExpectedImprovement = class {
+    constructor(model, bestF) {
+      this.model = model;
+      this.bestF = bestF;
+    }
+    evaluate(candidates) {
+      const { mean, variance } = this.model.predict(candidates);
+      const n = mean.length;
+      const values = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        const sigma = Math.sqrt(variance[i]);
+        if (sigma < 1e-12) {
+          values[i] = mean[i] > this.bestF ? Math.log(mean[i] - this.bestF) : -Infinity;
+          continue;
+        }
+        const z = (mean[i] - this.bestF) / sigma;
+        values[i] = Math.log(sigma) + logH(z);
+      }
+      return values;
+    }
+  };
+  var ExpectedImprovement = class {
+    constructor(model, bestF) {
+      this.model = model;
+      this.bestF = bestF;
+    }
+    evaluate(candidates) {
+      const { mean, variance } = this.model.predict(candidates);
+      const n = mean.length;
+      const values = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        const sigma = Math.sqrt(variance[i]);
+        if (sigma < 1e-12) {
+          values[i] = Math.max(0, mean[i] - this.bestF);
+          continue;
+        }
+        const z = (mean[i] - this.bestF) / sigma;
+        values[i] = Math.max(0, sigma * (z * normalCdf(z) + normalPdf(z)));
+      }
+      return values;
+    }
+  };
+  function logH(z) {
+    if (z > 0) {
+      const cdf = normalCdf(z);
+      const pdf = normalPdf(z);
+      return Math.log(z) + logNormalCdf(z) + Math.log1p(pdf / (z * cdf));
+    } else if (z === 0) {
+      return logNormalPdf(0);
+    } else {
+      const cdf = normalCdf(z);
+      const pdf = normalPdf(z);
+      if (pdf < 1e-300) return logNormalCdf(z);
+      return logNormalPdf(z) + Math.log1p(z * cdf / pdf);
+    }
+  }
+
+  // src/acquisition/posterior.ts
+  function posteriorCovariance(model, points) {
+    const n = points.length;
+    const Sigma = new Matrix(n, n);
+    for (let j = 0; j < n; j++) {
+      const cov = model.predictCovarianceWith(points, points[j]);
+      for (let i = 0; i < n; i++) {
+        Sigma.set(i, j, cov[i]);
+      }
+    }
+    return Sigma;
+  }
+  function posteriorMean(model, points) {
+    return model.predict(points).mean;
+  }
+
+  // src/acquisition/sample_mvn.ts
+  var Rng = class {
+    s;
+    constructor(seed = 42) {
+      this.s = new Uint32Array(4);
+      for (let i = 0; i < 4; i++) {
+        seed += 2654435769;
+        let t = seed;
+        t = Math.imul(t ^ t >>> 16, 569420461);
+        t = Math.imul(t ^ t >>> 15, 1935289751);
+        this.s[i] = (t ^ t >>> 15) >>> 0;
+      }
+    }
+    /** Uniform [0, 1) */
+    uniform() {
+      const result = this.s[0] + this.s[3];
+      const t = this.s[1] << 9;
+      this.s[2] ^= this.s[0];
+      this.s[3] ^= this.s[1];
+      this.s[1] ^= this.s[2];
+      this.s[0] ^= this.s[3];
+      this.s[2] ^= t;
+      this.s[3] = this.s[3] << 11 | this.s[3] >>> 21;
+      return (result >>> 0) / 4294967296;
+    }
+    /** Standard normal via Box-Muller transform. */
+    randn() {
+      const u1 = this.uniform();
+      const u2 = this.uniform();
+      return Math.sqrt(-2 * Math.log(u1 + 1e-300)) * Math.cos(2 * Math.PI * u2);
+    }
+    /** Fill a Float64Array with standard normal samples. */
+    randnArray(n) {
+      const arr = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        arr[i] = this.randn();
+      }
+      return arr;
+    }
+  };
+  function sampleMVN(mean, covariance, nSamples, rng, isCholesky = false) {
+    const d = mean.length;
+    const L = isCholesky ? covariance : cholesky(covariance);
+    const samples = new Matrix(nSamples, d);
+    for (let s = 0; s < nSamples; s++) {
+      const z = rng.randnArray(d);
+      for (let i = 0; i < d; i++) {
+        let val = mean[i];
+        for (let j = 0; j <= i; j++) {
+          val += L.get(i, j) * z[j];
+        }
+        samples.set(s, i, val);
+      }
+    }
+    return samples;
+  }
+
+  // src/acquisition/thompson.ts
+  var ThompsonSampling = class {
+    constructor(model, seed = 42) {
+      this.model = model;
+      this.rng = new Rng(seed);
+    }
+    rng;
+    evaluate(candidates) {
+      const mean = posteriorMean(this.model, candidates);
+      const Sigma = posteriorCovariance(this.model, candidates);
+      const sample = sampleMVN(mean, Sigma, 1, this.rng);
+      const n = candidates.length;
+      const values = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        values[i] = sample.get(0, i);
+      }
+      return values;
+    }
+  };
+  function thompsonSamples(model, candidates, nSamples, seed = 42) {
+    const mean = posteriorMean(model, candidates);
+    const Sigma = posteriorCovariance(model, candidates);
+    const rng = new Rng(seed);
+    return sampleMVN(mean, Sigma, nSamples, rng);
+  }
+
+  // src/acquisition/eubo.ts
+  var EUBO = class {
+    /**
+     * @param model     - PairwiseGP (or any GPModel modeling latent utility)
+     * @param nSamples  - Number of MC samples (default 256)
+     * @param seed      - RNG seed for reproducibility
+     */
+    constructor(model, nSamples = 256, seed = 42) {
+      this.model = model;
+      this.nSamples = nSamples;
+      this.rng = new Rng(seed);
+    }
+    rng;
+    /**
+     * Evaluate EUBO for a single menu of candidates.
+     *
+     * NOTE: Unlike other AFs, EUBO evaluates the JOINT value of the candidate set.
+     * The returned Float64Array has length 1 — it's the EUBO value for the
+     * entire menu, not per-candidate values.
+     *
+     * For per-candidate marginal contributions, see evaluateMarginal().
+     */
+    evaluate(candidates) {
+      const value = this.euboValue(candidates);
+      return Float64Array.from([value]);
+    }
+    /**
+     * Compute EUBO value: E[max_i u(x_i)] for the given candidate set.
+     */
+    euboValue(candidates) {
+      const q = candidates.length;
+      const mean = posteriorMean(this.model, candidates);
+      const Sigma = posteriorCovariance(this.model, candidates);
+      const samples = sampleMVN(mean, Sigma, this.nSamples, this.rng);
+      let sumMax = 0;
+      for (let s = 0; s < this.nSamples; s++) {
+        let maxU = -Infinity;
+        for (let i = 0; i < q; i++) {
+          const u = samples.get(s, i);
+          if (u > maxU) maxU = u;
+        }
+        sumMax += maxU;
+      }
+      return sumMax / this.nSamples;
+    }
+    /**
+     * Evaluate marginal contribution of each candidate to the menu.
+     *
+     * For each candidate x_i, computes:
+     *   Δ_i = EUBO({x_i} ∪ rest) - EUBO(rest)
+     *
+     * This is O(q · nSamples) using the same set of posterior samples.
+     * Useful for greedy menu construction.
+     */
+    evaluateMarginal(candidates) {
+      const q = candidates.length;
+      const mean = posteriorMean(this.model, candidates);
+      const Sigma = posteriorCovariance(this.model, candidates);
+      const samples = sampleMVN(mean, Sigma, this.nSamples, this.rng);
+      const marginals = new Float64Array(q);
+      for (let s = 0; s < this.nSamples; s++) {
+        let best = -Infinity;
+        let bestIdx = 0;
+        let secondBest = -Infinity;
+        for (let i = 0; i < q; i++) {
+          const u = samples.get(s, i);
+          if (u > best) {
+            secondBest = best;
+            best = u;
+            bestIdx = i;
+          } else if (u > secondBest) {
+            secondBest = u;
+          }
+        }
+        for (let i = 0; i < q; i++) {
+          if (i === bestIdx) {
+            marginals[i] += (best - secondBest) / this.nSamples;
+          }
+        }
+      }
+      return marginals;
+    }
+  };
+
+  // src/acquisition/optimize.ts
+  function optimizeAcqf(acqf, bounds, opts = {}) {
+    const {
+      rawSamples = 1024,
+      numRestarts = 10,
+      seed = 42,
+      useLBFGS = false,
+      lbfgsOptions = {},
+      returnAll = false
+    } = opts;
+    const d = bounds.length;
+    const rng = new Rng(seed);
+    const candidates = generateCandidates(d, bounds, rawSamples, rng);
+    const values = acqf.evaluate(candidates);
+    const indices = argsort(values);
+    const topK = Math.min(numRestarts, candidates.length);
+    let bestPoint = candidates[indices[0]];
+    let bestValue = values[indices[0]];
+    if (useLBFGS) {
+      for (let k = 0; k < topK; k++) {
+        const startPoint = candidates[indices[k]];
+        const result = lbfgsOptimize(acqf, startPoint, bounds, lbfgsOptions);
+        if (result.value > bestValue) {
+          bestValue = result.value;
+          bestPoint = result.point;
+        }
+      }
+    }
+    if (returnAll) {
+      const sortedCandidates = indices.map((i) => candidates[i]);
+      const sortedValues = new Float64Array(indices.length);
+      for (let i = 0; i < indices.length; i++) {
+        sortedValues[i] = values[indices[i]];
+      }
+      return {
+        point: bestPoint,
+        value: bestValue,
+        candidates: sortedCandidates,
+        values: sortedValues
+      };
+    }
+    return { point: bestPoint, value: bestValue };
+  }
+  function generateCandidates(d, bounds, n, rng) {
+    const candidates = [];
+    for (let i = 0; i < n; i++) {
+      const point = new Array(d);
+      for (let j = 0; j < d; j++) {
+        const [lo, hi] = bounds[j];
+        point[j] = lo + rng.uniform() * (hi - lo);
+      }
+      candidates.push(point);
+    }
+    return candidates;
+  }
+  function argsort(values) {
+    const indices = Array.from({ length: values.length }, (_, i) => i);
+    indices.sort((a, b) => values[b] - values[a]);
+    return indices;
+  }
+  function lbfgsOptimize(acqf, x0, bounds, opts = {}) {
+    const {
+      maxIter = 50,
+      fdEps = 1e-5,
+      historySize = 10,
+      ftol = 1e-8,
+      lr = 1
+    } = opts;
+    const d = x0.length;
+    let x = projectToBounds(x0.slice(), bounds);
+    let fx = evalSingle(acqf, x);
+    const S = [];
+    const Y = [];
+    const rhos = [];
+    let gPrev = finiteDiffGradient(acqf, x, bounds, fdEps);
+    for (let iter = 0; iter < maxIter; iter++) {
+      const dir = lbfgsDirection(gPrev, S, Y, rhos, historySize);
+      for (let j = 0; j < d; j++) dir[j] = -dir[j];
+      let step = lr;
+      const dirDotGrad = dotProduct(dir, gPrev);
+      let xNew = projectToBounds(stepAdd(x, dir, step), bounds);
+      let fNew = evalSingle(acqf, xNew);
+      for (let ls = 0; ls < 20; ls++) {
+        if (fNew >= fx + 1e-4 * step * dirDotGrad) break;
+        step *= 0.5;
+        xNew = projectToBounds(stepAdd(x, dir, step), bounds);
+        fNew = evalSingle(acqf, xNew);
+      }
+      if (Math.abs(fNew - fx) < ftol * (1 + Math.abs(fx))) {
+        if (fNew > fx) {
+          x = xNew;
+          fx = fNew;
+        }
+        break;
+      }
+      const gNew = finiteDiffGradient(acqf, xNew, bounds, fdEps);
+      const s = new Array(d);
+      const y = new Array(d);
+      for (let j = 0; j < d; j++) {
+        s[j] = xNew[j] - x[j];
+        y[j] = gNew[j] - gPrev[j];
+      }
+      const sy = dotProduct(s, y);
+      if (sy > 1e-10) {
+        if (S.length >= historySize) {
+          S.shift();
+          Y.shift();
+          rhos.shift();
+        }
+        S.push(s);
+        Y.push(y);
+        rhos.push(1 / sy);
+      }
+      x = xNew;
+      fx = fNew;
+      gPrev = gNew;
+    }
+    return { point: x, value: fx };
+  }
+  function lbfgsDirection(g, S, Y, rhos, _historySize) {
+    const d = g.length;
+    const m = S.length;
+    if (m === 0) return g.slice();
+    const q = g.slice();
+    const alphas = new Array(m);
+    for (let i = m - 1; i >= 0; i--) {
+      alphas[i] = rhos[i] * dotProduct(S[i], q);
+      for (let j = 0; j < d; j++) {
+        q[j] -= alphas[i] * Y[i][j];
+      }
+    }
+    const yLast = Y[m - 1];
+    const sLast = S[m - 1];
+    const yy = dotProduct(yLast, yLast);
+    const gamma = dotProduct(sLast, yLast) / (yy + 1e-300);
+    for (let j = 0; j < d; j++) {
+      q[j] *= gamma;
+    }
+    for (let i = 0; i < m; i++) {
+      const beta = rhos[i] * dotProduct(Y[i], q);
+      for (let j = 0; j < d; j++) {
+        q[j] += (alphas[i] - beta) * S[i][j];
+      }
+    }
+    return q;
+  }
+  function finiteDiffGradient(acqf, x, bounds, eps) {
+    const d = x.length;
+    const grad = new Array(d);
+    for (let j = 0; j < d; j++) {
+      const xp = x.slice();
+      const xm = x.slice();
+      const lo = bounds[j][0];
+      const hi = bounds[j][1];
+      const step = Math.min(eps, (hi - lo) * 0.01);
+      if (x[j] + step > hi) {
+        xm[j] -= step;
+        const fp = evalSingle(acqf, x);
+        const fm = evalSingle(acqf, xm);
+        grad[j] = (fp - fm) / step;
+      } else if (x[j] - step < lo) {
+        xp[j] += step;
+        const fp = evalSingle(acqf, xp);
+        const fm = evalSingle(acqf, x);
+        grad[j] = (fp - fm) / step;
+      } else {
+        xp[j] += step;
+        xm[j] -= step;
+        const fp = evalSingle(acqf, xp);
+        const fm = evalSingle(acqf, xm);
+        grad[j] = (fp - fm) / (2 * step);
+      }
+    }
+    return grad;
+  }
+  function evalSingle(acqf, x) {
+    return acqf.evaluate([x])[0];
+  }
+  function projectToBounds(x, bounds) {
+    for (let j = 0; j < x.length; j++) {
+      x[j] = Math.max(bounds[j][0], Math.min(bounds[j][1], x[j]));
+    }
+    return x;
+  }
+  function stepAdd(x, dir, step) {
+    const result = new Array(x.length);
+    for (let j = 0; j < x.length; j++) {
+      result[j] = x[j] + step * dir[j];
+    }
+    return result;
+  }
+  function dotProduct(a, b) {
+    let sum = 0;
+    for (let i = 0; i < a.length; i++) sum += a[i] * b[i];
+    return sum;
+  }
+  return __toCommonJS(index_exports);
+})();
+
+</script>
+<script>
+
+// ── Shared utilities ──
+function isChoice(p) { return p.type === 'choice'; }
+function isInteger(p) { return p.type === 'range' && p.parameter_type === 'int'; }
+function defaultParamValue(p) {
+  if (isChoice(p)) return p.values[0];
+  if (isInteger(p)) return Math.round((p.bounds[0] + p.bounds[1]) / 2);
+  return (p.bounds[0] + p.bounds[1]) / 2;
+}
+function formatParamValue(val, p) {
+  if (isChoice(p)) return String(val);
+  if (isInteger(p)) return String(Math.round(val));
+  return val.toFixed(3);
+}
+function findLS(k) {
+  if (!k) return null;
+  if (k.lengthscale) return k.lengthscale;
+  if (k.base_kernel) return findLS(k.base_kernel);
+  if (k.kernels) { for (var i=0;i<k.kernels.length;i++) { var r=findLS(k.kernels[i]); if(r) return r; } }
+  return null;
+}
+function extractLengthscales(ms) {
+  if (ms.model_type==='ModelListGP') return findLS(ms.models[0].kernel);
+  return findLS(ms.kernel || ms.data_kernel);
+}
+function rankDims(ms, outcomeNames, selectedOutcome) {
+  var subModel = (outcomeNames && selectedOutcome)
+    ? getModelForOutcome(ms, outcomeNames, selectedOutcome) : ms;
+  var ls = findLS(subModel.kernel || subModel.data_kernel);
+  if (!ls) return null;
+  var idx = ls.map(function(_,i){return i;});
+  idx.sort(function(a,b){return ls[a]-ls[b];});
+  return idx;
+}
+function computeDimOrder(ms, nDim, outcomeNames, selectedOutcome) {
+  var ranked = rankDims(ms, outcomeNames, selectedOutcome);
+  if (!ranked) return Array.from({length:nDim}, function(_,i){return i;});
+  var order = ranked.slice();
+  if (order.length < nDim) {
+    var inRanked = new Set(order);
+    for (var di = 0; di < nDim; di++) {
+      if (!inRanked.has(di)) order.push(di);
+    }
+  }
+  return order;
+}
+function closestToCenter(ms, bounds, params) {
+  var trainX = ms.model_type==='ModelListGP' ? ms.models[0].train_X : ms.train_X;
+  if (!trainX || trainX.length===0) return null;
+  var center = bounds.map(function(b, i){
+    if (params && params[i]) {
+      if (isChoice(params[i])) { var v = params[i].values; return v[Math.floor(v.length/2)]; }
+      if (isInteger(params[i])) return Math.round((b[0]+b[1])/2);
+    }
+    return (b[0]+b[1])/2;
+  });
+  var best=0, bestD=Infinity;
+  trainX.forEach(function(pt,i){
+    var d=0;
+    for(var j=0;j<center.length;j++){var rng=bounds[j][1]-bounds[j][0]||1; d+=Math.pow((pt[j]-center[j])/rng,2);}
+    if(d<bestD){bestD=d;best=i;}
+  });
+  return trainX[best].slice();
+}
+function normalizeFixture(data) {
+  if (data.experiment) {
+    var result = {
+      search_space: data.experiment.search_space,
+      model_state: data.experiment.model_state,
+      metadata: Object.assign(
+        {name: data.experiment.name || '', description: data.experiment.description || ''},
+        data.test && data.test.metadata || {}
+      ),
+      test_points: data.test && data.test.test_points || []
+    };
+    if (data.experiment.outcome_names) result.outcome_names = data.experiment.outcome_names;
+    if (data.experiment.optimization_config) result.optimization_config = data.experiment.optimization_config;
+    if (data.experiment.status_quo) result.status_quo = data.experiment.status_quo;
+    if (data.experiment.adapter_transforms) result.adapter_transforms = data.experiment.adapter_transforms;
+    return result;
+  }
+  return data;
+}
+function getTrainData(ms, outcomeNames, selectedOutcome) {
+  var outIdx = outcomeNames.indexOf(selectedOutcome);
+  var tX = ms.model_type === 'ModelListGP' ? ms.models[outIdx].train_X : ms.train_X;
+  var tY = ms.model_type === 'ModelListGP' ? ms.models[outIdx].train_Y : ms.train_Y;
+  var outTf = ms.model_type === 'ModelListGP'
+    ? ms.models[outIdx].outcome_transform : ms.outcome_transform;
+  return { trainX: tX, trainY: tY, outTf: outTf };
+}
+function untransformY(yVal, outTf) {
+  if (outTf && outTf.mean !== undefined) return outTf.mean + outTf.std * yVal;
+  return yVal;
+}
+function showTooltip(tt, html, ex, ey) {
+  tt.innerHTML = html;
+  tt.style.display = 'block';
+  tt.style.left = (ex + 16) + 'px';
+  tt.style.top = (ey - 10) + 'px';
+}
+function hideTooltip(tt) { tt.style.display = 'none'; }
+
+// Get lengthscales and input_transform for a specific outcome
+function getModelForOutcome(ms, outcomeNames, selectedOutcome) {
+  if (ms.model_type === 'ModelListGP') {
+    return ms.models[outcomeNames.indexOf(selectedOutcome)];
+  }
+  return ms;
+}
+
+// Compute kernel-distance-based relevance of a training point to the current slice.
+// Returns exp(-d^2) where d^2 is the squared scaled distance over specified dims.
+// Uses steeper decay than RBF (exp(-d²) vs exp(-0.5d²)) so that only genuinely
+// on-slice points appear bright — prevents misleading bright dots off the GP curve.
+// plottedDims: array of dimension indices being plotted (excluded from distance)
+function pointRelevance(pt, fixedValues, plottedDims, ls, inputTf, params) {
+  var d2 = 0;
+  for (var j = 0; j < fixedValues.length; j++) {
+    if (plottedDims.indexOf(j) >= 0) continue;
+    if (params && params[j] && isChoice(params[j])) {
+      if (pt[j] !== fixedValues[j]) d2 += 4;
+      continue;
+    }
+    var diff = pt[j] - fixedValues[j];
+    var coeff = (inputTf && inputTf.coefficient) ? inputTf.coefficient[j] : 1;
+    var lsj = (ls && j < ls.length) ? ls[j] : 1;
+    var scaled = diff * coeff / lsj;
+    d2 += scaled * scaled;
+  }
+  return Math.exp(-d2);
+}
+
+</script>
+
+<script>
+(function() {
+var Predictor = axjs.Predictor;
+var relativize = axjs.relativize;
+
+// ── VSIP test problem (same as radar demo) ──
+var NDIM = 7, NRESP = 9;
+var BOUNDS = [
+  [0.5, 1.5], [0.45, 1.35], [0.5, 1.5], [0.5, 1.5],
+  [0.875, 2.625], [0.4, 1.2], [0.4, 1.2]
+];
+var PARAM_NAMES = [
+  'bpillar_inner', 'bpillar_outer', 'floor_side_inner', 'cross_member',
+  'door_beam', 'door_belt_line', 'roof_rail'
+];
+var OUTCOME_NAMES = [
+  'weight', 'acceleration', 'intrusion', 'door_velocity', 'bpillar_top_vel',
+  'bpillar_mid_vel', 'pubic_force', 'viscous_criterion', 'abdomen_load'
+];
+
+function evaluate(x) {
+  var x1=x[0],x2=x[1],x3=x[2],x4=x[3],x5=x[4],x6=x[5],x7=x[6];
+  return [
+    1.98 + 4.90*x1 + 6.67*x2 + 6.98*x3 + 4.01*x4 + 1.78*x5 + 0.001*x6 + 2.73*x7,
+    7.50 - 0.80*x1 - 0.60*x2 - 0.40*x3 - 0.50*x4 - 0.30*x5 + 0.30*x1*x2 + 0.20*x2*x3,
+    15.0 - 2.00*x1 - 1.50*x2 - 1.00*x3 - 1.50*x5 + 0.50*x1*x2 + 0.30*x5*x6,
+    38.0 - 4.00*x1 - 3.00*x2 - 2.00*x5 + 0.50*x1*x2 - 0.30*x3*x5 + x6,
+    42.0 - 6.00*x1 - 5.00*x2 - 3.00*x5 + 0.50*x1*x2 - 0.20*x1*x1,
+    40.0 - 5.00*x1 - 4.00*x2 - 2.00*x3 - 2.00*x5 + 0.80*x1*x2,
+    6.00 - 0.80*x1 - 0.90*x2 - 0.60*x5 - 0.40*x6 + 0.30*x1*x5,
+    0.50 - 0.08*x1 - 0.07*x2 - 0.05*x5 + 0.02*x1*x2,
+    1.40 - 0.18*x1 - 0.15*x2 - 0.12*x3 - 0.08*x5 + 0.05*x2*x3
+  ];
+}
+
+function randn() {
+  var u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+// ── Real VSIP hyperparameters from BoTorch-fitted fixture ──
+var NOISE_FRAC = 0.05;  // observation noise SD = 5% of outcome range
+
+// Per-outcome kernel hyperparameters (from real VSIP fixture)
+var HP = [
+  { ls: [1.6267,1.2128,1.2446,1.6253,3.608,8.932,1.7659],   mc: 0.0791, ot_mean: 29.7373, ot_std: 2.8713 },
+  { ls: [1.307,1.3154,1.8387,1.2458,2.389,8.2335,7.9159],    mc:-0.1650, ot_mean: 5.0977,  ot_std: 0.2551 },
+  { ls: [1.4428,1.6983,1.999,10.2398,2.1422,1.8556,10.6526], mc: 0.0363, ot_mean: 8.6801,  ot_std: 0.8495 },
+  { ls: [1.3759,1.6135,3.3776,11.3655,2.2074,2.4952,10.4684],mc: 0.1406, ot_mean: 28.1566, ot_std: 1.6130 },
+  { ls: [1.2147,1.3802,18.3456,15.5716,2.5602,14.1023,13.642],mc:0.0335, ot_mean: 25.9059, ot_std: 2.2715 },
+  { ls: [1.1935,1.3005,1.8258,11.2485,2.4421,11.1151,10.2955],mc:0.0119, ot_mean: 26.2324, ot_std: 1.5737 },
+  { ls: [1.1141,0.9713,14.616,11.7787,1.987,1.3989,11.441],  mc: 0.2721, ot_mean: 3.4712,  ot_std: 0.2693 },
+  { ls: [1.3767,1.5675,17.9047,15.4862,2.4013,13.9189,13.9475],mc:0.0696, ot_mean: 0.2780, ot_std: 0.0324 },
+  { ls: [1.1656,1.2878,1.6227,9.9579,2.3484,9.793,9.4348],   mc: 0.0302, ot_mean: 0.8563,  ot_std: 0.0629 }
+];
+
+// Input transform: raw bounds → [0,1]^7 (Normalize)
+var INPUT_TF = {
+  offset: BOUNDS.map(function(b) { return b[0]; }),
+  coefficient: BOUNDS.map(function(b) { return 1 / (b[1] - b[0]); })
+};
+var SEARCH_SPACE = {
+  parameters: PARAM_NAMES.map(function(name, i) {
+    return { name: name, type: 'range', bounds: BOUNDS[i] };
+  })
+};
+
+// Compute outcome ranges from a sample to set noise SDs
+var rangeSample = [];
+for (var ri = 0; ri < 500; ri++) {
+  rangeSample.push(BOUNDS.map(function(b) { return b[0] + Math.random()*(b[1]-b[0]); }));
+}
+var rangeEvals = rangeSample.map(evaluate);
+var outcomeRanges = [];
+for (var k = 0; k < NRESP; k++) {
+  var vals = rangeEvals.map(function(e) { return e[k]; });
+  outcomeRanges.push(Math.max.apply(null, vals) - Math.min.apply(null, vals));
+}
+
+// ── Build model on the fly ──
+var nSamples = 32;
+var predictor = null;
+var trainX = [];
+
+function buildModel() {
+  trainX = [];
+  for (var i = 0; i < nSamples; i++) {
+    trainX.push(BOUNDS.map(function(b) { return b[0] + Math.random()*(b[1]-b[0]); }));
+  }
+  var evals = trainX.map(evaluate);
+
+  var subModels = [];
+  for (var k = 0; k < NRESP; k++) {
+    var hp = HP[k];
+    var noiseSd = NOISE_FRAC * outcomeRanges[k];
+    var noiseVar = noiseSd * noiseSd;
+
+    // Standardize Y using the real outcome transform parameters
+    var rawY = evals.map(function(e) { return e[k] + noiseSd * randn(); });
+    var trainY = rawY.map(function(y) { return (y - hp.ot_mean) / hp.ot_std; });
+
+    // Per-observation noise variance in standardized space
+    var stdNoiseVar = noiseVar / (hp.ot_std * hp.ot_std);
+    var trainYvar = [];
+    for (var j = 0; j < nSamples; j++) trainYvar.push(stdNoiseVar);
+
+    subModels.push({
+      model_type: 'SingleTaskGP',
+      train_X: trainX,
+      train_Y: trainY,
+      kernel: {
+        type: 'RBF',
+        lengthscale: hp.ls
+      },
+      mean_constant: hp.mc,
+      noise_variance: trainYvar,
+      input_transform: INPUT_TF,
+      outcome_transform: { type: 'Standardize', mean: hp.ot_mean, std: hp.ot_std }
+    });
+  }
+
+  predictor = new Predictor({
+    search_space: SEARCH_SPACE,
+    model_state: {
+      model_type: 'ModelListGP',
+      outcome_names: OUTCOME_NAMES,
+      models: subModels
+    }
+  });
+}
+
+buildModel();
+var nArms = nSamples;
+var nDims = NDIM;
+var outcomeNames = OUTCOME_NAMES;
+var paramNames = PARAM_NAMES;
+var paramBounds = BOUNDS;
+
+// ── Precompute predictions for all training arms ──
+var allPreds = [];
+function precomputePreds() {
+  allPreds = [];
+  for (var i = 0; i < nArms; i++) {
+    allPreds.push(predictor.predict([trainX[i]]));
+  }
+}
+precomputePreds();
+
+// ── Default SQ = closest to center ──
+function closestToCenterIdx() {
+  var center = paramBounds.map(function(b) { return (b[0]+b[1])/2; });
+  var best = 0, bestD = Infinity;
+  trainX.forEach(function(pt, i) {
+    var d = 0;
+    for (var j = 0; j < nDims; j++) {
+      var rng = paramBounds[j][1] - paramBounds[j][0] || 1;
+      d += Math.pow((pt[j] - center[j]) / rng, 2);
+    }
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  return best;
+}
+
+var sqIdx = closestToCenterIdx();
+
+// ── Relativize all arms vs SQ ──
+var relData = [];
+function reRelativize() {
+  relData = [];
+  var sqPred = allPreds[sqIdx];
+  for (var i = 0; i < nArms; i++) {
+    var armRel = {};
+    for (var k = 0; k < outcomeNames.length; k++) {
+      var name = outcomeNames[k];
+      var armMean = allPreds[i][name].mean[0];
+      var armVar = allPreds[i][name].variance[0];
+      var armSem = Math.sqrt(Math.max(0, armVar));
+      var sqMean = sqPred[name].mean[0];
+      var sqVar = sqPred[name].variance[0];
+      var sqSem = Math.sqrt(Math.max(0, sqVar));
+      try {
+        armRel[name] = relativize(armMean, armSem, sqMean, sqSem, { asPercent: true });
+      } catch(e) {
+        armRel[name] = null;
+      }
+    }
+    relData.push(armRel);
+  }
+}
+reRelativize();
+
+var CI_Z = { c99: 2.576, c95: 1.960, c75: 1.150 };
+
+// ── Compute global panel range (fixed across all arms/outcomes) ──
+var panelRange = { lo: -10, hi: 10, ticks: [-10, -5, 0, 5, 10] };
+function computePanelRange() {
+  // Use 95% CI endpoints (not 99%) to set the axis — keeps it tighter.
+  // The 99% bars can extend slightly past the axis edge, which is fine.
+  var lo = 0, hi = 0;
+  for (var i = 0; i < nArms; i++) {
+    for (var k = 0; k < outcomeNames.length; k++) {
+      var r = relData[i][outcomeNames[k]];
+      if (r) {
+        var rlo = r.mean - CI_Z.c95 * r.sem;
+        var rhi = r.mean + CI_Z.c95 * r.sem;
+        if (rlo < lo) lo = rlo;
+        if (rhi > hi) hi = rhi;
+      }
+    }
+  }
+  // Light padding + round to nice ticks
+  var span = hi - lo; if (span < 1) span = 1;
+  lo -= span * 0.05; hi += span * 0.05;
+  var raw = (hi - lo) / 5;
+  var mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  var nice = [1, 2, 5, 10];
+  var step = mag;
+  for (var n = 0; n < nice.length; n++) {
+    if (nice[n] * mag >= raw) { step = nice[n] * mag; break; }
+  }
+  lo = Math.floor(lo / step) * step;
+  hi = Math.ceil(hi / step) * step;
+  var ticks = [];
+  for (var t = lo; t <= hi + step * 0.01; t += step) ticks.push(Math.round(t * 100) / 100);
+  panelRange = { lo: lo, hi: hi, ticks: ticks };
+}
+computePanelRange();
+
+// ── Populate dropdowns ──
+var selX = document.getElementById('selX');
+var selY = document.getElementById('selY');
+var selSQ = document.getElementById('selSQ');
+
+outcomeNames.forEach(function(name, idx) {
+  selX.innerHTML += '<option value="' + idx + '">' + name + '</option>';
+  selY.innerHTML += '<option value="' + idx + '">' + name + '</option>';
+});
+selX.value = '0';
+selY.value = '1';
+
+function populateSQDropdown() {
+  selSQ.innerHTML = '';
+  for (var i = 0; i < nArms; i++) {
+    selSQ.innerHTML += '<option value="' + i + '">Arm #' + (i+1) + '</option>';
+  }
+  selSQ.value = String(sqIdx);
+}
+populateSQDropdown();
+
+var xOutIdx = 0, yOutIdx = 1;
+
+// ── Candidate system ──
+var candidates = [];     // [{id, name, params, preds, relData}]
+var nextCandidateId = 1;
+var selectedItem = null; // {type:'arm'|'candidate', idx:number} or null
+
+function predictCandidate(cand) {
+  cand.preds = predictor.predict([cand.params]);
+  cand.relData = {};
+  var sqPred = allPreds[sqIdx];
+  for (var k = 0; k < outcomeNames.length; k++) {
+    var name = outcomeNames[k];
+    var cMean = cand.preds[name].mean[0];
+    var cVar = cand.preds[name].variance[0];
+    var cSem = Math.sqrt(Math.max(0, cVar));
+    var sqMean = sqPred[name].mean[0];
+    var sqVar = sqPred[name].variance[0];
+    var sqSem = Math.sqrt(Math.max(0, sqVar));
+    try {
+      cand.relData[name] = relativize(cMean, cSem, sqMean, sqSem, { asPercent: true });
+    } catch(e) {
+      cand.relData[name] = null;
+    }
+  }
+}
+
+function cloneArm(armIdx) {
+  var cand = {
+    id: nextCandidateId++,
+    name: 'Candidate ' + (nextCandidateId - 1),
+    params: trainX[armIdx].slice(),
+    preds: null,
+    relData: null
+  };
+  predictCandidate(cand);
+  candidates.push(cand);
+  selectedItem = { type: 'candidate', idx: candidates.length - 1 };
+  renderScatter();
+  showDeltoid(null);
+  renderSliders();
+}
+
+function deleteCandidate(candIdx) {
+  candidates.splice(candIdx, 1);
+  if (selectedItem && selectedItem.type === 'candidate') {
+    if (selectedItem.idx === candIdx) selectedItem = null;
+    else if (selectedItem.idx > candIdx) selectedItem.idx--;
+  }
+  renderScatter();
+  showDeltoid(null);
+  renderSliders();
+}
+
+function starPoints(cx, cy, r) {
+  var pts = [];
+  for (var i = 0; i < 10; i++) {
+    var angle = -Math.PI/2 + i * Math.PI/5;
+    var rad = i % 2 === 0 ? r : r * 0.42;
+    pts.push((cx + rad * Math.cos(angle)).toFixed(1) + ',' + (cy + rad * Math.sin(angle)).toFixed(1));
+  }
+  return pts.join(' ');
+}
+
+// ── SVG rendering ──
+var svg = document.getElementById('scatterSvg');
+var rightPanel = document.getElementById('rightPanel');
+var rpTitle = document.getElementById('rpTitle');
+var rpBars = document.getElementById('rpBars');
+var cbNearby = document.getElementById('cbNearby');
+
+var W = 520, H = 460;
+var margin = { top: 30, right: 20, bottom: 55, left: 65 };
+var pw = W - margin.left - margin.right;
+var ph = H - margin.top - margin.bottom;
+
+// Compute nice axis range from data: includes CI endpoints, pads, rounds to clean ticks
+function niceRange(pts, getVal, getSem) {
+  var lo = 0, hi = 0; // always include 0
+  pts.forEach(function(p) {
+    var v = getVal(p), s = getSem(p);
+    var vlo = v - 1.96 * s, vhi = v + 1.96 * s;
+    if (vlo < lo) lo = vlo;
+    if (vhi > hi) hi = vhi;
+  });
+  var span = hi - lo; if (span < 1) span = 1;
+  lo -= span * 0.12; hi += span * 0.12;
+  // Round to nice tick interval
+  var raw = (hi - lo) / 5;
+  var mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  var nice = [1, 2, 5, 10];
+  var step = mag;
+  for (var n = 0; n < nice.length; n++) {
+    if (nice[n] * mag >= raw) { step = nice[n] * mag; break; }
+  }
+  lo = Math.floor(lo / step) * step;
+  hi = Math.ceil(hi / step) * step;
+  // Generate ticks
+  var ticks = [];
+  for (var t = lo; t <= hi + step * 0.01; t += step) ticks.push(Math.round(t * 100) / 100);
+  return { lo: lo, hi: hi, ticks: ticks };
+}
+
+function renderScatter() {
+  var xName = outcomeNames[xOutIdx];
+  var yName = outcomeNames[yOutIdx];
+
+  var pts = [];
+  for (var i = 0; i < nArms; i++) {
+    var rx = relData[i][xName];
+    var ry = relData[i][yName];
+    if (rx && ry) {
+      pts.push({ idx: i, type: 'arm', x: rx.mean, y: ry.mean,
+                 xSem: rx.sem, ySem: ry.sem });
+    }
+  }
+  // Include candidates for axis range + rendering
+  for (var ci = 0; ci < candidates.length; ci++) {
+    var crx = candidates[ci].relData[xName];
+    var cry = candidates[ci].relData[yName];
+    if (crx && cry) {
+      pts.push({ idx: ci, type: 'candidate', x: crx.mean, y: cry.mean,
+                 xSem: crx.sem, ySem: cry.sem });
+    }
+  }
+
+  var xRange = niceRange(pts, function(p){return p.x;}, function(p){return p.xSem;});
+  var yRange = niceRange(pts, function(p){return p.y;}, function(p){return p.ySem;});
+  var xMin = xRange.lo, xMax = xRange.hi;
+  var yMin = yRange.lo, yMax = yRange.hi;
+
+  function sx(v) { return margin.left + (v - xMin) / (xMax - xMin) * pw; }
+  function sy(v) { return margin.top + ph - (v - yMin) / (yMax - yMin) * ph; }
+
+  var html = '';
+  html += '<rect width="' + W + '" height="' + H + '" fill="#141418" rx="8"/>';
+  html += '<defs><clipPath id="plotClip"><rect x="' + margin.left + '" y="' + margin.top +
+          '" width="' + pw + '" height="' + ph + '"/></clipPath></defs>';
+
+  // Grid + tick labels (data-adaptive)
+  xRange.ticks.forEach(function(tv) {
+    html += '<line x1="' + sx(tv) + '" y1="' + margin.top + '" x2="' + sx(tv) +
+            '" y2="' + (margin.top + ph) + '" stroke="#1e1e24" stroke-width="0.5"/>';
+    html += '<text x="' + sx(tv) + '" y="' + (H - margin.bottom + 16) +
+            '" text-anchor="middle" fill="#555" font-size="10">' + tv + '%</text>';
+  });
+  yRange.ticks.forEach(function(tv) {
+    html += '<line x1="' + margin.left + '" y1="' + sy(tv) + '" x2="' + (margin.left + pw) +
+            '" y2="' + sy(tv) + '" stroke="#1e1e24" stroke-width="0.5"/>';
+    html += '<text x="' + (margin.left - 8) + '" y="' + (sy(tv) + 3) +
+            '" text-anchor="end" fill="#555" font-size="10">' + tv + '%</text>';
+  });
+
+  // Zero reference lines (dashed)
+  if (xMin <= 0 && xMax >= 0) {
+    html += '<line x1="' + sx(0) + '" y1="' + margin.top + '" x2="' + sx(0) +
+            '" y2="' + (margin.top + ph) + '" stroke="#3a3a44" stroke-width="1" stroke-dasharray="4,3"/>';
+  }
+  if (yMin <= 0 && yMax >= 0) {
+    html += '<line x1="' + margin.left + '" y1="' + sy(0) + '" x2="' + (margin.left + pw) +
+            '" y2="' + sy(0) + '" stroke="#3a3a44" stroke-width="1" stroke-dasharray="4,3"/>';
+  }
+
+  // Axis labels
+  html += '<text x="' + (margin.left + pw/2) + '" y="' + (H - 8) +
+          '" text-anchor="middle" fill="#888" font-size="12">' + xName + ' (% vs SQ)</text>';
+  html += '<text x="14" y="' + (margin.top + ph/2) +
+          '" text-anchor="middle" fill="#888" font-size="12" transform="rotate(-90,14,' +
+          (margin.top + ph/2) + ')">' + yName + ' (% vs SQ)</text>';
+
+  // Dots + CI crosshairs — each item wrapped in <g data-idx data-type> for opacity/events
+  html += '<g clip-path="url(#plotClip)">';
+  pts.forEach(function(p) {
+    var isSQ = (p.type === 'arm' && p.idx === sqIdx);
+    var isCandidate = (p.type === 'candidate');
+    var isSelected = selectedItem && selectedItem.type === p.type && selectedItem.idx === p.idx;
+    var cx = sx(p.x), cy = sy(p.y);
+
+    html += '<g data-idx="' + p.idx + '" data-type="' + p.type + '" style="cursor:pointer">';
+
+    // Invisible hit area (large circle for reliable hover)
+    html += '<circle cx="' + cx + '" cy="' + cy + '" r="14" fill="transparent"/>';
+
+    // CI crosshairs: thin 95% lines + stubbier 75% lines
+    var ciColor = isCandidate ? '#6a5a20' : (isSelected ? '#994040' : '#3a4a6a');
+    var ci75Color = isCandidate ? '#8a7a30' : (isSelected ? '#bb5050' : '#5a6a8a');
+    // 95% CI (thin)
+    var xLo95 = sx(p.x - CI_Z.c95 * p.xSem), xHi95 = sx(p.x + CI_Z.c95 * p.xSem);
+    var yLo95 = sy(p.y - CI_Z.c95 * p.ySem), yHi95 = sy(p.y + CI_Z.c95 * p.ySem);
+    html += '<line x1="' + xLo95 + '" y1="' + cy + '" x2="' + xHi95 + '" y2="' + cy +
+            '" stroke="' + ciColor + '" stroke-width="1"/>';
+    html += '<line x1="' + cx + '" y1="' + yLo95 + '" x2="' + cx + '" y2="' + yHi95 +
+            '" stroke="' + ciColor + '" stroke-width="1"/>';
+    // 75% CI (stubbier, thicker)
+    var xLo75 = sx(p.x - CI_Z.c75 * p.xSem), xHi75 = sx(p.x + CI_Z.c75 * p.xSem);
+    var yLo75 = sy(p.y - CI_Z.c75 * p.ySem), yHi75 = sy(p.y + CI_Z.c75 * p.ySem);
+    html += '<line x1="' + xLo75 + '" y1="' + cy + '" x2="' + xHi75 + '" y2="' + cy +
+            '" stroke="' + ci75Color + '" stroke-width="2.5"/>';
+    html += '<line x1="' + cx + '" y1="' + yLo75 + '" x2="' + cx + '" y2="' + yHi75 +
+            '" stroke="' + ci75Color + '" stroke-width="2.5"/>';
+
+    if (isSQ) {
+      // Open diamond for status quo — same color as normal arms, distinct only by shape
+      var s = 7;
+      html += '<polygon points="' + cx + ',' + (cy-s) + ' ' + (cx+s) + ',' + cy +
+              ' ' + cx + ',' + (cy+s) + ' ' + (cx-s) + ',' + cy +
+              '" fill="none" stroke="#7c8cc8" stroke-width="2"/>';
+    } else if (isCandidate) {
+      // Star for candidates
+      var starR = isSelected ? 9 : 7;
+      html += '<polygon points="' + starPoints(cx, cy, starR) +
+              '" fill="#e8b84d" stroke="#fff" stroke-width="' + (isSelected ? 1.5 : 0.5) + '"/>';
+    } else {
+      var fill = isSelected ? '#ff6b6b' : '#7c8cc8';
+      var r = isSelected ? 6 : 4.5;
+      var strokeAttr = isSelected ? ' stroke="#fff" stroke-width="1.5"' : '';
+      html += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r +
+              '" fill="' + fill + '"' + strokeAttr + '/>';
+    }
+    html += '</g>';
+  });
+  html += '</g>';
+
+  svg.innerHTML = html;
+  // Apply initial opacities
+  updateOpacities();
+}
+
+// Update dot opacities in-place (no SVG rebuild).
+// Hover/pin always highlights neighbors; checkbox controls how aggressively far points dim.
+function getRefPoint() {
+  // Get the parameter-space point for the reference item (selected or hovered)
+  var item = selectedItem || hoveredItem;
+  if (!item) return null;
+  if (item.type === 'candidate') return candidates[item.idx] ? candidates[item.idx].params : null;
+  return trainX[item.idx] || null;
+}
+
+function updateOpacities() {
+  var refPt = getRefPoint();
+  var groups = svg.querySelectorAll('g[data-idx]');
+  if (!refPt) {
+    for (var g = 0; g < groups.length; g++) groups[g].setAttribute('opacity', 1);
+    return;
+  }
+  // Compute kernel-distance relevance using geometric mean across ALL outcome kernels.
+  // Each outcome has its own RBF lengthscales; geometric mean of exp(-d²_k) = exp(-mean(d²_k)).
+  // Then cube to sharpen contrast (large lengthscales compress the raw range).
+  function multiKernelRelevance(pt, ref) {
+    var logSum = 0;
+    for (var k = 0; k < HP.length; k++) {
+      var raw = pointRelevance(pt, ref, [], HP[k].ls, INPUT_TF);
+      logSum += Math.log(Math.max(raw, 1e-300));
+    }
+    var geoMean = Math.exp(logSum / HP.length);
+    return geoMean * geoMean * geoMean; // cube to sharpen
+  }
+  var armRels = [], candRels = [], maxRel = 0;
+  for (var i = 0; i < nArms; i++) {
+    var rel = multiKernelRelevance(trainX[i], refPt);
+    armRels[i] = rel;
+    if (rel < 0.999 && rel > maxRel) maxRel = rel;
+  }
+  for (var ci = 0; ci < candidates.length; ci++) {
+    var rel = multiKernelRelevance(candidates[ci].params, refPt);
+    candRels[ci] = rel;
+    if (rel < 0.999 && rel > maxRel) maxRel = rel;
+  }
+  var minOpacity = cbNearby.checked ? 0.04 : 0.15;
+  for (var g = 0; g < groups.length; g++) {
+    var idx = parseInt(groups[g].getAttribute('data-idx'));
+    var gType = groups[g].getAttribute('data-type');
+    var relVal = gType === 'candidate' ? (candRels[idx] || 0) : (armRels[idx] || 0);
+    var opacity;
+    if (relVal > 0.999) {
+      opacity = 1;
+    } else if (maxRel > 0) {
+      opacity = minOpacity + (1 - minOpacity) * Math.pow(relVal / maxRel, 0.5);
+    } else {
+      opacity = minOpacity;
+    }
+    groups[g].setAttribute('opacity', opacity);
+  }
+}
+
+// ── Right panel: nested interval bars (75/95/99% CI) ──
+// Color scheme: positive=green, negative=red, matching the "chonky" experiment bar style
+function ciColors(mean) {
+  if (mean > 0) return { c99: '#1a3a1a', c95: '#2a6a2a', c75: '#3a9a3a', tick: '#2a5a2a' };
+  if (mean < 0) return { c99: '#3a1a1a', c95: '#7a2a2a', c75: '#b03030', tick: '#5a2020' };
+  return { c99: '#2a2a2a', c95: '#4a4a4a', c75: '#6a6a6a', tick: '#444' };
+}
+
+// Get the item to display in deltoid: selectedItem takes priority, then hovered
+var hoveredItem = null; // tracks {type, idx} of hovered item
+
+function getDisplayItem() {
+  if (selectedItem) return selectedItem;
+  if (hoveredItem) return hoveredItem;
+  return null;
+}
+
+function getItemRelData(item) {
+  if (!item) return null;
+  if (item.type === 'candidate') return candidates[item.idx] ? candidates[item.idx].relData : null;
+  return relData[item.idx] || null;
+}
+
+function getItemLabel(item) {
+  if (!item) return '';
+  if (item.type === 'candidate') return candidates[item.idx].name;
+  var label = 'Arm #' + (item.idx + 1);
+  if (item.idx === sqIdx) label += ' (SQ)';
+  return label;
+}
+
+function showDeltoid(item) {
+  var displayItem = item || getDisplayItem();
+  if (!displayItem) {
+    rpTitle.textContent = 'Hover over an arm to see all outcomes';
+    rpBars.innerHTML = '';
+    return;
+  }
+
+  var itemRelData = getItemRelData(displayItem);
+  if (!itemRelData) {
+    rpTitle.textContent = getItemLabel(displayItem) + ' — no data';
+    rpBars.innerHTML = '';
+    return;
+  }
+
+  rpTitle.textContent = getItemLabel(displayItem) + ' — % vs SQ';
+
+  var rowH = 30, barH = 11, labelW = 115, barW = 150, valW = 100, pad = 8;
+  var totalW = labelW + barW + valW + pad * 3;
+  var topPad = 20;
+  var totalH = outcomeNames.length * rowH + topPad + 8;
+
+  var lo = panelRange.lo, hi = panelRange.hi;
+  function bx(v) { return labelW + pad + (v - lo) / (hi - lo) * barW; }
+
+  var s = '<svg width="' + totalW + '" height="' + totalH + '" xmlns="http://www.w3.org/2000/svg">';
+
+  panelRange.ticks.forEach(function(tv) {
+    var tx = bx(tv);
+    s += '<text x="' + tx + '" y="12" text-anchor="middle" fill="#555" font-size="9" font-family="sans-serif">' + tv + '%</text>';
+    s += '<line x1="' + tx + '" y1="16" x2="' + tx + '" y2="' + (totalH - 4) + '" stroke="#1e1e24" stroke-width="0.5"/>';
+  });
+
+  if (lo <= 0 && hi >= 0) {
+    var x0 = bx(0);
+    s += '<line x1="' + x0 + '" y1="16" x2="' + x0 + '" y2="' + (totalH - 4) + '" stroke="#3a3a44" stroke-width="1" stroke-dasharray="3,2"/>';
+  }
+
+  outcomeNames.forEach(function(name, k) {
+    var cy = k * rowH + rowH / 2 + topPad;
+    var r = itemRelData[name];
+
+    s += '<text x="' + (labelW - 4) + '" y="' + (cy + 4) +
+         '" text-anchor="end" fill="#999" font-size="11" font-family="sans-serif">' + name + '</text>';
+
+    if (r) {
+      var cols = ciColors(r.mean);
+      var intervals = [
+        { z: CI_Z.c99, fill: cols.c99, h: barH },
+        { z: CI_Z.c95, fill: cols.c95, h: barH - 2 },
+        { z: CI_Z.c75, fill: cols.c75, h: barH - 4 }
+      ];
+      for (var iv = 0; iv < intervals.length; iv++) {
+        var ci = intervals[iv];
+        var x1 = bx(r.mean - ci.z * r.sem);
+        var x2 = bx(r.mean + ci.z * r.sem);
+        var w = Math.max(1, x2 - x1);
+        s += '<rect x="' + x1 + '" y="' + (cy - ci.h/2) +
+             '" width="' + w + '" height="' + ci.h +
+             '" fill="' + ci.fill + '" rx="1.5"/>';
+      }
+
+      var xm = bx(r.mean);
+      s += '<line x1="' + xm + '" y1="' + (cy - barH/2 + 1) + '" x2="' + xm +
+           '" y2="' + (cy + barH/2 - 1) + '" stroke="' + cols.tick + '" stroke-width="2"/>';
+
+      s += '<text x="' + (labelW + pad + barW + pad * 2) + '" y="' + (cy + 4) +
+           '" fill="#777" font-size="10" font-family="sans-serif">' +
+           r.mean.toFixed(2) + '\u00B1' + (1.96 * r.sem).toFixed(2) + '%</text>';
+    } else {
+      s += '<text x="' + (labelW + pad + barW/2) + '" y="' + (cy + 4) +
+           '" text-anchor="middle" fill="#555" font-size="10" font-style="italic" font-family="sans-serif">N/A</text>';
+    }
+  });
+  s += '</svg>';
+  rpBars.innerHTML = s;
+}
+
+// ── Slider panel for selected item ──
+var rpSliders = document.getElementById('rpSliders');
+
+function renderSliders() {
+  if (!selectedItem) {
+    rpSliders.innerHTML = '';
+    return;
+  }
+
+  var isCandidate = selectedItem.type === 'candidate';
+  var params = isCandidate ? candidates[selectedItem.idx].params : trainX[selectedItem.idx];
+  var label = getItemLabel(selectedItem);
+
+  var html = '<div class="slider-section">';
+  html += '<div class="section-title">' + label;
+
+  if (!isCandidate) {
+    html += ' <button class="clone-btn" id="btnClone">clone as candidate</button>';
+  } else {
+    html += ' <button class="delete-btn" id="btnDeleteCand">remove</button>';
+  }
+  html += '</div>';
+
+  for (var j = 0; j < nDims; j++) {
+    var bLo = paramBounds[j][0], bHi = paramBounds[j][1];
+    var val = params[j];
+    var step = (bHi - bLo) / 200;
+    html += '<div class="param-row">';
+    html += '<label>' + paramNames[j] + '</label>';
+    html += '<input type="range" min="' + bLo + '" max="' + bHi + '" step="' + step +
+            '" value="' + val + '" data-dim="' + j + '"' + (isCandidate ? '' : ' disabled') + '>';
+    html += '<span class="param-val" id="pval' + j + '">' + val.toFixed(3) + '</span>';
+    html += '</div>';
+  }
+  html += '</div>';
+  rpSliders.innerHTML = html;
+
+  // Wire up buttons and sliders
+  if (!isCandidate) {
+    document.getElementById('btnClone').addEventListener('click', function() {
+      cloneArm(selectedItem.idx);
+    });
+  } else {
+    var candIdx = selectedItem.idx;
+    document.getElementById('btnDeleteCand').addEventListener('click', function() {
+      deleteCandidate(candIdx);
+    });
+    var sliders = rpSliders.querySelectorAll('input[type=range]');
+    for (var si = 0; si < sliders.length; si++) {
+      (function(slider) {
+        slider.addEventListener('input', function() {
+          var dim = parseInt(slider.getAttribute('data-dim'));
+          var cand = candidates[selectedItem.idx];
+          cand.params[dim] = parseFloat(slider.value);
+          document.getElementById('pval' + dim).textContent = cand.params[dim].toFixed(3);
+          predictCandidate(cand);
+          renderScatter();
+          showDeltoid(selectedItem);
+        });
+      })(sliders[si]);
+    }
+  }
+}
+
+
+// ── Event delegation on SVG ──
+function getDotInfo(el) {
+  while (el && el !== svg) {
+    var attr = el.getAttribute && el.getAttribute('data-idx');
+    if (attr !== null && attr !== undefined) {
+      return { idx: parseInt(attr), type: el.getAttribute('data-type') || 'arm' };
+    }
+    el = el.parentNode;
+  }
+  return null;
+}
+
+svg.addEventListener('mouseover', function(e) {
+  var info = getDotInfo(e.target);
+  if (!info) return;
+  if (hoveredItem && hoveredItem.type === info.type && hoveredItem.idx === info.idx) return;
+  hoveredItem = info;
+  updateOpacities();
+  if (!selectedItem) showDeltoid(info);
+});
+svg.addEventListener('mouseout', function(e) {
+  var info = getDotInfo(e.target);
+  if (!info) return;
+  var relInfo = getDotInfo(e.relatedTarget);
+  if (relInfo && relInfo.type === info.type && relInfo.idx === info.idx) return;
+  hoveredItem = null;
+  updateOpacities();
+  if (!selectedItem) showDeltoid(null);
+});
+svg.addEventListener('click', function(e) {
+  var info = getDotInfo(e.target);
+  if (!info) {
+    // Click on empty area — deselect
+    selectedItem = null;
+    renderScatter();
+    showDeltoid(null);
+    renderSliders();
+    return;
+  }
+  // Toggle selection
+  if (selectedItem && selectedItem.type === info.type && selectedItem.idx === info.idx) {
+    selectedItem = null;
+  } else {
+    selectedItem = { type: info.type, idx: info.idx };
+  }
+  renderScatter();
+  showDeltoid(null);
+  renderSliders();
+});
+
+// ── Dropdown / control handlers ──
+selX.addEventListener('change', function() {
+  xOutIdx = +selX.value;
+  if (xOutIdx === yOutIdx) {
+    yOutIdx = (xOutIdx + 1) % outcomeNames.length;
+    selY.value = String(yOutIdx);
+  }
+  renderScatter();
+});
+selY.addEventListener('change', function() {
+  yOutIdx = +selY.value;
+  if (yOutIdx === xOutIdx) {
+    xOutIdx = (yOutIdx + 1) % outcomeNames.length;
+    selX.value = String(xOutIdx);
+  }
+  renderScatter();
+});
+selSQ.addEventListener('change', function() {
+  sqIdx = +selSQ.value;
+  reRelativize();
+  // Re-relativize candidates too
+  for (var ci = 0; ci < candidates.length; ci++) predictCandidate(candidates[ci]);
+  computePanelRange();
+  renderScatter();
+  showDeltoid(null);
+});
+cbNearby.addEventListener('change', function() { updateOpacities(); });
+
+document.getElementById('btnResample').addEventListener('click', function() {
+  selectedItem = null;
+  hoveredItem = null;
+  candidates = [];
+  nextCandidateId = 1;
+  rpTitle.textContent = 'Hover over an arm to see all outcomes';
+  rpBars.innerHTML = '';
+  rpSliders.innerHTML = '';
+  buildModel();
+  nArms = nSamples;
+  precomputePreds();
+  sqIdx = closestToCenterIdx();
+  populateSQDropdown();
+  reRelativize();
+  computePanelRange();
+  renderScatter();
+});
+
+// ── Init ──
+document.getElementById('subtitle').textContent =
+  nArms + ' noisy training arms · ' + outcomeNames.length + ' outcomes · FixedNoiseGP · relativized vs status quo';
+renderScatter();
+})();
+
+</script>
+</body>
+</html>
