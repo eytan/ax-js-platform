@@ -32,6 +32,7 @@
     "build": "tsup && node demo/build_demos.js",
     "build:lib": "tsup",
     "build:notebook": "python3 python/build_demo_notebook.py",
+    "build:e2e": "python3 python/build_e2e_notebook.py",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",

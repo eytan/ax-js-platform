@@ -117,9 +117,11 @@ npm test             # Run all tests — generates test-report.txt
 npm run typecheck    # Type-check
 ```
 
-### Jupyter notebook
+### Jupyter notebooks
 
-The demo notebook (`demo/ax-js-demo.ipynb`) shows all diagnostic visualizations using a real fixture. The exported HTML (`demo/ax-js-demo.html`) renders in any browser — no Jupyter required.
+**End-to-end demo** (`demo/ax-js-e2e.ipynb`): Full workflow — set up Ax experiment, run BO, export model, render interactive visualizations. Execute all cells in Jupyter.
+
+**Pre-built demo** (`demo/ax-js-demo.ipynb`): All diagnostic visualizations with pre-populated outputs — no execution required. Also exported as standalone HTML (`demo/ax-js-demo.html`).
 
 ```python
 # In your own notebook:
