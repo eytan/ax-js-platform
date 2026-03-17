@@ -545,7 +545,7 @@ function validateModelState(state: AnyModelState, numParams: number): void {
   for (let idx = 0; idx < models.length; idx++) {
     const m = models[idx];
     const prefix =
-      models.length > 1 ? `[axjs] model ${idx}: ` : "[axjs] ";
+      models.length > 1 ? `[ax-js] model ${idx}: ` : "[ax-js] ";
 
     // Check input_transform dimensions
     if (m.input_transform) {

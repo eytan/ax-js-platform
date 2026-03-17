@@ -172,7 +172,7 @@ interface Candidate {
 ## How Predictor Consumes This Format
 
 ```typescript
-import { Predictor } from "axjs";
+import { Predictor } from "ax-js";
 
 const predictor = new Predictor(experimentState);
 const predictions = predictor.predict(points);

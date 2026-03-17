@@ -242,7 +242,7 @@ demo/                      # Self-contained HTML demos
 - [Data Model](docs/data-model.md) — ExperimentState schema and serialization format
 - [Testing Guide](docs/testing.md) — Fixture system, parity tests, and adding new fixtures
 - [Developer Guide](docs/developer-guide.md) — Architecture and contributing
-- [Ax vs ax-js](docs/axjs_vs_ax.md) — Data model comparison
+- [Ax vs ax-js](docs/ax-js_vs_ax.md) — Data model comparison
 - [Serialization Contract](docs/SERIALIZATION_CONTRACT.md) — Proposal for BoTorch/Ax integration
 
 ## How It Works

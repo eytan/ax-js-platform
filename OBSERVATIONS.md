@@ -1,4 +1,4 @@
-# axjs — Observations & Future Work
+# ax-js — Observations & Future Work
 
 Notes on remaining work, architectural observations, and items to revisit in future sessions.
 

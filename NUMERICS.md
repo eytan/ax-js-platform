@@ -1,4 +1,4 @@
-# axjs Numerical Details & GPyTorch/BoTorch Observations
+# ax-js Numerical Details & GPyTorch/BoTorch Observations
 
 This document records numerical implementation decisions, GPyTorch/BoTorch behaviors we replicate, and any inefficiencies or concerns discovered during implementation.
 

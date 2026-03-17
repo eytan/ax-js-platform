@@ -1,5 +1,5 @@
 """
-Export GP model state from Ax to JSON for axjs.
+Export GP model state from Ax to JSON for ax-js.
 
 Usage:
     from axjs_export import export_client, export_experiment
