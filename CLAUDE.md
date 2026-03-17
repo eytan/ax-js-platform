@@ -94,8 +94,8 @@ never read `train_Y` directly.**
 
 ## Build & Package
 
-- npm package: `ax-js`
-- Three subpath exports: `ax-js`, `ax-js/acquisition`, `ax-js/viz`
+- npm package: `ax-js-platform`
+- Three subpath exports: `ax-js-platform`, `ax-js-platform/acquisition`, `ax-js-platform/viz`
 - IIFE bundles: `ax.js` (`window.Ax`), `ax-acquisition.js` (`Ax.acquisition`), `ax-viz.js` (`Ax.viz`)
 - ESM + CJS for all three entry points
 - TypeDoc API reference: `npm run docs`

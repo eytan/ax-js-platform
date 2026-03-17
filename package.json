@@ -1,5 +1,5 @@
 {
-  "name": "ax-js",
+  "name": "ax-js-platform",
   "version": "0.1.0",
   "description": "Client-side Gaussian process predictions mirroring Ax/BoTorch — prediction, visualization, and acquisition in the browser",
   "type": "module",

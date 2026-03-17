@@ -13,7 +13,7 @@ ax-js replicates BoTorch GP posterior predictions entirely in TypeScript. A Pyth
 ### Install
 
 ```bash
-npm install ax-js
+npm install ax-js-platform
 ```
 
 ### Export a model from Python
@@ -43,7 +43,7 @@ with open("experiment.json", "w") as f:
 ### Predict in TypeScript
 
 ```typescript
-import { Predictor } from "ax-js";
+import { Predictor } from "ax-js-platform";
 
 const state = await fetch("experiment.json").then((r) => r.json());
 const predictor = new Predictor(state);
@@ -98,9 +98,9 @@ Interactive demos are in the [demo/](demo/) directory. Clone the repo, run `npm 
 
 | Module | Script tag | Description |
 |--------|-----------|-------------|
-| `ax-js` | `ax.js` | Predictor API, model loading, relativization |
-| `ax-js/viz` | `ax-viz.js` | Colormaps, response surface rendering, tooltips, search-space helpers |
-| `ax-js/acquisition` | `ax-acquisition.js` | Acquisition functions — **experimental**, see [docs/experimental.md](docs/experimental.md) |
+| `ax-js-platform` | `ax.js` | Predictor API, model loading, relativization |
+| `ax-js-platform/viz` | `ax-viz.js` | Colormaps, response surface rendering, tooltips, search-space helpers |
+| `ax-js-platform/acquisition` | `ax-acquisition.js` | Acquisition functions — **experimental**, see [docs/experimental.md](docs/experimental.md) |
 
 When using script tags, load `ax.js` first — the other scripts extend the `Ax` namespace.
 

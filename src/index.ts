@@ -6,11 +6,11 @@
  * computes GP posteriors entirely in the browser or Node.js.
  *
  * Start with {@link Predictor} for the high-level API, or use {@link loadModel}
- * for direct model access. Acquisition functions are available via `"ax-js/acquisition"`.
+ * for direct model access. Acquisition functions are available via `"ax-js-platform/acquisition"`.
  *
  * @example
  * ```ts
- * import { Predictor } from "ax-js";
+ * import { Predictor } from "ax-js-platform";
  *
  * const predictor = new Predictor(experimentState);
  * const preds = predictor.predict([[0.5, 1.0, 3.0]]);
