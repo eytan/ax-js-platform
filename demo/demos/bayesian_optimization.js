@@ -1,4 +1,4 @@
-import { libraryScript, sharedColormapScript, axHomeLink } from '../shared.js';
+import { libraryScript, vizScript, axHomeLink } from '../shared.js';
 
 export default function() {
 return `<!DOCTYPE html>
@@ -141,7 +141,7 @@ return `<!DOCTYPE html>
 <div class="info" id="info"></div>
 
 ${libraryScript()}
-${sharedColormapScript()}
+${vizScript()}
 
 <script>
 var loadModel = Ax.loadModel;
@@ -479,7 +479,7 @@ function renderHeatmap(ctx, vals, vmin, vrange, cfn) {
 // Draw optima stars and training points on the TRUE function canvas only
 function drawTrueOverlay(X, nInit, latest) {
   ctxT.clearRect(0,0,CN,CN);
-  renderHeatmap(ctxT, trueVals, trueMin, trueRange, viridis);
+  renderHeatmap(ctxT, trueVals, trueMin, trueRange, Ax.viz.viridis);
   // Global minima stars
   for (var i=0;i<curProblem.optima.length;i++) {
     var px=curProblem.optima[i][0]*CN, py=(1-curProblem.optima[i][1])*CN;
@@ -582,9 +582,9 @@ function renderTrueFunction() {
   document.getElementById('thi').textContent = trueMax.toFixed(1);
 }
 renderTrueFunction();
-drawColorbar('cbT', viridis);
-drawColorbar('cbM', viridis);
-drawColorbar('cbS', plasma);
+Ax.viz.drawColorbar('cbT', Ax.viz.viridis);
+Ax.viz.drawColorbar('cbM', Ax.viz.viridis);
+Ax.viz.drawColorbar('cbS', Ax.viz.plasma);
 
 // Problem selector
 document.getElementById('selProblem').addEventListener('change', function() {
@@ -606,8 +606,8 @@ function renderPosterior(model, X, rawY, hp) {
   var stds = new Float64Array(means.length), stdMax = 0;
   for (var i=0;i<means.length;i++) { stds[i]=Math.sqrt(vars[i]); if(stds[i]>stdMax) stdMax=stds[i]; }
   // Heatmaps + contour lines
-  renderHeatmap(ctxM, means, trueMin, trueRange, viridis);
-  renderHeatmap(ctxS, stds, 0, stdMax||1, plasma);
+  renderHeatmap(ctxM, means, trueMin, trueRange, Ax.viz.viridis);
+  renderHeatmap(ctxS, stds, 0, stdMax||1, Ax.viz.plasma);
   drawContourLines(ctxM, Array.from(means), GS, CN, trueMin, trueRange);
   drawContourLines(ctxS, Array.from(stds), GS, CN, 0, stdMax||1);
   // True function with points

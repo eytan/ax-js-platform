@@ -1,4 +1,4 @@
-import { libraryScript, sharedColormapScript, sharedDotScript, axHomeLink } from '../shared.js';
+import { libraryScript, vizScript, axHomeLink } from '../shared.js';
 
 export default function() {
 return `<!DOCTYPE html>
@@ -222,8 +222,7 @@ return `<!DOCTYPE html>
 <canvas id="cvPreview" width="120" height="120" style="display:none"></canvas>
 
 ${libraryScript()}
-${sharedColormapScript()}
-${sharedDotScript()}
+${vizScript()}
 
 <script>
 var loadModel = Ax.loadModel;
@@ -995,7 +994,7 @@ function renderPosterior(model) {
     if (means[i] > mMax) mMax = means[i];
   }
   var mRange = mMax - mMin || 1;
-  renderHeatmap(ctxMean, means, mMin, mRange, viridis);
+  renderHeatmap(ctxMean, means, mMin, mRange, Ax.viz.viridis);
   drawContourLines(ctxMean, Array.from(means), GS, CN, mMin, mRange);
   cachedMeanImg = ctxMean.getImageData(0, 0, CN, CN);
   document.getElementById('mlo').textContent = mMin.toFixed(2);
@@ -1004,7 +1003,7 @@ function renderPosterior(model) {
   // Variance heatmap
   var stds = new Float64Array(vars.length), sMax = 0;
   for (var i = 0; i < vars.length; i++) { stds[i] = Math.sqrt(Math.max(0, vars[i])); if (stds[i] > sMax) sMax = stds[i]; }
-  renderHeatmap(ctxVar, stds, 0, sMax || 1, plasma);
+  renderHeatmap(ctxVar, stds, 0, sMax || 1, Ax.viz.plasma);
   drawContourLines(ctxVar, Array.from(stds), GS, CN, 0, sMax || 1);
   cachedVarImg = ctxVar.getImageData(0, 0, CN, CN);
   document.getElementById('vhi').textContent = sMax.toFixed(3);
@@ -1213,8 +1212,8 @@ function renderPrior() {
   var priorStd = new Float64Array(GS*GS);
   var stdVal = Math.sqrt(currentLS ? currentLS[0] : 1);
   for (var i = 0; i < priorStd.length; i++) priorStd[i] = stdVal;
-  renderHeatmap(ctxMean, priorMean, -0.5, 1, viridis);
-  renderHeatmap(ctxVar, priorStd, 0, stdVal || 1, plasma);
+  renderHeatmap(ctxMean, priorMean, -0.5, 1, Ax.viz.viridis);
+  renderHeatmap(ctxVar, priorStd, 0, stdVal || 1, Ax.viz.plasma);
   cachedMeanImg = ctxMean.getImageData(0, 0, CN, CN);
   cachedVarImg = ctxVar.getImageData(0, 0, CN, CN);
   cachedBestIdx = -1;
@@ -1269,8 +1268,8 @@ function prefReset() {
     : '<span>Auto mode</span> uses a hidden test function (only depends on x0, x1) to auto-answer comparisons. ' +
       'The model must learn the function from pairwise preferences alone — no function values are observed. ' +
       'Watch consistency climb as the model learns which points are better.';
-  drawColorbar('cbMean', viridis);
-  drawColorbar('cbVar', plasma);
+  Ax.viz.drawColorbar('cbMean', Ax.viz.viridis);
+  Ax.viz.drawColorbar('cbVar', Ax.viz.plasma);
   syncModeUI();
   updateSliceLabels();
 

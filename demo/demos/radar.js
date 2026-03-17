@@ -1,4 +1,4 @@
-import { libraryScript, sharedUtilsScript, fixtureScript, axHomeLink } from '../shared.js';
+import { libraryScript, vizScript, fixtureScript, axHomeLink } from '../shared.js';
 
 function buildDefaultRadarFixture() {
   // VSIP test problem: 7 design variables, 3 objectives, 6 constraints
@@ -238,7 +238,7 @@ input[type=range] { accent-color: #7c6ff7; cursor: pointer; }
 </div>
 
 ${libraryScript()}
-${sharedUtilsScript()}
+${vizScript()}
 ${fixtureScript('__DEFAULT_FIXTURE__', defaultRadarFixture)}
 
 <script>
@@ -259,7 +259,7 @@ function abbreviate(name) {
 }
 
 function loadFixtureData(data) {
-  var fix = normalizeFixture(data);
+  var fix = Ax.viz.normalizeFixture(data);
   predictor = new Predictor(fix);
 
   params = fix.search_space.parameters;

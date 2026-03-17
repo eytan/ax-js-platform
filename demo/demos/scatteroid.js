@@ -1,4 +1,4 @@
-import { libraryScript, sharedUtilsScript, axHomeLink } from '../shared.js';
+import { libraryScript, vizScript, axHomeLink } from '../shared.js';
 
 export default function() {
 return `<!DOCTYPE html>
@@ -140,7 +140,7 @@ button:hover { background: #252528; }
 </div>
 
 ${libraryScript()}
-${sharedUtilsScript()}
+${vizScript()}
 
 <script>
 (function() {
@@ -769,7 +769,7 @@ function biObjectiveKernelRelevance(pt, ref) {
   for (var k = 0; k < indices.length; k++) {
     var oi = indices[k];
     if (oi >= HP.length) continue;
-    var raw = pointRelevance(pt, ref, [], HP[oi].ls, INPUT_TF);
+    var raw = Ax.viz.pointRelevance(pt, ref, [], HP[oi].ls, INPUT_TF);
     logSum += Math.log(Math.max(raw, 1e-300));
   }
   var geoMean = Math.exp(logSum / indices.length);
@@ -779,7 +779,7 @@ function biObjectiveKernelRelevance(pt, ref) {
 function allKernelRelevance(pt, ref) {
   var logSum = 0;
   for (var k = 0; k < HP.length; k++) {
-    var raw = pointRelevance(pt, ref, [], HP[k].ls, INPUT_TF);
+    var raw = Ax.viz.pointRelevance(pt, ref, [], HP[k].ls, INPUT_TF);
     logSum += Math.log(Math.max(raw, 1e-300));
   }
   var geoMean = Math.exp(logSum / HP.length);

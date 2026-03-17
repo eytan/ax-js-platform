@@ -1,4 +1,4 @@
-import { libraryScript, sharedUtilsScript, sharedColormapScript, fixtureScript, penicillinFixture, axHomeLink } from '../shared.js';
+import { libraryScript, vizScript, fixtureScript, penicillinFixture, axHomeLink } from '../shared.js';
 
 export default function() {
 return `<!DOCTYPE html>
@@ -119,8 +119,7 @@ return `<!DOCTYPE html>
 <div class="statline" id="statline">hover over either map to inspect \u00b7 red dots = training points</div>
 
 ${libraryScript()}
-${sharedUtilsScript()}
-${sharedColormapScript()}
+${vizScript()}
 ${fixtureScript('__DEFAULT_FIXTURE__', penicillinFixture)}
 
 <script>
@@ -144,13 +143,13 @@ var selY = document.getElementById('selY');
 var outcomeSelect = document.getElementById('outcomeSelect');
 
 function loadFixtureData(data) {
-  fixture = normalizeFixture(data);
+  fixture = Ax.viz.normalizeFixture(data);
   predictor = new Predictor(fixture);
   params = fixture.search_space.parameters;
   paramNames = predictor.paramNames;
   paramBounds = predictor.paramBounds;
   var _td = predictor.getTrainingData();
-  fixedValues = _td.X.length > 0 ? _td.X[0].slice() : params.map(function(p) { return defaultParamValue(p); });
+  fixedValues = _td.X.length > 0 ? _td.X[0].slice() : params.map(function(p) { return Ax.viz.defaultParamValue(p); });
 
   outcomeSelect.innerHTML = '';
   predictor.outcomeNames.forEach(function(name) {
@@ -165,13 +164,13 @@ function loadFixtureData(data) {
   paramNames.forEach(function(name, i) {
     [selX, selY].forEach(function(sel) {
       var o = document.createElement('option');
-      o.value = i; o.textContent = name + (isChoice(params[i]) ? ' (cat)' : '');
+      o.value = i; o.textContent = name + (Ax.viz.isChoice(params[i]) ? ' (cat)' : '');
       sel.appendChild(o);
     });
   });
   // Auto-select the two most active non-choice dims for the initial outcome
   updateDimOrder();
-  var nonChoiceDims = dimOrder.filter(function(i) { return !isChoice(params[i]); });
+  var nonChoiceDims = dimOrder.filter(function(i) { return !Ax.viz.isChoice(params[i]); });
   if (nonChoiceDims.length >= 2) {
     axX = nonChoiceDims[0]; axY = nonChoiceDims[1];
   } else {
@@ -187,7 +186,7 @@ function loadFixtureData(data) {
 }
 
 function updateDimOrder() {
-  dimOrder = computeDimOrder(predictor, paramNames.length, selectedOutcome);
+  dimOrder = Ax.viz.computeDimOrder(predictor, paramNames.length, selectedOutcome);
 }
 
 document.getElementById('fileInput').addEventListener('change', function(e) {
@@ -231,7 +230,7 @@ function buildSliders() {
     var lbl = document.createElement('span'); lbl.className = 'sllbl';
     lbl.textContent = name;
 
-    if (isChoice(p)) {
+    if (Ax.viz.isChoice(p)) {
       var sel = document.createElement('select'); sel.className = 'slselect';
       p.values.forEach(function(v) {
         var o = document.createElement('option');
@@ -240,10 +239,10 @@ function buildSliders() {
         sel.appendChild(o);
       });
       var val = document.createElement('span'); val.className = 'slval';
-      val.textContent = formatParamValue(fixedValues[i], p);
+      val.textContent = Ax.viz.formatParamValue(fixedValues[i], p);
       sel.addEventListener('change', function() {
         fixedValues[i] = +sel.value;
-        val.textContent = formatParamValue(+sel.value, p);
+        val.textContent = Ax.viz.formatParamValue(+sel.value, p);
         render();
       });
       row.appendChild(lbl); row.appendChild(sel); row.appendChild(val);
@@ -251,13 +250,13 @@ function buildSliders() {
       var lo = paramBounds[i][0], hi = paramBounds[i][1];
       var sl = document.createElement('input');
       sl.type = 'range'; sl.min = lo; sl.max = hi;
-      sl.step = isInteger(p) ? '1' : ((hi - lo) / 200).toString();
+      sl.step = Ax.viz.isInteger(p) ? '1' : ((hi - lo) / 200).toString();
       sl.value = fixedValues[i].toString();
       var val = document.createElement('span'); val.className = 'slval';
-      val.textContent = formatParamValue(fixedValues[i], p);
+      val.textContent = Ax.viz.formatParamValue(fixedValues[i], p);
       sl.addEventListener('input', function() {
-        fixedValues[i] = isInteger(p) ? Math.round(+sl.value) : +sl.value;
-        val.textContent = formatParamValue(fixedValues[i], p);
+        fixedValues[i] = Ax.viz.isInteger(p) ? Math.round(+sl.value) : +sl.value;
+        val.textContent = Ax.viz.formatParamValue(fixedValues[i], p);
         render();
       });
       row.appendChild(lbl); row.appendChild(sl); row.appendChild(val);
@@ -383,14 +382,14 @@ function pixelToValue(axIdx, px) {
   var v;
   if (axIdx === axX) v = lo + (hi - lo) * p / N;
   else v = hi - (hi - lo) * p / N;
-  if (isInteger(params[axIdx])) v = Math.round(v);
+  if (Ax.viz.isInteger(params[axIdx])) v = Math.round(v);
   return v;
 }
 
 function render() {
   if (!predictor) return;
-  xIsChoice = isChoice(params[axX]);
-  yIsChoice = isChoice(params[axY]);
+  xIsChoice = Ax.viz.isChoice(params[axX]);
+  yIsChoice = Ax.viz.isChoice(params[axY]);
   xCatVals = xIsChoice ? params[axX].values.map(Number) : [];
   yCatVals = yIsChoice ? params[axY].values.map(Number) : [];
   // For choice axes, grid size = number of categories; for continuous, use GS
@@ -407,9 +406,9 @@ function render() {
     for (var gi = 0; gi < gsX; gi++) {
       var xv, yv;
       if (xIsChoice) { xv = xCatVals[gi]; }
-      else { xv = xlo + (xhi - xlo) * gi / (gsX - 1); if (isInteger(params[axX])) xv = Math.round(xv); }
+      else { xv = xlo + (xhi - xlo) * gi / (gsX - 1); if (Ax.viz.isInteger(params[axX])) xv = Math.round(xv); }
       if (yIsChoice) { yv = yCatVals[gsY - 1 - gj]; }
-      else { yv = yhi - (yhi - ylo) * gj / (gsY - 1); if (isInteger(params[axY])) yv = Math.round(yv); }
+      else { yv = yhi - (yhi - ylo) * gj / (gsY - 1); if (Ax.viz.isInteger(params[axY])) yv = Math.round(yv); }
       var pt = fixedValues.slice();
       pt[axX] = xv; pt[axY] = yv;
       testPoints.push(pt);
@@ -429,7 +428,7 @@ function render() {
     var gi = k % gsX, gj = Math.floor(k / gsX);
     var tm = (means[k] - meanMin) / meanRange;
     var ts = stds[k] / (stdMax || 1);
-    var mr = viridis(tm), sr = plasma(ts);
+    var mr = Ax.viz.viridis(tm), sr = Ax.viz.plasma(ts);
     var x0 = Math.round(gi * cellW), y0 = Math.round(gj * cellH);
     var x1 = Math.round((gi + 1) * cellW), y1 = Math.round((gj + 1) * cellH);
     for (var py = y0; py < y1; py++) {
@@ -450,8 +449,8 @@ function render() {
   // Contour lines — only when both axes are continuous (contours across categories are meaningless)
   if (contourMode && !xIsChoice && !yIsChoice) {
     [ctxM, ctxS].forEach(function(ctx) { ctx.save(); ctx.translate(ML, MT); });
-    drawContourLines(ctxM, means, gsX, N, meanMin, meanRange, viridis);
-    drawContourLines(ctxS, stds, gsX, N, 0, stdMax || 1, plasma);
+    drawContourLines(ctxM, means, gsX, N, meanMin, meanRange, Ax.viz.viridis);
+    drawContourLines(ctxS, stds, gsX, N, 0, stdMax || 1, Ax.viz.plasma);
     [ctxM, ctxS].forEach(function(ctx) { ctx.restore(); });
   }
 
@@ -498,7 +497,7 @@ function render() {
         var tv = paramBounds[axX][0] + xRange * ti / nTicks;
         var tx = ML + ti * N / nTicks;
         ctx.beginPath(); ctx.moveTo(tx, MT + N); ctx.lineTo(tx, MT + N + 4); ctx.stroke();
-        ctx.fillText(formatParamValue(tv, params[axX]), tx, MT + N + 15);
+        ctx.fillText(Ax.viz.formatParamValue(tv, params[axX]), tx, MT + N + 15);
       }
     }
 
@@ -526,7 +525,7 @@ function render() {
         var tv = paramBounds[axY][0] + yRange * ti / nTicks;
         var ty = MT + (1 - ti / nTicks) * N;
         ctx.beginPath(); ctx.moveTo(ML - 4, ty); ctx.lineTo(ML, ty); ctx.stroke();
-        ctx.fillText(formatParamValue(tv, params[axY]), ML - 6, ty + 3);
+        ctx.fillText(Ax.viz.formatParamValue(tv, params[axY]), ML - 6, ty + 3);
       }
     }
 
@@ -545,8 +544,8 @@ function render() {
   document.getElementById('mlo').textContent = meanMin.toFixed(2);
   document.getElementById('mhi').textContent = meanMax.toFixed(2);
   document.getElementById('shi').textContent = stdMax.toFixed(2);
-  drawColorbar('cbM', viridis);
-  drawColorbar('cbS', plasma);
+  Ax.viz.drawColorbar('cbM', Ax.viz.viridis);
+  Ax.viz.drawColorbar('cbS', Ax.viz.plasma);
   // Preserve pinned state across re-renders — draw overlays with active pin
   drawOverlays(undefined, undefined, -1, pinnedTrainIdx);
 }
@@ -659,7 +658,7 @@ function nearestTrainPoint(canvasPx, canvasPy) {
       ttTitle.textContent = 'training point #' + (hitIdx + 1);
       ttBody.innerHTML = '<span class="tt-val">y = ' + yVal.toFixed(4) + '</span><br>' +
         paramNames.map(function(name, j) {
-          return '<span class="tt-coord">' + name + '</span> = ' + formatParamValue(tpt[j], params[j]);
+          return '<span class="tt-coord">' + name + '</span> = ' + Ax.viz.formatParamValue(tpt[j], params[j]);
         }).join('<br>');
       tt.style.display = 'block';
       tt.style.left = (e.clientX + 16) + 'px';
@@ -673,8 +672,8 @@ function nearestTrainPoint(canvasPx, canvasPy) {
       var p = predictAt([pt]);
       var mu = p.mean[0], std = Math.sqrt(p.variance[0]);
       document.getElementById('statline').innerHTML =
-        paramNames[axX] + ' = <span>' + formatParamValue(xv, params[axX]) + '</span>  ' +
-        paramNames[axY] + ' = <span>' + formatParamValue(yv, params[axY]) + '</span>  ' +
+        paramNames[axX] + ' = <span>' + Ax.viz.formatParamValue(xv, params[axX]) + '</span>  ' +
+        paramNames[axY] + ' = <span>' + Ax.viz.formatParamValue(yv, params[axY]) + '</span>  ' +
         'μ = <span>' + mu.toFixed(4) + '</span>  ' +
         'σ = <span>' + std.toFixed(4) + '</span>';
       ttTitle.textContent = '';

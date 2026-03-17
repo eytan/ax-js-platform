@@ -1,4 +1,4 @@
-import { libraryScript, sharedColormapScript, axHomeLink } from '../shared.js';
+import { libraryScript, vizScript, axHomeLink } from '../shared.js';
 
 export default function() {
 return `<!DOCTYPE html>
@@ -175,7 +175,7 @@ return `<!DOCTYPE html>
 <div class="statline" id="statline">Slice mode · hover plots to inspect</div>
 
 ${libraryScript()}
-${sharedColormapScript()}
+${vizScript()}
 
 <script>
 var Predictor = Ax.Predictor;
@@ -541,7 +541,7 @@ function render() {
   for (var k = 0; k < means2d.length; k++) {
     var gi = k % GS, gj = Math.floor(k / GS);
     var t = (means2d[k] - mMin) / mRange;
-    var rgb = viridis(t);
+    var rgb = Ax.viz.viridis(t);
     var x0 = Math.round(gi * cellW), y0 = Math.round(gj * cellH);
     var x1 = Math.round((gi + 1) * cellW), y1 = Math.round((gj + 1) * cellH);
     for (var py = y0; py < y1; py++) {
@@ -554,7 +554,7 @@ function render() {
   ctx2d.putImageData(img2d, 0, 0);
   document.getElementById('mlo').textContent = mMin.toFixed(2);
   document.getElementById('mhi').textContent = mMax.toFixed(2);
-  drawColorbar('cb2d', viridis);
+  Ax.viz.drawColorbar('cb2d', Ax.viz.viridis);
 
   // Draw ticks and training dots on 2D heatmap (via overlay)
   ctxOv.clearRect(0, 0, N2, N2);

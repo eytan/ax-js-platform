@@ -1,4 +1,4 @@
-import { libraryScript, sharedUtilsScript, fixtureScript, penicillinFixture, axHomeLink } from '../shared.js';
+import { libraryScript, vizScript, fixtureScript, penicillinFixture, axHomeLink } from '../shared.js';
 
 export default function() {
 return `<!DOCTYPE html>
@@ -42,7 +42,7 @@ return `<!DOCTYPE html>
 <div id="tooltip"></div>
 ${libraryScript()}
 ${fixtureScript('__DEFAULT_FIXTURE__', penicillinFixture)}
-${sharedUtilsScript()}
+${vizScript()}
 <script>
 var Predictor = Ax.Predictor;
 var predictor, fixture, selectedOutcome;
@@ -88,13 +88,13 @@ function buildParamTooltip(idx, pts) {
   html += '<hr style="border-color:#333;margin:4px 0">';
   paramNames.forEach(function(name, j) {
     html += '<span style="color:#888">' + name + '</span> = ' +
-      formatParamValue(pts[idx][j], params[j]) + '<br>';
+      Ax.viz.formatParamValue(pts[idx][j], params[j]) + '<br>';
   });
   return html;
 }
 
 function loadFixtureData(data) {
-  fixture = normalizeFixture(data);
+  fixture = Ax.viz.normalizeFixture(data);
   cvPinnedIdx = -1;
   predictor = new Predictor(fixture);
   outcomeSelect.innerHTML = '';
@@ -289,10 +289,10 @@ function renderCVPlot(outcomeName, container, W, H) {
         'LOO predicted = <span class="tt-val">' + d.pred.toFixed(4) + '</span><br>' +
         '\\u00B1 2\\u03C3 = [' + (d.pred - 2*d.std).toFixed(4) + ', ' + (d.pred + 2*d.std).toFixed(4) + ']<br>' +
         buildParamTooltip(d.idx, trainPts);
-      showTooltip(tooltip, html, e.clientX, e.clientY);
+      Ax.viz.showTooltip(tooltip, html, e.clientX, e.clientY);
       if (cvPinnedIdx < 0) broadcastHighlight(best, computeRels(best, trainPts, outcomeName));
     } else {
-      hideTooltip(tooltip);
+      Ax.viz.hideTooltip(tooltip);
       if (cvPinnedIdx < 0) broadcastClear();
     }
   });
@@ -306,7 +306,7 @@ function renderCVPlot(outcomeName, container, W, H) {
   });
 
   container.addEventListener('mouseleave', function() {
-    hideTooltip(tooltip);
+    Ax.viz.hideTooltip(tooltip);
     if (cvPinnedIdx < 0) broadcastClear();
   });
 }
@@ -481,11 +481,11 @@ function renderTracePanel(outcomeName, container, W, H) {
         outcomeName + ' = <span class="tt-val">' + d.value.toFixed(4) + '</span><br>' +
         'best so far = <span class="tt-val">' + d.best.toFixed(4) + '</span><br>' +
         buildParamTooltip(d.idx, trainX);
-      showTooltip(tooltip, html, e.clientX, e.clientY);
+      Ax.viz.showTooltip(tooltip, html, e.clientX, e.clientY);
       container.style.cursor = 'pointer';
       if (cvPinnedIdx < 0) broadcastHighlight(best, computeRels(best, trainX, outcomeName));
     } else {
-      hideTooltip(tooltip);
+      Ax.viz.hideTooltip(tooltip);
       container.style.cursor = 'crosshair';
       if (cvPinnedIdx < 0) broadcastClear();
     }
@@ -500,7 +500,7 @@ function renderTracePanel(outcomeName, container, W, H) {
   });
 
   container.addEventListener('mouseleave', function() {
-    hideTooltip(tooltip);
+    Ax.viz.hideTooltip(tooltip);
     if (cvPinnedIdx < 0) broadcastClear();
   });
 }

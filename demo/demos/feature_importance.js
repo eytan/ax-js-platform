@@ -1,4 +1,4 @@
-import { libraryScript, sharedUtilsScript, fixtureScript, penicillinFixture, axHomeLink } from '../shared.js';
+import { libraryScript, vizScript, fixtureScript, penicillinFixture, axHomeLink } from '../shared.js';
 
 export default function() {
 return `<!DOCTYPE html>
@@ -49,7 +49,7 @@ return `<!DOCTYPE html>
 </div>
 ${libraryScript()}
 ${fixtureScript('__DEFAULT_FIXTURE__', penicillinFixture)}
-${sharedUtilsScript()}
+${vizScript()}
 <script>
 var Predictor = Ax.Predictor;
 var predictor, fixture, selectedOutcome;
@@ -59,7 +59,7 @@ var viewMode = document.getElementById('viewMode');
 var barColors = ['#7c6ff7','#6fa0f7','#6fcff7','#6ff7c8','#a0f76f','#f7e06f','#f7a06f','#f76f6f'];
 
 function loadFixtureData(data) {
-  fixture = normalizeFixture(data);
+  fixture = Ax.viz.normalizeFixture(data);
   predictor = new Predictor(fixture);
   outcomeSelect.innerHTML = '';
   predictor.outcomeNames.forEach(function(name) {

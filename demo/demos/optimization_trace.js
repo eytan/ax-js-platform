@@ -1,4 +1,4 @@
-import { libraryScript, sharedUtilsScript, fixtureScript, penicillinFixture, axHomeLink } from '../shared.js';
+import { libraryScript, vizScript, fixtureScript, penicillinFixture, axHomeLink } from '../shared.js';
 
 export default function() {
 return `<!DOCTYPE html>
@@ -45,7 +45,7 @@ return `<!DOCTYPE html>
 <div id="tooltip"></div>
 ${libraryScript()}
 ${fixtureScript('__DEFAULT_FIXTURE__', penicillinFixture)}
-${sharedUtilsScript()}
+${vizScript()}
 <script>
 var Predictor = Ax.Predictor;
 var predictor, fixture, selectedOutcome;
@@ -54,7 +54,7 @@ var tooltip = document.getElementById('tooltip');
 var outcomeSelect = document.getElementById('outcomeSelect');
 
 function loadFixtureData(data) {
-  fixture = normalizeFixture(data);
+  fixture = Ax.viz.normalizeFixture(data);
   predictor = new Predictor(fixture);
   outcomeSelect.innerHTML = '';
   predictor.outcomeNames.forEach(function(name) {
@@ -276,7 +276,7 @@ function render() {
     html += '<hr style="border-color:#333;margin:4px 0">';
     paramNames.forEach(function(name, j) {
       html += '<span style="color:#888">' + name + '</span> = ' +
-        formatParamValue(d.pt[j], params[j]) + '<br>';
+        Ax.viz.formatParamValue(d.pt[j], params[j]) + '<br>';
     });
     return html;
   }
@@ -286,11 +286,11 @@ function render() {
     var px = e.clientX - rect.left, py = e.clientY - rect.top;
     var best = findNearest(px, py);
     if (best >= 0) {
-      showTooltip(tooltip, buildTooltip(dotEls[best]), e.clientX, e.clientY);
+      Ax.viz.showTooltip(tooltip, buildTooltip(dotEls[best]), e.clientX, e.clientY);
       container.style.cursor = 'pointer';
       if (pinnedIdx < 0) highlightNeighbors(best);
     } else {
-      hideTooltip(tooltip);
+      Ax.viz.hideTooltip(tooltip);
       container.style.cursor = 'crosshair';
       if (pinnedIdx < 0) clearHighlight();
     }
@@ -305,7 +305,7 @@ function render() {
   });
 
   container.addEventListener('mouseleave', function() {
-    hideTooltip(tooltip);
+    Ax.viz.hideTooltip(tooltip);
     if (pinnedIdx < 0) clearHighlight();
   });
 }

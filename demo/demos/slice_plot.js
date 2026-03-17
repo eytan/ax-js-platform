@@ -1,4 +1,4 @@
-import { libraryScript, sharedUtilsScript, fixtureScript, hartmannMixedFixture, axHomeLink } from '../shared.js';
+import { libraryScript, vizScript, fixtureScript, hartmannMixedFixture, axHomeLink } from '../shared.js';
 
 export default function() {
 return `<!DOCTYPE html>
@@ -77,7 +77,7 @@ return `<!DOCTYPE html>
 <div id="tooltip"></div>
 
 ${libraryScript()}
-${sharedUtilsScript()}
+${vizScript()}
 ${fixtureScript('__DEFAULT_FIXTURE__', hartmannMixedFixture)}
 
 <script>
@@ -107,8 +107,8 @@ function precomputeYRange() {
   var pts = [];
   for (var i = 0; i < nSample; i++) {
     pts.push(params.map(function(p, j) {
-      if (isChoice(p)) return p.values[Math.floor(Math.random() * p.values.length)];
-      if (isInteger(p)) return Math.round(paramBounds[j][0] + Math.random() * (paramBounds[j][1] - paramBounds[j][0]));
+      if (Ax.viz.isChoice(p)) return p.values[Math.floor(Math.random() * p.values.length)];
+      if (Ax.viz.isInteger(p)) return Math.round(paramBounds[j][0] + Math.random() * (paramBounds[j][1] - paramBounds[j][0]));
       return paramBounds[j][0] + Math.random() * (paramBounds[j][1] - paramBounds[j][0]);
     }));
   }
@@ -137,14 +137,14 @@ function precomputeYRange() {
 }
 
 function loadFixtureData(data) {
-  fixture = normalizeFixture(data);
+  fixture = Ax.viz.normalizeFixture(data);
   predictor = new Predictor(fixture);
 
   params = fixture.search_space.parameters;
   paramNames = predictor.paramNames;
   paramBounds = predictor.paramBounds;
   var _td = predictor.getTrainingData();
-  fixedValues = _td.X.length > 0 ? _td.X[0].slice() : params.map(function(p) { return defaultParamValue(p); });
+  fixedValues = _td.X.length > 0 ? _td.X[0].slice() : params.map(function(p) { return Ax.viz.defaultParamValue(p); });
 
   outcomeSelect.innerHTML = '';
   predictor.outcomeNames.forEach(function(name) {
@@ -162,7 +162,7 @@ function loadFixtureData(data) {
 }
 
 function updateDimOrder() {
-  dimOrder = computeDimOrder(predictor, paramNames.length, selectedOutcome);
+  dimOrder = Ax.viz.computeDimOrder(predictor, paramNames.length, selectedOutcome);
   buildSliders();
   renderPlots();
 }
@@ -194,7 +194,7 @@ function buildSliders() {
     var lbl = document.createElement('span'); lbl.className = 'sllbl';
     lbl.textContent = name;
 
-    if (isChoice(p)) {
+    if (Ax.viz.isChoice(p)) {
       // Dropdown for choice params
       var sel = document.createElement('select'); sel.className = 'slselect';
       p.values.forEach(function(v) {
@@ -204,10 +204,10 @@ function buildSliders() {
         sel.appendChild(o);
       });
       var val = document.createElement('span'); val.className = 'slval';
-      val.textContent = formatParamValue(fixedValues[i], p);
+      val.textContent = Ax.viz.formatParamValue(fixedValues[i], p);
       sel.addEventListener('change', function() {
         fixedValues[i] = +sel.value;
-        val.textContent = formatParamValue(+sel.value, p);
+        val.textContent = Ax.viz.formatParamValue(+sel.value, p);
         renderPlots();
       });
       row.appendChild(lbl); row.appendChild(sel); row.appendChild(val);
@@ -215,13 +215,13 @@ function buildSliders() {
       var lo = paramBounds[i][0], hi = paramBounds[i][1];
       var sl = document.createElement('input');
       sl.type = 'range'; sl.min = lo; sl.max = hi;
-      sl.step = isInteger(p) ? '1' : ((hi - lo) / 200).toString();
+      sl.step = Ax.viz.isInteger(p) ? '1' : ((hi - lo) / 200).toString();
       sl.value = fixedValues[i].toString();
       var val = document.createElement('span'); val.className = 'slval';
-      val.textContent = formatParamValue(fixedValues[i], p);
+      val.textContent = Ax.viz.formatParamValue(fixedValues[i], p);
       sl.addEventListener('input', function() {
-        fixedValues[i] = isInteger(p) ? Math.round(+sl.value) : +sl.value;
-        val.textContent = formatParamValue(fixedValues[i], p);
+        fixedValues[i] = Ax.viz.isInteger(p) ? Math.round(+sl.value) : +sl.value;
+        val.textContent = Ax.viz.formatParamValue(fixedValues[i], p);
         renderPlots();
       });
       row.appendChild(lbl); row.appendChild(sl); row.appendChild(val);
@@ -239,8 +239,8 @@ function renderPlots() {
   for (var di = 0; di < nDim; di++) {
     var dim = dimOrder[di];
     var dimParam = params[dim];
-    var dimIsChoice = isChoice(dimParam);
-    var dimIsInt = isInteger(dimParam);
+    var dimIsChoice = Ax.viz.isChoice(dimParam);
+    var dimIsInt = Ax.viz.isInteger(dimParam);
     var lo, hi, xs;
 
     if (dimIsChoice) {
@@ -508,7 +508,7 @@ function renderPlots() {
         if (px < pad.left || px > pad.left + pw) {
           hoverLine.style.display = 'none';
           hoverDot.style.display = 'none';
-          hideTooltip(tooltip);
+          Ax.viz.hideTooltip(tooltip);
           return;
         }
 
@@ -528,9 +528,9 @@ function renderPlots() {
           var html = '<div class="tt-title">training point #' + (hitPt.idx + 1) + '</div>' +
             '<span class="tt-val">y = ' + hitPt.yVal.toFixed(4) + '</span><br>' +
             paramNames.map(function(name, j) {
-              return '<span class="tt-coord">' + name + '</span> = ' + formatParamValue(hitPt.pt[j], params[j]);
+              return '<span class="tt-coord">' + name + '</span> = ' + Ax.viz.formatParamValue(hitPt.pt[j], params[j]);
             }).join('<br>');
-          showTooltip(tooltip, html, e.clientX, e.clientY);
+          Ax.viz.showTooltip(tooltip, html, e.clientX, e.clientY);
         } else {
           container.style.cursor = 'crosshair';
           if (slicePinnedIdx === -1 && hoverHighlight) {
@@ -555,13 +555,13 @@ function renderPlots() {
           hoverDot.setAttribute('cx', screenX); hoverDot.setAttribute('cy', sy(mu));
           hoverDot.style.display = '';
 
-          var xLabel = dimIsChoice ? String(dimParam.values[idx]) : formatParamValue(xs[idx], dimParam);
+          var xLabel = dimIsChoice ? String(dimParam.values[idx]) : Ax.viz.formatParamValue(xs[idx], dimParam);
           var html = '<div class="tt-title">' + paramNames[dim] + '</div>' +
             '<span class="tt-coord">' + paramNames[dim] + '</span> = ' + xLabel + '<br>' +
             'μ = <span class="tt-val">' + mu.toFixed(4) + '</span><br>' +
             'σ = ' + s.toFixed(4) + '<br>' +
             '95% CI: [' + (mu - 2*s).toFixed(4) + ', ' + (mu + 2*s).toFixed(4) + ']';
-          showTooltip(tooltip, html, e.clientX, e.clientY);
+          Ax.viz.showTooltip(tooltip, html, e.clientX, e.clientY);
         }
       });
 
@@ -597,7 +597,7 @@ function renderPlots() {
         hoverLine.style.display = 'none';
         hoverDot.style.display = 'none';
         container.style.cursor = 'crosshair';
-        hideTooltip(tooltip);
+        Ax.viz.hideTooltip(tooltip);
         if (slicePinnedIdx === -1 && hoverHighlight) {
           clearHighlight();
           hoverHighlight = false;
