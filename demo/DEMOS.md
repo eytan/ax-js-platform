@@ -1,15 +1,15 @@
-# axjs Demo Suite
+# ax-js Demo Suite
 
-Eleven self-contained HTML demos built by `node demo/build_demos.js`.
-Each inlines the axjs IIFE bundle and default fixture data — no server required.
+Nine self-contained HTML demos built by `node demo/build_demos.js`.
+Each inlines the ax.js and ax-viz.js bundles and default fixture data — no server required.
 
 ## Architecture
 
 ```
 build_demos.js          # Node.js build script
 ├── Inlined IIFE bundles
-│   ├── dist/ax.global.js        — window.Ax (Predictor, loadModel, etc.)
-│   └── dist/ax-viz.global.js    — Ax.viz (viridis, drawDataDot, normalizeFixture, etc.)
+│   ├── dist/ax.js        — window.Ax (Predictor, loadModel, etc.)
+│   └── dist/ax-viz.js    — Ax.viz (viridis, drawDataDot, normalizeFixture, etc.)
 ├── Per-demo modules (demo/demos/*.js)
 │   └── Each returns a self-contained HTML string
 └── writeFileSync × 10+
@@ -49,15 +49,7 @@ build_demos.js          # Node.js build script
 - **Visual encoding**: Blue circles (Sobol), teal circles (qEHVI), open diamond (SQ), gold star outlines (fixture candidates), filled coral stars (user candidates). Deltoid shows constraint bounds as dashed lines (red for constraints, gold for objective thresholds).
 - **Rendering**: SVG
 
-### 5. point_proximity — Opacity Diagnostic Tool
-
-- **Default fixture**: None (generates synthetic Ackley data on-the-fly via Predictor + input_transform)
-- **Features**: Configurable dimensionality (1–20), distance mode (kernel vs euclidean), normalization, formula variants, opacity mapping. Neighbor-mode only (click a training point to see distance-based opacity). Histograms appear on point selection.
-- **Purpose**: Diagnostic tool for evaluating and comparing training point opacity formulas across varying dimensionality
-- **Key detail**: Uses isotropic LS=0.15 in normalized [0,1] space with Normalize input_transform, matching real Ax exports
-- **Rendering**: Canvas (1D slice + 2D heatmap + 2 histograms)
-
-### 6. cross_validation — Observed vs Predicted
+### 5. cross_validation — Observed vs Predicted
 
 - **Default fixture**: `penicillin_modellist.json`
 - **Features**: Scatter plot of observed vs predicted values at training points, CI whiskers (±2σ), R² annotation, diagonal reference line, hover tooltips showing point parameters
@@ -105,7 +97,7 @@ build_demos.js          # Node.js build script
 
 ## Shared Visualization Utilities (`Ax.viz`)
 
-All shared utilities are provided by the `ax-viz.global.js` IIFE bundle, accessed
+All shared utilities are provided by the `ax-viz.js` IIFE bundle, accessed
 via the `Ax.viz.*` namespace. Source: `src/viz/index.ts`.
 
 | Function | Purpose |

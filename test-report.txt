@@ -1,0 +1,124 @@
+ax-js Test Report
+============================================================
+Date: 2026-03-17
+
+Result: ALL PASSED (437/437 tests)
+
+------------------------------------------------------------
+Category                         Tests  Status
+------------------------------------------------------------
+BoTorch Parity                     121  121 passed
+Ax-Level Parity                     44  44 passed
+Relativization                      52  52 passed
+Cockpit Metadata                    10  10 passed
+Predictor                           25  25 passed
+API Smoke Tests                     25  25 passed
+Kernels                             32  32 passed
+Linear Algebra                      30  30 passed
+Models                               9  9 passed
+Transforms                          40  40 passed
+IO / Deserialization                 6  6 passed
+Acquisition Functions               43  43 passed
+------------------------------------------------------------
+Total                              437  ALL PASSED
+
+Detailed Breakdown
+============================================================
+
+[BoTorch Parity]
+  121/121  BoTorch parity
+
+[Ax-Level Parity]
+  44/44  Predictor ↔ Ax Adapter parity
+
+[Relativization]
+  4/4  posterior covariance numerics
+  2/2  relativize with covariance (tighter CIs)
+  15/15  relativize integration (internal consistency)
+  5/5  covariance: MultiTaskGP
+  10/10  covariance: ModelListGP
+  5/5  covariance: PairwiseGP
+  5/5  covariance: EnsembleGP (SAAS)
+  6/6  relativize parity with Ax
+
+[Cockpit Metadata]
+  10/10  cockpit fixture metadata
+
+[Predictor]
+  25/25  Predictor
+
+[API Smoke Tests]
+  1/1  Public API imports
+  4/4  Predictor properties
+  4/4  Predictor.predict()
+  3/3  Predictor.getTrainingData()
+  1/1  Predictor.getLengthscales()
+  2/2  Predictor.loocv()
+  2/2  Predictor.rankDimensionsByImportance()
+  2/2  Predictor.kernelCorrelation()
+  4/4  Viz imports
+  2/2  Acquisition imports
+
+[Kernels]
+  4/4  buildKernel
+  1/1  ActiveDimsKernel
+  2/2  AdditiveKernel
+  2/2  ProductKernel
+  3/3  CategoricalKernel
+  1/1  kernelDiag
+  2/2  cdistSquared
+  2/2  cdist
+  7/7  MaternKernel
+  2/2  IndexKernel
+  2/2  MultitaskKernel
+  4/4  RBFKernel
+
+[Linear Algebra]
+  4/4  cholesky
+  3/3  LU decomposition
+  3/3  solveLU
+  9/9  Matrix
+  2/2  transpose
+  2/2  matmul
+  1/1  add
+  1/1  scale
+  1/1  dot
+  4/4  triangular solvers
+
+[Models]
+  3/3  ExactGP
+  6/6  MultiTaskGP
+
+[Transforms]
+  2/2  StandardizeUntransform
+  3/3  LogUntransform (exact log-normal)
+  5/5  BilogUntransform (delta method)
+  9/9  PowerUntransform (Yeo-Johnson, CI-width matching)
+  2/2  ChainedOutcomeUntransform
+  9/9  relativize
+  3/3  unrelativize
+  2/2  relativizePredictions
+  5/5  InputWarp (Kumaraswamy)
+
+[IO / Deserialization]
+  6/6  loadModel dispatch
+
+[Acquisition Functions]
+  3/3  UpperConfidenceBound
+  3/3  ExpectedImprovement
+  3/3  LogExpectedImprovement
+  3/3  posteriorCovariance
+  3/3  sampleMVN
+  3/3  ThompsonSampling
+  5/5  optimizeAcqf
+  6/6  EUBO
+  1/1  EUBO + optimize
+  1/1  PairwiseGP posteriorCovariance
+  3/3  normalPdf
+  4/4  normalCdf
+  1/1  logNormalPdf
+  4/4  logNormalCdf
+
+------------------------------------------------------------
+Parity fixture details are printed to console during test run.
+See docs/testing.md for fixture system documentation.

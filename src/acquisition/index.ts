@@ -1,6 +1,9 @@
 /**
  * **ax-js/acquisition** — Client-side acquisition functions and optimization.
  *
+ * **Experimental.** APIs may change. Not yet integrated with the Predictor API
+ * or Ax's generation strategy. See docs/experimental.md for details.
+ *
  * Provides standard BO acquisition functions (UCB, EI, Thompson) plus
  * EUBO for preference-based optimization. Includes a random-search +
  * projected L-BFGS optimizer for maximizing acquisition values over bounds.

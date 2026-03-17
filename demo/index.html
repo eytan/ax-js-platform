@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>axjs Visualization Demos</title>
+<title>ax-js Visualization Demos</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -35,25 +35,18 @@
 </style>
 </head>
 <body>
-<h1><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="29" height="29" class="ax-icon"><path fill="#fff" d="M761.76,600h0l200-346.16H550.12l-400,692.32H961.76ZM573.41,274H926.82L750.12,579.85ZM550.12,926H185.06L555.94,284.07,738.47,600Zm23.29,0L750.12,620.15,926.82,926Z"/></svg>axjs Visualization Demos</h1>
+<h1><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="29" height="29" class="ax-icon"><path fill="#fff" d="M761.76,600h0l200-346.16H550.12l-400,692.32H961.76ZM573.41,274H926.82L750.12,579.85ZM550.12,926H185.06L555.94,284.07,738.47,600Zm23.29,0L750.12,620.15,926.82,926Z"/></svg>ax-js Visualization Demos</h1>
 <p class="subtitle">Client-side Gaussian Process predictions mirroring Ax / BoTorch</p>
 
 <div class="section">Posterior Visualization</div>
 <div class="cards">
   <a class="card" href="slice_plot.html">
     <h2>1D Slice Plots</h2>
-    <p>Ax-style slice plots showing posterior mean ± 2σ along each parameter dimension, with observed training points.</p>
-    <span class="tag">Observable Plot</span>
+    <p>Posterior mean ± 2σ along each parameter dimension, with observed training points.</p>
   </a>
   <a class="card" href="response_surface.html">
     <h2>2D Response Surface</h2>
     <p>Side-by-side heatmaps of posterior mean and predictive std, with axis selectors and dimension sliders.</p>
-    <span class="tag">Canvas</span>
-  </a>
-  <a class="card" href="point_proximity.html">
-    <h2>Point Proximity Diagnostic</h2>
-    <p>Evaluate opacity formulas across dimensionality — kernel vs euclidean distance, normalization modes.</p>
-    <span class="tag">Canvas</span>
   </a>
 </div>
 
@@ -62,17 +55,14 @@
   <a class="card" href="cross_validation.html">
     <h2>LOO Cross-Validation</h2>
     <p>Leave-one-out predicted vs observed with CI whiskers, R², and kernel-distance neighbor highlighting.</p>
-    <span class="tag">SVG</span>
   </a>
   <a class="card" href="feature_importance.html">
     <h2>Feature Importance</h2>
-    <p>Horizontal bar chart of dimension importance derived from kernel lengthscales, per outcome.</p>
-    <span class="tag">SVG</span>
+    <p>Dimension importance derived from kernel lengthscales, per outcome.</p>
   </a>
   <a class="card" href="optimization_trace.html">
     <h2>Optimization Trace</h2>
-    <p>Trial progression chart with running best-so-far overlay, generation method coloring.</p>
-    <span class="tag">SVG</span>
+    <p>Trial progression with running best-so-far overlay.</p>
   </a>
 </div>
 
@@ -80,27 +70,23 @@
 <div class="cards">
   <a class="card" href="radar.html">
     <h2>Multi-Objective Radar</h2>
-    <p>Radar chart for constrained multi-objective problems — objectives, constraints, feasibility. Accepts any fixture.</p>
-    <span class="tag">Canvas</span>
+    <p>Radar chart for constrained multi-objective problems — objectives, constraints, feasibility.</p>
   </a>
   <a class="card" href="scatteroid.html">
     <h2>BO Cockpit</h2>
     <p>Interactively explore many-objective tradeoffs and manually tune candidates.</p>
-    <span class="tag">Canvas</span>
   </a>
 </div>
 
-<div class="section">Other</div>
+<div class="section">Bayesian Optimization Loop</div>
 <div class="cards">
   <a class="card" href="bayesian_optimization.html">
-    <h2>Bayesian Optimization</h2>
-    <p>Interactive BO loop — watch acquisition function optimization and GP updates in real time.</p>
-    <span class="tag">Canvas</span>
+    <h2>Live Bayesian Optimization</h2>
+    <p>Real-time BO loop — watch acquisition function optimization and GP updates on 2D test functions.</p>
   </a>
   <a class="card" href="pbo.html">
-    <h2>Preferential Bayesian Optimization</h2>
+    <h2>Preferential BO (BOPE)</h2>
     <p>Learn latent utility from pairwise comparisons — client-side Laplace GP with EUBO acquisition.</p>
-    <span class="tag">Canvas</span>
   </a>
 </div>
 </body>

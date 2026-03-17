@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Build self-contained demo HTML files.
- * Inlines the axjs IIFE bundle and default fixture data so demos work
- * when opened directly as file:// URLs (no server required).
+ * Inlines the ax.js and ax-viz.js bundles and default fixture data so demos
+ * work when opened directly as file:// URLs (no server required).
  *
  * Usage: node demo/build_demos.js
  * Called automatically by `npm run build`.
@@ -15,7 +15,6 @@ import slicePlot from './demos/slice_plot.js';
 import responseSurface from './demos/response_surface.js';
 import radar from './demos/radar.js';
 import scatteroid from './demos/scatteroid.js';
-import pointProximity from './demos/point_proximity.js';
 import crossValidation from './demos/cross_validation.js';
 import featureImportance from './demos/feature_importance.js';
 import optimizationTrace from './demos/optimization_trace.js';
@@ -29,7 +28,6 @@ const demos = [
   ['response_surface.html', responseSurface],
   ['radar.html', radar],
   ['scatteroid.html', scatteroid],
-  ['point_proximity.html', pointProximity],
   ['cross_validation.html', crossValidation],
   ['feature_importance.html', featureImportance],
   ['optimization_trace.html', optimizationTrace],

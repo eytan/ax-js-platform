@@ -1,9 +1,8 @@
 /**
  * Shared build-time helpers for demo HTML generation.
  *
- * Demos inline the ax.global.js and ax-viz.global.js IIFE bundles so they
- * work as standalone file:// URLs without a server. Shared visualization
- * utilities are accessed via the `Ax.viz.*` namespace.
+ * Demos inline ax.js and ax-viz.js so they work as standalone file:// URLs
+ * without a server. Shared visualization utilities are accessed via Ax.viz.*.
  */
 import { readFileSync } from 'fs';
 import { dirname, join } from 'path';
@@ -12,18 +11,18 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 
-export const iifeBundle = readFileSync(join(root, 'dist/ax.global.js'), 'utf8');
-export const vizBundle = readFileSync(join(root, 'dist/ax-viz.global.js'), 'utf8');
+export const iifeBundle = readFileSync(join(root, 'dist/ax.js'), 'utf8');
+export const vizBundle = readFileSync(join(root, 'dist/ax-viz.js'), 'utf8');
 export const braninFixture = readFileSync(join(root, 'test/fixtures/branin_matern25.json'), 'utf8');
 export const hartmannMixedFixture = readFileSync(join(root, 'test/fixtures/hartmann_mixed.json'), 'utf8');
 export const penicillinFixture = readFileSync(join(root, 'test/fixtures/penicillin_modellist.json'), 'utf8');
 
-/** Inline the main ax-js IIFE bundle. Exposes `window.Ax`. */
+/** Inline the main ax-js library. Exposes Ax.Predictor, Ax.loadModel, etc. */
 export function libraryScript() {
   return `<script>\n${iifeBundle}\n</script>`;
 }
 
-/** Inline the ax-viz IIFE bundle. Exposes `Ax.viz`. */
+/** Inline ax-viz. Exposes Ax.viz.viridis, Ax.viz.drawDataDot, etc. */
 export function vizScript() {
   return `<script>\n${vizBundle}\n</script>`;
 }

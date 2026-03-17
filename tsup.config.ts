@@ -9,13 +9,13 @@ export default defineConfig([
     sourcemap: true,
     clean: true,
   },
-  // ── Main library IIFE — <script src="ax.global.js"> → window.Ax ────────
+  // ── Main library — <script src="ax.js"> ────────────────────────────────
   {
     entry: { "ax": "src/index.ts" },
     format: ["iife"],
     globalName: "Ax",
     outDir: "dist",
-    outExtension: () => ({ js: ".global.js" }),
+    outExtension: () => ({ js: ".js" }),
     sourcemap: false,
     clean: false,
   },
@@ -27,13 +27,13 @@ export default defineConfig([
     outDir: "dist/acquisition",
     clean: false,
   },
-  // ── Acquisition IIFE — extends window.Ax.acquisition ────────────────────
+  // ── Acquisition (experimental) — <script src="ax-acquisition.js"> ───────
   {
     entry: { "ax-acquisition": "src/acquisition/index.ts" },
     format: ["iife"],
     globalName: "Ax.acquisition",
     outDir: "dist",
-    outExtension: () => ({ js: ".global.js" }),
+    outExtension: () => ({ js: ".js" }),
     sourcemap: false,
     clean: false,
   },
@@ -45,13 +45,13 @@ export default defineConfig([
     outDir: "dist/viz",
     clean: false,
   },
-  // ── Viz IIFE — extends window.Ax.viz ────────────────────────────────────
+  // ── Viz — <script src="ax-viz.js"> ──────────────────────────────────────
   {
     entry: { "ax-viz": "src/viz/index.ts" },
     format: ["iife"],
     globalName: "Ax.viz",
     outDir: "dist",
-    outExtension: () => ({ js: ".global.js" }),
+    outExtension: () => ({ js: ".js" }),
     sourcemap: false,
     clean: false,
   },

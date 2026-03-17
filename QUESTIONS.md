@@ -7,7 +7,7 @@ Items marked [DONE] have been resolved; others need input.
 
 - [DONE] **Package name**: `ax-js` on npm, `Ax` as IIFE global
 - [DONE] **License**: MIT, Copyright Meta Platforms, Inc.
-- [DONE] **Three bundles**: `ax.global.js`, `ax-acquisition.global.js`, `ax-viz.global.js`
+- [DONE] **Three bundles**: `ax.js`, `ax-acquisition.js`, `ax-viz.js`
 - [DONE] **Viz module**: Extracted shared demo utilities into `src/viz/index.ts`
 - [DONE] **Author scrub**: Removed personal references from docs/SERIALIZATION_CONTRACT.md and CLAUDE.md
 
@@ -62,8 +62,22 @@ links to work. Options:
 - Include in npm package (increases package size significantly)
 - Separate demo hosting
 
-### 8. OBSERVATIONS.md — keep or fold into docs?
-`OBSERVATIONS.md` contains detailed notes on BoTorch/GPyTorch internals, performance
-observations, and future work. Some of this is developer-facing documentation; some is
-just working notes. Decision: keep as-is or merge into `docs/developer-guide.md`?
-Currently referenced from the developer guide.
+### 8. `predictRelative` API alignment with Ax
+In Ax, relativization is a post-processing step (`relativize()` in
+`ax.utils.stats.math_utils`), not part of `adapter.predict()`. The adapter always
+returns absolute predictions; display code applies `relativize()` separately based
+on the optimization config.
+
+ax-js's `Predictor.predictRelative()` is a convenience that combines `predict()` +
+`relativize()`. This works but diverges from Ax's structure. Options:
+- (a) Keep as convenience method (current)
+- (b) Remove and let callers use `predict()` + `relativize()` directly
+- (c) Integrate into `predict()` based on optimization config flags
+
+The standalone `relativize()` function is already exported from `ax-js` for option (b).
+
+### 9. Embeddable viz components
+The `ax-js/viz` module currently provides low-level building blocks (colormaps,
+data-point rendering, tooltips). A future goal is higher-level embeddable components
+(e.g., "render a response surface into this div") that users can drop into their
+own applications without writing canvas code.
