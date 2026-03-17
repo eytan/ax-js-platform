@@ -1,6 +1,6 @@
 # axjs Demo Suite
 
-Five self-contained HTML demos built by `node demo/build_demos.js`.
+Ten self-contained HTML demos built by `node demo/build_demos.js`.
 Each inlines the axjs IIFE bundle and default fixture data — no server required.
 
 ## Architecture
@@ -8,11 +8,11 @@ Each inlines the axjs IIFE bundle and default fixture data — no server require
 ```
 build_demos.js          # Node.js build script
 ├── Shared code blocks
-│   ├── sharedUtilsCode      — normalizeFixture, closestToCenter, formatParamValue, etc.
+│   ├── sharedUtilsCode      — normalizeFixture, formatParamValue, computeDimOrder, etc.
 │   └── sharedColormapCode   — viridis(), plasma(), drawColorbar()
 ├── Template literals (one per demo)
 │   └── Each produces a self-contained HTML file
-└── writeFileSync × 5
+└── writeFileSync × 10
 ```
 
 **Data flow**: `test/fixtures/*.json` → `fixtureScript()` embeds as `__DEFAULT_FIXTURE__` → `loadFixtureData()` at runtime → `Predictor.predict()`.
@@ -22,13 +22,13 @@ build_demos.js          # Node.js build script
 ### 1. slice_plot — 1D Posterior Slices
 
 - **Default fixture**: `hartmann_mixed.json`
-- **Features**: File upload, outcome selector, dimension sliders, training point overlay with kernel-distance relevance, stable y-axis range via `precomputeYRange()`
+- **Features**: File upload, outcome selector, dimension sliders, training point overlay (uniform opacity; hover/click for kernel-distance neighbor mode), stable y-axis range via `precomputeYRange()`
 - **Rendering**: Observable Plot (SVG)
 
 ### 2. response_surface — 2D Heatmaps
 
 - **Default fixture**: `penicillin_modellist.json`
-- **Features**: File upload, axis selectors, outcome selector, contour toggle, nearby-points filter, colorbar (viridis/plasma), tooltip with coordinates
+- **Features**: File upload, axis selectors, outcome selector, contour toggle, colorbar (viridis/plasma), tooltip with coordinates, click for kernel-distance neighbor mode
 - **Rendering**: Canvas (pixel-level), shared colormaps
 
 ### 3. radar — Multi-Objective Radar
@@ -43,17 +43,53 @@ build_demos.js          # Node.js build script
 ### 4. scatteroid — Relativized Scatter
 
 - **Default fixture**: None (generates VSIP synthetic data on-the-fly)
-- **Features**: Relativized predictions vs status quo, candidate highlighting, deltoid bars, Pareto front overlay
+- **Features**: Relativized predictions vs status quo, candidate highlighting, deltoid bars, Pareto front overlay, distance mode selector (euclidean/bi-objective kernel/kernel)
 - **Note**: VSIP code stays inline (only demo that generates data at runtime)
 - **Rendering**: Canvas
 
 ### 5. point_proximity — Opacity Diagnostic Tool
 
 - **Default fixture**: None (generates synthetic Ackley data on-the-fly via Predictor + input_transform)
-- **Features**: Configurable dimensionality (3–20), distance mode (kernel vs euclidean), normalization, formula variants (exp(-d²), exp(-0.5d²) [RBF], exp(-d), exp(-2d²)), opacity mapping (linear/sqrt/relative)
+- **Features**: Configurable dimensionality (1–20), distance mode (kernel vs euclidean), normalization, formula variants, opacity mapping. Neighbor-mode only (click a training point to see distance-based opacity). Histograms appear on point selection.
 - **Purpose**: Diagnostic tool for evaluating and comparing training point opacity formulas across varying dimensionality
-- **Key detail**: Uses isotropic LS=0.5 in normalized [0,1] space with Normalize input_transform, matching real Ax exports
+- **Key detail**: Uses isotropic LS=0.15 in normalized [0,1] space with Normalize input_transform, matching real Ax exports
 - **Rendering**: Canvas (1D slice + 2D heatmap + 2 histograms)
+
+### 6. cross_validation — Observed vs Predicted
+
+- **Default fixture**: `penicillin_modellist.json`
+- **Features**: Scatter plot of observed vs predicted values at training points, CI whiskers (±2σ), R² annotation, diagonal reference line, hover tooltips showing point parameters
+- **Data flow**: `predictor.getTrainingData()` → observed Y; `predictor.predict(X)` → predicted mean/variance
+- **Rendering**: Canvas
+
+### 7. feature_importance — Dimension Importance Bar Chart
+
+- **Default fixture**: `penicillin_modellist.json`
+- **Features**: Horizontal bar chart of 1/lengthscale per dimension, outcome selector, single-outcome and all-outcomes view modes
+- **Data flow**: `predictor.rankDimensionsByImportance(outcome)` → sorted bars
+- **Rendering**: Canvas
+
+### 8. optimization_trace — Trial Progression
+
+- **Default fixture**: `penicillin_modellist.json`
+- **Features**: Line chart of trial value vs trial index, running best-so-far step function (purple), highlighted best-setting trials, minimize/maximize toggle via `optimization_config`
+- **Data flow**: `predictor.getTrainingData()` → Y values as sequential trials
+- **Rendering**: Canvas
+
+### 9. bayesian_optimization — Live BO with Thompson Sampling
+
+- **Default fixture**: None (fits GP from scratch via MLL optimization)
+- **Features**: Real-time BO animation on 2D test functions, test problem dropdown (Branin, Six-Hump Camel, Ackley, Rosenbrock), Thompson Sampling via Random Fourier Features (D=256), MAP estimation with priors + multi-restart Adam (4 inits), LOO cross-validation scatter plot with R^2, click-to-highlight nearest training point with tooltip
+- **GP setup**: ScaleKernel(RBF) with ARD, unknown noise, Standardize outcome transform, identity input transform on [0,1]^2
+- **Hyperparameter fitting**: Analytic MLL gradients, MAP priors (log-normal on noise/lengthscales/outputscale), 4 random restarts with 200 Adam steps each
+- **Rendering**: Canvas (3 heatmaps: true function, posterior mean, predictive std; plus LOO scatter)
+
+### 10. quickstart — API Reference & Live Demo
+
+- **Default fixture**: `penicillin_modellist.json`
+- **Features**: Syntax-highlighted code examples, method/property tables, demo grid linking to all other demos, live section executing Predictor methods on the fixture
+- **Purpose**: Onboarding page for Ax/BoTorch team members
+- **Rendering**: HTML/CSS (no canvas)
 
 ## Shared Utilities Reference
 
@@ -65,11 +101,7 @@ build_demos.js          # Node.js build script
 | `isChoice(p)`, `isInteger(p)` | Parameter type checks |
 | `defaultParamValue(p)` | Center of bounds / first choice value |
 | `formatParamValue(val, p)` | Display formatting |
-| `findLS(k)`, `extractLengthscales(ms)` | Recursive lengthscale extraction from kernel tree |
-| `rankDims(ms, ...)` | Rank dimensions by lengthscale (shorter = more important) |
-| `closestToCenter(ms, bounds, params)` | Find training point nearest to design space center |
-| `getTrainData(ms, outcomeNames, sel)` | Extract train_X/train_Y for a specific outcome |
-| `pointRelevance(pt, ...)` | Kernel-distance-based training point relevance |
+| `computeDimOrder(predictor, nDim, outcome)` | Rank dimensions by importance via `predictor.rankDimensionsByImportance()` |
 
 ### `sharedColormapCode` (inlined via `sharedColormapScript()`)
 
