@@ -1,0 +1,179 @@
+/**
+ * Custom vitest reporter that generates a test-report.txt summary.
+ *
+ * Produces a concise, human-readable report grouped by test category
+ * with pass/fail counts and the parity fixture report card.
+ *
+ * Usage: Automatically runs via vitest.config.ts (reporters: ['default', './test/report.ts'])
+ *        Or manually: npx vitest run --reporter=default --reporter=./test/report.ts
+ */
+import { writeFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+import type { Reporter, File, Task } from "vitest";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+/** Group test files into categories for the summary. */
+function categorize(filepath: string): string {
+  if (filepath.includes("integration/botorch_parity")) return "BoTorch Parity";
+  if (filepath.includes("integration/predictor_parity")) return "Ax-Level Parity";
+  if (filepath.includes("integration/relativize")) return "Relativization";
+  if (filepath.includes("integration/cockpit")) return "Cockpit Metadata";
+  if (filepath.includes("api_smoke")) return "API Smoke Tests";
+  if (filepath.includes("acquisition/")) return "Acquisition Functions";
+  if (filepath.includes("kernels/")) return "Kernels";
+  if (filepath.includes("linalg/")) return "Linear Algebra";
+  if (filepath.includes("models/")) return "Models";
+  if (filepath.includes("transforms/")) return "Transforms";
+  if (filepath.includes("io/")) return "IO / Deserialization";
+  if (filepath.includes("predictor")) return "Predictor";
+  return "Other";
+}
+
+/** Count passed/failed tests in a task tree. */
+function countTests(tasks: Task[]): { passed: number; failed: number } {
+  let passed = 0;
+  let failed = 0;
+  for (const task of tasks) {
+    if (task.type === "test" || task.type === "custom") {
+      if (task.result?.state === "pass") passed++;
+      else if (task.result?.state === "fail") failed++;
+    }
+    if ("tasks" in task && task.tasks) {
+      const sub = countTests(task.tasks);
+      passed += sub.passed;
+      failed += sub.failed;
+    }
+  }
+  return { passed, failed };
+}
+
+/** Collect describe-block names for a richer summary. */
+function collectDescribes(tasks: Task[], prefix = ""): string[] {
+  const names: string[] = [];
+  for (const task of tasks) {
+    if (task.type === "suite" && task.name) {
+      const fullName = prefix ? `${prefix} > ${task.name}` : task.name;
+      if ("tasks" in task && task.tasks) {
+        const { passed, failed } = countTests(task.tasks);
+        if (passed + failed > 0) {
+          names.push(`  ${passed}/${passed + failed}  ${fullName}`);
+        }
+        // Don't recurse into sub-describes to keep it concise
+      }
+    }
+  }
+  return names;
+}
+
+export default class TestReportGenerator implements Reporter {
+  onFinished(files?: File[]) {
+    if (!files || files.length === 0) return;
+
+    const lines: string[] = [];
+    const now = new Date().toISOString().split("T")[0];
+
+    lines.push("ax-js Test Report");
+    lines.push("=".repeat(60));
+    lines.push(`Date: ${now}`);
+    lines.push("");
+
+    // Group files by category
+    const categories = new Map<
+      string,
+      { files: string[]; passed: number; failed: number; describes: string[] }
+    >();
+
+    for (const file of files) {
+      const shortPath = file.filepath.replace(/.*axjs\//, "");
+      const cat = categorize(shortPath);
+      if (!categories.has(cat)) {
+        categories.set(cat, { files: [], passed: 0, failed: 0, describes: [] });
+      }
+      const entry = categories.get(cat)!;
+      entry.files.push(shortPath);
+      const { passed, failed } = countTests(file.tasks);
+      entry.passed += passed;
+      entry.failed += failed;
+      entry.describes.push(...collectDescribes(file.tasks));
+    }
+
+    // Overall summary
+    let totalPassed = 0;
+    let totalFailed = 0;
+    for (const [, v] of categories) {
+      totalPassed += v.passed;
+      totalFailed += v.failed;
+    }
+    const total = totalPassed + totalFailed;
+    const status = totalFailed === 0 ? "ALL PASSED" : `${totalFailed} FAILED`;
+
+    lines.push(`Result: ${status} (${totalPassed}/${total} tests)`);
+    lines.push("");
+
+    // Category summary table
+    lines.push("-".repeat(60));
+    lines.push("Category".padEnd(30) + "Tests".padStart(8) + "  Status");
+    lines.push("-".repeat(60));
+
+    // Sort categories for stable ordering
+    const catOrder = [
+      "BoTorch Parity",
+      "Ax-Level Parity",
+      "Relativization",
+      "Cockpit Metadata",
+      "Predictor",
+      "API Smoke Tests",
+      "Kernels",
+      "Linear Algebra",
+      "Models",
+      "Transforms",
+      "IO / Deserialization",
+      "Acquisition Functions",
+      "Other",
+    ];
+
+    for (const cat of catOrder) {
+      const entry = categories.get(cat);
+      if (!entry) continue;
+      const statusStr =
+        entry.failed === 0
+          ? `${entry.passed} passed`
+          : `${entry.failed} FAILED / ${entry.passed} passed`;
+      lines.push(cat.padEnd(30) + String(entry.passed + entry.failed).padStart(8) + "  " + statusStr);
+    }
+
+    lines.push("-".repeat(60));
+    lines.push(`${"Total".padEnd(30)}${String(total).padStart(8)}  ${status}`);
+    lines.push("");
+
+    // Detailed breakdown by category
+    lines.push("Detailed Breakdown");
+    lines.push("=".repeat(60));
+
+    for (const cat of catOrder) {
+      const entry = categories.get(cat);
+      if (!entry) continue;
+      lines.push("");
+      lines.push(`[${cat}]`);
+      for (const d of entry.describes) {
+        lines.push(d);
+      }
+    }
+
+    lines.push("");
+    lines.push("-".repeat(60));
+    lines.push(
+      "Parity fixture details are printed to console during test run.",
+    );
+    lines.push(
+      "See docs/testing.md for fixture system documentation.",
+    );
+    lines.push("");
+
+    const report = lines.join("\n");
+    const outPath = join(__dirname, "..", "test-report.txt");
+    writeFileSync(outPath, report);
+  }
+}

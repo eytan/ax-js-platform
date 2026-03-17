@@ -4,5 +4,6 @@ export default defineConfig({
   test: {
     include: ["test/**/*.test.ts"],
     globals: true,
+    reporters: ["default", "./test/report.ts"],
   },
 });
