@@ -43,10 +43,15 @@ export type PredictionsByOutcome = Record<string, PredictionResult>;
  * - Apply adapter-level untransforms (LogY, BilogY, etc.)
  */
 export class Predictor {
+  /** Ordered metric/outcome names (matches sub-model order for ModelListGP). */
   readonly outcomeNames: string[];
+  /** Ordered parameter names from the search space definition. */
   readonly paramNames: string[];
+  /** Per-parameter [lower, upper] bounds from the search space. */
   readonly paramBounds: [number, number][];
+  /** Full parameter specifications including type, log_scale, etc. */
   readonly paramSpecs: SearchSpaceParam[];
+  /** Status quo baseline point for relativization, or null if not defined. */
   readonly statusQuoPoint: number[] | null;
   private model: AnyModel;
   private _state: ExperimentState;
@@ -83,9 +88,16 @@ export class Predictor {
   /**
    * Predict at one or more points (raw parameter space).
    * Points are positional arrays matching search_space parameter order.
-   * The model's input_transform handles normalization if present.
+   * The model's input_transform handles normalization internally.
    *
-   * Returns predictions keyed by outcome name.
+   * @returns Predictions keyed by outcome name.
+   *
+   * @example
+   * ```ts
+   * const preds = predictor.predict([[0.5, 1.0, 3.0]]);
+   * const { mean, variance } = preds["accuracy"];
+   * console.log(`mean=${mean[0]}, std=${Math.sqrt(variance[0])}`);
+   * ```
    */
   predict(points: number[][]): PredictionsByOutcome {
     if (this.model instanceof ModelListGP) {

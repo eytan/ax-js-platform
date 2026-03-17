@@ -1,22 +1,42 @@
+/**
+ * **ax-js** — Client-side Gaussian Process predictions mirroring Ax/BoTorch.
+ *
+ * Prediction-only: model hyperparameters are fitted in Python and exported
+ * via `axjs_export()`. This package deserializes the exported state and
+ * computes GP posteriors entirely in the browser or Node.js.
+ *
+ * Start with {@link Predictor} for the high-level API, or use {@link loadModel}
+ * for direct model access. Acquisition functions are available via `"ax-js/acquisition"`.
+ *
+ * @example
+ * ```ts
+ * import { Predictor } from "ax-js";
+ *
+ * const predictor = new Predictor(experimentState);
+ * const preds = predictor.predict([[0.5, 1.0, 3.0]]);
+ * ```
+ *
+ * @packageDocumentation
+ */
+
 // ── Public API ────────────────────────────────────────────────────────────
-// High-level prediction interface — what most users need.
 
 // Predictor (Ax-aligned high-level API)
 export { Predictor } from "./predictor.js";
 export type { PredictionsByOutcome } from "./predictor.js";
 
-// IO
+// Low-level model loading (bypasses transforms — prefer Predictor)
 export { loadModel } from "./io/deserialize.js";
 export type { AnyModel } from "./io/deserialize.js";
 
-// Input transform helpers
+// Input transform helpers (for constructing synthetic model states)
 export {
   identityInputTransform,
   boundsInputTransform,
 } from "./transforms/normalize.js";
 export type { InputTransformState } from "./transforms/normalize.js";
 
-// Relativization
+// Relativization (% change vs status quo)
 export {
   relativize,
   unrelativize,

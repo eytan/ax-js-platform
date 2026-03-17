@@ -10,6 +10,7 @@
  * predicts absolute values; relativization is applied afterward for display.
  */
 
+/** Result of relativization: percentage change and its standard error. */
 export interface RelativizeResult {
   mean: number;
   sem: number;
@@ -49,6 +50,13 @@ export interface RelativizeOptions {
  *   where c = m_t / m_c
  *
  * When the test IS the control (same mean and SEM), returns exactly (0, 0).
+ *
+ * @example
+ * ```ts
+ * import { relativize } from "ax-js";
+ * const result = relativize(1.1, 0.05, 1.0, 0.03);
+ * // result.mean ≈ 10.0 (10% improvement), result.sem ≈ 5.6
+ * ```
  */
 export function relativize(
   meanT: number,
