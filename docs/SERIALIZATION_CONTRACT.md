@@ -1,6 +1,5 @@
 # axjs ↔ Ax/BoTorch Serialization Contract
 
-**Author:** Eytan Bakshy (Adaptive Experimentation)
 **Status:** Proposal
 **Audience:** Ax team, BoTorch team
 

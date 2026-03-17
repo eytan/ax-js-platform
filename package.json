@@ -1,7 +1,7 @@
 {
-  "name": "axjs",
+  "name": "ax-js",
   "version": "0.1.0",
-  "description": "Client-side GP predictions mirroring Ax/BoTorch",
+  "description": "Client-side Gaussian process predictions mirroring Ax/BoTorch — prediction, visualization, and acquisition in the browser",
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
@@ -16,19 +16,51 @@
       "types": "./dist/acquisition/index.d.ts",
       "import": "./dist/acquisition/index.js",
       "require": "./dist/acquisition/index.cjs"
+    },
+    "./viz": {
+      "types": "./dist/viz/index.d.ts",
+      "import": "./dist/viz/index.js",
+      "require": "./dist/viz/index.cjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsup && node demo/build_demos.js",
+    "build:lib": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "docs": "typedoc"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eytan/ax-js.git"
+  },
+  "homepage": "https://github.com/eytan/ax-js",
+  "bugs": {
+    "url": "https://github.com/eytan/ax-js/issues"
+  },
+  "keywords": [
+    "bayesian-optimization",
+    "gaussian-process",
+    "ax",
+    "botorch",
+    "machine-learning",
+    "surrogate-model",
+    "gp",
+    "prediction",
+    "visualization"
+  ],
+  "author": "Meta Platforms, Inc.",
+  "license": "MIT",
   "devDependencies": {
     "tsup": "^8.0.0",
+    "typedoc": "^0.27.0",
     "typescript": "^5.4.0",
     "vitest": "^2.0.0"
-  },
-  "license": "MIT"
+  }
 }
