@@ -2416,7 +2416,7 @@ var Ax;
       const name = predictor.paramNames[i];
       const p = params[i];
       const row = document.createElement("div");
-      row.style.cssText = "display:flex;gap:10px;align-items:center;margin-bottom:6px;max-width:600px";
+      row.style.cssText = "display:flex;gap:10px;align-items:center;margin-bottom:6px;max-width:600px;pointer-events:auto;user-select:auto";
       const lbl = document.createElement("span");
       lbl.style.cssText = "font-size:13px;color:#888;min-width:140px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
       lbl.textContent = name;
@@ -2448,11 +2448,17 @@ var Ax;
         const hi = predictor.paramBounds[i][1];
         const sl = document.createElement("input");
         sl.type = "range";
-        sl.style.cssText = "flex:1;min-width:100px;accent-color:#7c6ff7;cursor:pointer";
+        sl.style.cssText = "flex:1;min-width:100px;accent-color:#7c6ff7;cursor:pointer;pointer-events:auto;user-select:auto;touch-action:none;-webkit-user-drag:none";
         sl.min = String(lo);
         sl.max = String(hi);
         sl.step = isInteger(p) ? "1" : String((hi - lo) / 200);
         sl.value = String(currentValues[i]);
+        sl.addEventListener("mousedown", (e) => {
+          e.stopPropagation();
+        });
+        sl.addEventListener("touchstart", (e) => {
+          e.stopPropagation();
+        });
         sl.addEventListener("input", () => {
           const nv = isInteger(p) ? Math.round(+sl.value) : +sl.value;
           currentValues[i] = nv;
@@ -2475,8 +2481,8 @@ var Ax;
       file.text().then((text) => callback(JSON.parse(text)));
     });
   }
-  var CTRL_CSS = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px";
-  var SELECT_CSS = "background:#1a1a1d;color:#e0e0e0;border:1px solid #333;border-radius:4px;padding:3px 8px;font-size:12px";
+  var CTRL_CSS = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
+  var SELECT_CSS = "background:#1a1a1d;color:#e0e0e0;border:1px solid #333;border-radius:4px;padding:3px 8px;font-size:12px;pointer-events:auto;cursor:pointer;-webkit-user-drag:none";
   function createTooltipDiv(container) {
     const tooltip = document.createElement("div");
     tooltip.style.cssText = "position:absolute;display:none;background:rgba(20,20,24,0.95);border:1px solid #444;border-radius:6px;padding:8px 12px;font-size:12px;color:#e0e0e0;pointer-events:none;z-index:100;white-space:nowrap";
@@ -3567,24 +3573,76 @@ var Ax;
     ctx.fillText(names[dimY], 0, 0);
     ctx.restore();
     const td = predictor.getTrainingData(outcome);
+    const canvasDots = [];
+    const xRange = xhi - xlo || 1;
+    const yRange = yhi - ylo || 1;
     if (td.X.length > 0) {
-      const xRange = xhi - xlo || 1;
-      const yRange = yhi - ylo || 1;
       for (let i = 0; i < td.X.length; i++) {
         const px = ML + (td.X[i][dimX] - xlo) / xRange * N;
         const py = MT + (1 - (td.X[i][dimY] - ylo) / yRange) * N;
-        ctx.beginPath();
-        ctx.arc(px, py, 4, 0, 2 * Math.PI);
-        ctx.strokeStyle = "rgba(255,255,255,0.7)";
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(px, py, 2.5, 0, 2 * Math.PI);
-        ctx.fillStyle = "rgba(255,60,60,0.85)";
-        ctx.fill();
+        canvasDots.push({ px, py, idx: i, pt: td.X[i], alpha: 0.85 });
       }
     }
+    let rsPinnedIdx = -1;
+    function redrawDots() {
+      ctx.putImageData(heatImg, ML, MT);
+      for (const d of canvasDots) {
+        const isActive = d.idx === rsPinnedIdx;
+        const outerR = isActive ? 6 : 4;
+        const innerR = isActive ? 3.5 : 2.5;
+        ctx.beginPath();
+        ctx.arc(d.px, d.py, outerR, 0, 2 * Math.PI);
+        ctx.strokeStyle = isActive ? "rgba(255,255,255,1)" : `rgba(255,255,255,${Math.max(0.15, d.alpha * 0.7).toFixed(3)})`;
+        ctx.lineWidth = isActive ? 2.5 : 1.5;
+        ctx.stroke();
+        if (d.alpha >= 0.04) {
+          ctx.beginPath();
+          ctx.arc(d.px, d.py, innerR, 0, 2 * Math.PI);
+          ctx.fillStyle = isActive ? "rgba(255,60,60,1)" : `rgba(255,60,60,${d.alpha.toFixed(3)})`;
+          ctx.fill();
+        }
+      }
+    }
+    function findNearestCanvasDot(mx, my) {
+      let best = -1;
+      let bestD = 144;
+      for (let i = 0; i < canvasDots.length; i++) {
+        const dx = mx - canvasDots[i].px;
+        const dy = my - canvasDots[i].py;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < bestD) {
+          bestD = d2;
+          best = i;
+        }
+      }
+      return best;
+    }
+    function applyCanvasHighlight(activeIdx) {
+      const rels = { raw: [], max: 0 };
+      for (let i = 0; i < canvasDots.length; i++) {
+        if (i === activeIdx) {
+          rels.raw.push(1);
+          continue;
+        }
+        const r = predictor.kernelCorrelation(canvasDots[i].pt, canvasDots[activeIdx].pt, outcome);
+        rels.raw.push(r);
+        if (r > rels.max) rels.max = r;
+      }
+      for (let i = 0; i < canvasDots.length; i++) {
+        if (i === activeIdx) {
+          canvasDots[i].alpha = 1;
+          continue;
+        }
+        const relNorm = rels.max > 0 ? rels.raw[i] / rels.max : 0;
+        canvasDots[i].alpha = Math.max(0.08, Math.sqrt(relNorm));
+      }
+    }
+    function clearCanvasHighlight() {
+      for (const d of canvasDots) d.alpha = 0.85;
+    }
+    redrawDots();
     if (tooltip && tooltipContainer) {
+      let hoverHighlight = false;
       canvas.addEventListener("mousemove", (e) => {
         const cRect = canvas.getBoundingClientRect();
         const mx = e.clientX - cRect.left;
@@ -3593,18 +3651,66 @@ var Ax;
           tooltip.style.display = "none";
           return;
         }
-        const xVal = xlo + (mx - ML) / N * (xhi - xlo);
-        const yVal = yhi - (my - MT) / N * (yhi - ylo);
-        const gi = Math.round((mx - ML) / N * (gridSize - 1));
-        const gj = Math.round((my - MT) / N * (gridSize - 1));
-        const idx = Math.max(0, Math.min(gridSize - 1, gj)) * gridSize + Math.max(0, Math.min(gridSize - 1, gi));
-        const predVal = means[idx] ?? 0;
-        tooltip.innerHTML = `<b>${names[dimX]}</b>: ${xVal.toFixed(4)}<br><b>${names[dimY]}</b>: ${yVal.toFixed(4)}<br>Predicted: ${predVal.toFixed(4)}`;
-        tooltip.style.display = "block";
-        positionTooltip(tooltip, tooltipContainer, e.clientX, e.clientY);
+        const hitIdx = findNearestCanvasDot(mx, my);
+        if (hitIdx >= 0) {
+          canvas.style.cursor = "pointer";
+          if (rsPinnedIdx < 0) {
+            applyCanvasHighlight(hitIdx);
+            redrawDots();
+            hoverHighlight = true;
+          }
+          tooltip.innerHTML = buildPointTooltipHtml(predictor, canvasDots[hitIdx].idx, outcome);
+          tooltip.style.display = "block";
+          positionTooltip(tooltip, tooltipContainer, e.clientX, e.clientY);
+        } else {
+          canvas.style.cursor = "crosshair";
+          if (rsPinnedIdx < 0 && hoverHighlight) {
+            clearCanvasHighlight();
+            redrawDots();
+            hoverHighlight = false;
+          }
+          const xVal = xlo + (mx - ML) / N * (xhi - xlo);
+          const yVal = yhi - (my - MT) / N * (yhi - ylo);
+          const gi = Math.round((mx - ML) / N * (gridSize - 1));
+          const gj = Math.round((my - MT) / N * (gridSize - 1));
+          const idx = Math.max(0, Math.min(gridSize - 1, gj)) * gridSize + Math.max(0, Math.min(gridSize - 1, gi));
+          const predVal = means[idx] ?? 0;
+          tooltip.innerHTML = `<b>${names[dimX]}</b>: ${xVal.toFixed(4)}<br><b>${names[dimY]}</b>: ${yVal.toFixed(4)}<br>Predicted: ${predVal.toFixed(4)}`;
+          tooltip.style.display = "block";
+          positionTooltip(tooltip, tooltipContainer, e.clientX, e.clientY);
+        }
+      });
+      canvas.addEventListener("click", (e) => {
+        const cRect = canvas.getBoundingClientRect();
+        const mx = e.clientX - cRect.left;
+        const my = e.clientY - cRect.top;
+        const hitIdx = findNearestCanvasDot(mx, my);
+        if (hitIdx >= 0) {
+          const hitTrainIdx = canvasDots[hitIdx].idx;
+          if (rsPinnedIdx === hitTrainIdx) {
+            rsPinnedIdx = -1;
+            clearCanvasHighlight();
+          } else {
+            rsPinnedIdx = hitTrainIdx;
+            applyCanvasHighlight(hitIdx);
+          }
+        } else {
+          if (rsPinnedIdx >= 0) {
+            rsPinnedIdx = -1;
+            clearCanvasHighlight();
+          }
+        }
+        redrawDots();
+        hoverHighlight = false;
       });
       canvas.addEventListener("mouseleave", () => {
+        canvas.style.cursor = "crosshair";
         tooltip.style.display = "none";
+        if (rsPinnedIdx < 0 && hoverHighlight) {
+          clearCanvasHighlight();
+          redrawDots();
+          hoverHighlight = false;
+        }
       });
     }
     target.appendChild(canvas);

@@ -57,10 +57,21 @@ def _render(client_or_state: Any, viz_code: str,
     ax_js, viz_js = _load_bundles()
     cid = f"axjs_{uuid.uuid4().hex[:8]}"
 
+    # Override nbconvert/Jupyter CSS that blocks slider drag interaction
+    style_fix = (
+        f'<style>'
+        f'#{cid} input[type="range"]{{-webkit-appearance:auto;appearance:auto;'
+        f'pointer-events:auto!important;user-select:auto!important;'
+        f'touch-action:none;-webkit-user-drag:none;position:relative;z-index:10}}'
+        f'#{cid} select{{pointer-events:auto!important;cursor:pointer}}'
+        f'#{cid} *{{pointer-events:auto}}'
+        f'</style>'
+    )
     return (
+        f'{style_fix}'
         f'<div id="{cid}" style="width:{width};min-height:{height};'
         f'position:relative;background:#0f0f11;border-radius:8px;'
-        f'overflow:visible;padding:12px"></div>'
+        f'overflow:visible;padding:12px;pointer-events:auto"></div>'
         f'<script>(function(){{'
         f'if(!window.Ax){{{ax_js}\n{viz_js}}}'
         f'var c=document.getElementById("{cid}");'

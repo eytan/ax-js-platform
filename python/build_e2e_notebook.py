@@ -39,9 +39,10 @@ def build_notebook() -> nbformat.NotebookNode:
         "\n"
         "branin = Branin(negate=True)\n"
         "for i in range(25):\n"
-        "    params, trial_index = client.get_next_trial()\n"
-        "    y = branin(torch.tensor([[params['x1'], params['x2']]])).item()\n"
-        "    client.complete_trial(trial_index=trial_index, raw_data={'branin': y})\n"
+        "    trials = client.get_next_trials(max_trials=1)\n"
+        "    for trial_index, params in trials.items():\n"
+        "        y = branin(torch.tensor([[params['x1'], params['x2']]])).item()\n"
+        "        client.complete_trial(trial_index=trial_index, raw_data={'branin': y})\n"
         "\n"
         "print(f'Completed 25 trials')"
     ))

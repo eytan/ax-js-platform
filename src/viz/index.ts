@@ -352,7 +352,7 @@ export function createParamSliders(
     const name = predictor.paramNames[i];
     const p = params[i];
     const row = document.createElement("div");
-    row.style.cssText = "display:flex;gap:10px;align-items:center;margin-bottom:6px;max-width:600px";
+    row.style.cssText = "display:flex;gap:10px;align-items:center;margin-bottom:6px;max-width:600px;pointer-events:auto;user-select:auto";
     const lbl = document.createElement("span");
     lbl.style.cssText = "font-size:13px;color:#888;min-width:140px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
     lbl.textContent = name;
@@ -386,11 +386,14 @@ export function createParamSliders(
       const hi = predictor.paramBounds[i][1];
       const sl = document.createElement("input");
       sl.type = "range";
-      sl.style.cssText = "flex:1;min-width:100px;accent-color:#7c6ff7;cursor:pointer";
+      sl.style.cssText = "flex:1;min-width:100px;accent-color:#7c6ff7;cursor:pointer;pointer-events:auto;user-select:auto;touch-action:none;-webkit-user-drag:none";
       sl.min = String(lo);
       sl.max = String(hi);
       sl.step = isInteger(p) ? "1" : String((hi - lo) / 200);
       sl.value = String(currentValues[i]);
+      // Stop propagation so notebook/nbconvert drag handlers don't intercept
+      sl.addEventListener("mousedown", (e: Event) => { e.stopPropagation(); });
+      sl.addEventListener("touchstart", (e: Event) => { e.stopPropagation(); });
       sl.addEventListener("input", () => {
         const nv = isInteger(p) ? Math.round(+sl.value) : +sl.value;
         currentValues[i] = nv;
@@ -426,8 +429,8 @@ export function setupFileUpload(
 
 // ── Interactive controls helpers ──────────────────────────────────────────
 
-const CTRL_CSS = 'display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px';
-const SELECT_CSS = 'background:#1a1a1d;color:#e0e0e0;border:1px solid #333;border-radius:4px;padding:3px 8px;font-size:12px';
+const CTRL_CSS = 'display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto';
+const SELECT_CSS = 'background:#1a1a1d;color:#e0e0e0;border:1px solid #333;border-radius:4px;padding:3px 8px;font-size:12px;pointer-events:auto;cursor:pointer;-webkit-user-drag:none';
 
 function createTooltipDiv(container: HTMLElement): HTMLDivElement {
   const tooltip = document.createElement('div');
