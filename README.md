@@ -1,4 +1,4 @@
-# ax-js <sub><sup>npm: `ax-js-platform`</sup></sub>
+# `ax-js-platform`</sup></sub>
 
 [![Version](https://img.shields.io/badge/version-0.0.1-blue.svg)](https://github.com/eytan/ax-js-platform)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
