@@ -352,13 +352,14 @@ export function createParamSliders(
     const name = predictor.paramNames[i];
     const p = params[i];
     const row = document.createElement("div");
-    row.className = "slrow";
+    row.style.cssText = "display:flex;gap:10px;align-items:center;margin-bottom:6px";
     const lbl = document.createElement("span");
-    lbl.className = "sllbl";
+    lbl.style.cssText = "font-size:13px;color:#888;min-width:140px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
     lbl.textContent = name;
+    lbl.title = name;
 
     const val = document.createElement("span");
-    val.className = "slval";
+    val.style.cssText = "font-size:13px;font-weight:500;color:#ccc;min-width:70px;text-align:right";
     val.textContent = formatParamValue(currentValues[i] as number, p);
 
     if (isChoice(p)) {
@@ -385,6 +386,7 @@ export function createParamSliders(
       const hi = predictor.paramBounds[i][1];
       const sl = document.createElement("input");
       sl.type = "range";
+      sl.style.cssText = "flex:1;min-width:100px;accent-color:#7c6ff7;cursor:pointer";
       sl.min = String(lo);
       sl.max = String(hi);
       sl.step = isInteger(p) ? "1" : String((hi - lo) / 200);
@@ -1081,10 +1083,11 @@ export function renderSlicePlot(
   const tooltip = createTooltipDiv(container);
 
   const controlsDiv = document.createElement('div');
-  controlsDiv.style.cssText = CTRL_CSS;
+  controlsDiv.style.cssText = CTRL_CSS + 'padding:8px 16px;';
   const slidersDiv = document.createElement('div');
-  slidersDiv.style.cssText = 'margin-bottom:8px';
+  slidersDiv.style.cssText = 'margin-bottom:8px;padding:0 16px;';
   const plotsDiv = document.createElement('div');
+  plotsDiv.style.cssText = 'padding:4px 8px 12px;';
   container.appendChild(controlsDiv);
   container.appendChild(slidersDiv);
   container.appendChild(plotsDiv);
@@ -1129,9 +1132,9 @@ function renderSlicePlotStatic(
 
   target.style.display = "flex";
   target.style.flexWrap = "wrap";
-  target.style.gap = "12px";
+  target.style.gap = "16px";
 
-  const margin = { top: 24, right: 14, bottom: 32, left: 52 };
+  const margin = { top: 28, right: 18, bottom: 40, left: 68 };
   const pw = W - margin.left - margin.right;
   const ph = H - margin.top - margin.bottom;
 
@@ -1157,9 +1160,15 @@ function renderSlicePlotStatic(
     const upper = means.map((m, i) => m + 2 * stds[i]);
     const lower = means.map((m, i) => m - 2 * stds[i]);
 
+    // Include training Y values in the y-axis range so dots are always visible
+    const td = predictor.getTrainingData(outcome);
     let yMin = Math.min(...lower);
     let yMax = Math.max(...upper);
-    const yPad = 0.06 * (yMax - yMin || 1);
+    if (td.Y.length > 0) {
+      yMin = Math.min(yMin, ...td.Y);
+      yMax = Math.max(yMax, ...td.Y);
+    }
+    const yPad = 0.08 * (yMax - yMin || 1);
     yMin -= yPad;
     yMax += yPad;
 
@@ -1234,12 +1243,27 @@ function renderSlicePlotStatic(
     svg.appendChild(
       Object.assign(
         svgEl("text", {
-          x: margin.left + pw / 2, y: H - 4, fill: "#888",
+          x: margin.left + pw / 2, y: H - 6, fill: "#888",
           "font-size": 11, "text-anchor": "middle",
         }),
         { textContent: names[dim] },
       ),
     );
+
+    // Training data dots (td already fetched for y-axis range)
+    if (td.X.length > 0) {
+      for (let i = 0; i < td.X.length; i++) {
+        const ptX = td.X[i][dim];
+        if (ptX < lo || ptX > hi) continue;
+        const ptY = td.Y[i];
+        if (ptY < yMin || ptY > yMax) continue;
+        svg.appendChild(svgEl("circle", {
+          cx: sx(ptX), cy: sy(ptY), r: 3.5,
+          fill: "rgba(255,60,60,0.85)", stroke: "rgba(255,255,255,0.6)",
+          "stroke-width": 1.2,
+        }));
+      }
+    }
 
     // Tooltip on hover
     if (tooltip && tooltipContainer) {
