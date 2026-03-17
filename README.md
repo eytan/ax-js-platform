@@ -13,7 +13,7 @@ ax-js replicates BoTorch GP posterior predictions (`model.posterior(X).mean` and
 
 ## Highlights
 
-- **Numerical parity** with BoTorch — 45 fixtures verify predictions match within 1e-6 tolerance
+- **Numerical parity** with BoTorch — 46 fixtures verify predictions match within 1e-6 tolerance
 - **Full model coverage**: SingleTaskGP, ModelListGP, MultiTaskGP, PairwiseGP, EnsembleGP (SAAS)
 - **Transform pipeline**: Normalize, Warp (Kumaraswamy), Standardize, Log, Bilog, Power — plus Ax adapter transforms (LogY, BilogY, PowerTransformY, StandardizeY)
 - **Client-side acquisition**: UCB, Expected Improvement, Log EI, Thompson Sampling, EUBO
@@ -35,6 +35,9 @@ pip install ax-platform  # requires ax-platform >= 1.2, botorch >= 0.17
 ```
 
 ```python
+import sys
+sys.path.insert(0, "path/to/ax-js/python")  # or copy python/ to your project
+
 from ax.api import Client
 from axjs_export import export_client
 import json
@@ -45,6 +48,9 @@ state = export_client(client)
 with open("experiment.json", "w") as f:
     json.dump(state, f)
 ```
+
+> **Note:** `axjs_export.py` and `_extraction.py` live in the `python/` directory of this repo.
+> Copy them to your project or add `python/` to your `PYTHONPATH`.
 
 ### Predict in TypeScript
 
@@ -82,7 +88,7 @@ const dims = predictor.rankDimensionsByImportance("accuracy");
 </script>
 ```
 
-Three standalone bundles are available:
+Three standalone bundles are available (load `ax.global.js` first):
 
 | Bundle | Global | Contents |
 |--------|--------|----------|
@@ -233,7 +239,7 @@ python/
 └── generators/            # Per-model fixture generators
 
 test/
-├── fixtures/              # 45 JSON parity fixtures
+├── fixtures/              # 46 JSON parity fixtures
 └── integration/           # Parity and property-based tests
 
 demo/                      # Self-contained HTML demos

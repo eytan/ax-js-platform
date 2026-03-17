@@ -93,7 +93,7 @@ A single global tolerance of `1e-6` is used for all fixtures. Comparison follows
 numpy `allclose` semantics:
 
 ```
-|actual - expected| <= atol + atol * |expected|
+|actual - expected| <= atol + rtol * |expected|
 ```
 
 This handles large-magnitude values correctly (e.g., variances of ~10^11 for

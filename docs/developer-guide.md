@@ -70,7 +70,7 @@ src/
 
 | File | Purpose |
 |------|---------|
-| `normalize.ts` | `InputNormalize`: affine `(x - offset) * coefficient` mapping raw params to [0,1] |
+| `normalize.ts` | `InputNormalize`: affine `(x - offset) / coefficient` mapping raw params to [0,1] |
 | `warp.ts` | `InputWarp`: Kumaraswamy CDF warping (after normalization) |
 | `outcome.ts` | `StandardizeUntransform`, `LogUntransform`, `BilogUntransform`, `PowerUntransform`, `ChainedOutcomeUntransform` |
 | `build_outcome.ts` | `buildOutcomeUntransform(OutcomeTransformState)` factory |
@@ -85,7 +85,7 @@ prediction goes from raw parameter values to final output:
 
 Raw parameter values (in the original search space) pass through two transforms:
 
-1. **Normalize**: `x_norm = (x - offset) * coefficient` maps to [0, 1]
+1. **Normalize**: `x_norm = (x - offset) / coefficient` maps to [0, 1]
 2. **Warp** (optional): Kumaraswamy CDF `KumaCDF(x_norm; c0, c1)` for non-linear warping
 
 The kernel always sees transformed (normalized + warped) inputs.
@@ -297,5 +297,5 @@ is the only file that needs updating.
 | Python export API | `python/axjs_export.py` |
 | Fixture generator | `python/generate_fixtures.py` |
 | Data model schema | `docs/FORMAT.md` |
-| Data model comparison | `docs/axjs_vs_ax.md` |
+| Data model comparison | `docs/ax-js_vs_ax.md` |
 | Testing guide | `docs/testing.md` |

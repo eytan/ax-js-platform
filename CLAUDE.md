@@ -47,7 +47,7 @@ npm run build               # Build library + demos
 - `python/_extraction.py` — Shared extraction logic (kernels, transforms, models). Requires BoTorch >= 0.17
 - `python/axjs_export.py` — User-facing export (imports from _extraction.py), returns `ExperimentState`
 - `python/generate_fixtures.py` — Benchmark fixture generation (imports from _extraction.py)
-- `test/fixtures/` — 45 JSON fixtures. See `docs/testing.md`
+- `test/fixtures/` — 46 JSON fixtures. See `docs/testing.md`
 
 ## Serialization Format
 

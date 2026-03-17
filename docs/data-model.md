@@ -345,7 +345,7 @@ Input transforms map raw parameter values to the space the kernel expects.
 
 ### Normalize
 
-Affine mapping: `x_normalized = (x - offset) * coefficient`.
+Affine mapping: `x_normalized = (x - offset) / coefficient`.
 
 ```typescript
 interface InputTransform {

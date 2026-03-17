@@ -491,7 +491,12 @@ function getSubModel(
 ): { train_X?: number[][]; train_Y?: number[]; kernel?: KernelState; [k: string]: any } {
   if (ms.model_type === "ModelListGP") {
     const idx = outcomeNames.indexOf(outcomeName);
-    return ms.models[Math.max(0, idx)];
+    if (idx < 0) {
+      throw new Error(
+        `Unknown outcome "${outcomeName}". Available: ${outcomeNames.join(", ")}`,
+      );
+    }
+    return ms.models[idx];
   }
   return ms;
 }
