@@ -1,0 +1,18 @@
+{
+  "entryPoints": [
+    "src/index.ts",
+    "src/acquisition/index.ts",
+    "src/viz/index.ts"
+  ],
+  "out": "api-docs",
+  "name": "ax-js",
+  "readme": "none",
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "navigationLinks": {
+    "GitHub": "https://github.com/eytan/ax-js",
+    "Ax": "https://ax.dev",
+    "BoTorch": "https://botorch.org"
+  }
+}

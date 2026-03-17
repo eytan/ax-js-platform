@@ -1,4 +1,4 @@
-# axjs — Client-Side GP Prediction Library
+# ax-js — Client-Side GP Prediction Library
 
 TypeScript implementation of BoTorch GP posterior predictions for use in Ax.
 Prediction-only (no fitting). Hyperparameters are exported from Python via `axjs_export.py`.
@@ -15,7 +15,7 @@ Prediction-only (no fitting). Hyperparameters are exported from Python via `axjs
 - **Tolerance ceiling**: Global tolerance of `1e-6`. All computations use Float64 (double precision).
   Any diff > 1e-5 indicates a real numerical bug, not floating-point precision limits.
 - **Minimum fixture count**: The parity test suite requires >= 28 parity fixtures. Empty or corrupt
-  manifests cause hard failures, not silent skips. See `TESTING.md` for full details.
+  manifests cause hard failures, not silent skips. See `docs/testing.md` for full details.
 - **Fixture regeneration**: Run `python python/generate_fixtures.py` after any model/kernel changes.
   All fixtures must pass before merging. Requires BoTorch >= 0.17.
 
@@ -26,13 +26,13 @@ npx vitest run              # Run all tests
 npx tsc --noEmit            # Type-check
 python python/generate_fixtures.py  # Regenerate BoTorch parity fixtures
 npx tsup                    # Build bundle
+npm run build               # Build library + demos
 ```
 
 ## API Usage Rules
 
-- **Always use `Predictor`** (not `loadModel` directly) unless the specific use case absolutely requires low-level model access AND a human has approved it. `Predictor` handles input transforms, output transforms, adapter untransforms, and outcome naming automatically — using `loadModel` bypasses all of this and leads to subtle bugs (e.g., lengthscales in the wrong space, missing normalization).
+- **Always use `Predictor`** (not `loadModel` directly) unless the specific use case absolutely requires low-level model access. `Predictor` handles input transforms, output transforms, adapter untransforms, and outcome naming automatically — using `loadModel` bypasses all of this and leads to subtle bugs (e.g., lengthscales in the wrong space, missing normalization).
 - When constructing synthetic model states (e.g., in demos), always include `input_transform` with proper `Normalize` bounds so that lengthscales are in normalized `[0,1]` space, matching real Ax/BoTorch exports.
-- The only existing exception is `hartmann6_sanity`, which uses `loadModel` for a side-by-side parity check against a hand-rolled GP.
 
 ## Architecture
 
@@ -42,10 +42,12 @@ npx tsup                    # Build bundle
 - `src/transforms/` — Normalize, Standardize, Log, Bilog, Power, Chained, Warp (Kumaraswamy)
 - `src/io/` — Deserialization from BoTorch export format
 - `src/predictor.ts` — High-level `Predictor` class (accepts `ExperimentState`, applies adapter untransforms)
+- `src/acquisition/` — UCB, EI, LogEI, Thompson, EUBO, optimizeAcqf
+- `src/viz/` — Colormaps, data-point rendering, search-space helpers
 - `python/_extraction.py` — Shared extraction logic (kernels, transforms, models). Requires BoTorch >= 0.17
 - `python/axjs_export.py` — User-facing export (imports from _extraction.py), returns `ExperimentState`
 - `python/generate_fixtures.py` — Benchmark fixture generation (imports from _extraction.py)
-- `test/fixtures/` — 30 JSON fixtures (28 parity + 2 consistency). See `TESTING.md`
+- `test/fixtures/` — 45 JSON fixtures. See `docs/testing.md`
 
 ## Serialization Format
 
@@ -62,38 +64,24 @@ interface ExperimentState {
 ```
 
 Test fixtures wrap this: `{ experiment: ExperimentState, test: { metadata, test_points, expected } }`.
-See `docs/FORMAT.md` for full schema documentation.
+See `docs/data-model.md` for full schema documentation.
 
 ## Transform Pipeline (Critical for Parity)
-
-Understanding the transform pipeline is essential for correct predictions, especially
-for multi-task GPs and transfer learning scenarios.
 
 ### Two-Layer Transform Architecture
 
 **Layer 1: Adapter-level transforms** (Ax → BoTorch boundary)
 - Applied by Ax's adapter BEFORE data reaches BoTorch
-- NOT stored in model state — invisible to axjs unless explicitly exported
-- Examples: `LogY`, `BilogY`, `PowerTransformY`, `StandardizeY`, `IntToFloat`
+- NOT stored in model state — invisible to ax-js unless explicitly exported
+- Examples: `LogY`, `BilogY`, `PowerTransformY`, `StandardizeY`
 - Exported via `adapter_transforms` field in `ExperimentState`
 - `Predictor` automatically applies adapter untransforms per-outcome after model prediction
 
 **Layer 2: Model-level transforms** (within BoTorch model)
 - Stored in `model.outcome_transform` and `model.input_transform`
-- Automatically exported and handled by axjs
+- Automatically exported and handled by ax-js
 - Input: `Normalize` → `Warp` (Kumaraswamy CDF) via `ChainedInputTransform`
 - Output: `Standardize`, `Log`, `Bilog`, `Power`, `ChainedOutcomeTransform`
-
-### Transform Application Order
-
-**Forward (training):**
-1. Raw X → InputNormalize → InputWarp → kernel sees transformed X
-2. Raw Y → (adapter transforms) → (model outcome transform) → GP trains on transformed Y
-
-**Inverse (prediction):**
-1. GP predicts in transformed space
-2. Model outcome untransform: Standardize⁻¹, Log⁻¹(=exp), etc.
-3. Adapter untransform: exp() for LogY, inverse-bilog for BilogY, etc.
 
 ### CRITICAL: `train_Y` is NOT in original space
 
@@ -102,14 +90,12 @@ To get original-space Y values, you must undo both transforms in reverse order.
 `Predictor.untransformTrainY()` (private) handles this correctly.
 
 **RULE: Any Predictor method that returns Y-space values MUST call `untransformTrainY()` —
-never read `train_Y` directly.** This is the same two-layer untransform that `predict()`
-applies to posterior means. Using raw `train_Y` produces values in standardized/log/etc.
-space, which silently gives wrong results (e.g., all observed values near 0).
+never read `train_Y` directly.**
 
-### MultiTaskGP Transform Gotchas
+## Build & Package
 
-- Input transforms apply to DATA columns only (task column excluded)
-- Normalize coefficients span ALL columns (including task), but task column
-  coefficient is typically 1.0 (identity)
-- Per-task mean constants (`MultitaskMean`) must match task indices AFTER transform
-- Warp indices refer to data column positions, not full X positions
+- npm package: `ax-js`
+- Three subpath exports: `ax-js`, `ax-js/acquisition`, `ax-js/viz`
+- IIFE bundles: `ax.global.js` (`window.Ax`), `ax-acquisition.global.js` (`Ax.acquisition`), `ax-viz.global.js` (`Ax.viz`)
+- ESM + CJS for all three entry points
+- TypeDoc API reference: `npm run docs`
