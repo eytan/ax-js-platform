@@ -105,40 +105,59 @@ def build_notebook() -> nbformat.NotebookNode:
     setup_cell.outputs = [_output(setup_html)]
     nb.cells.append(setup_cell)
 
-    # Feature importance
+    # Slice plots (interactive: outcome selector + sliders)
+    nb.cells.append(new_markdown_cell(
+        "## 1D Slice Plots\n"
+        "Posterior mean ± 2σ along each parameter dimension. "
+        "Use the sliders to adjust the fixed values of non-plotted dimensions."
+    ))
+    nb.cells.append(_viz_cell(
+        'Ax.viz.renderSlicePlot(c,p,{interactive:true});',
+        "sp_0", height="600px",
+    ))
+
+    # Response surface (interactive: axis selectors + sliders)
+    nb.cells.append(new_markdown_cell(
+        "## 2D Response Surface\n"
+        "Posterior mean heatmap with training points. "
+        "Select axes and adjust non-plotted dimensions with sliders."
+    ))
+    nb.cells.append(_viz_cell(
+        'Ax.viz.renderResponseSurface(c,p,{interactive:true,width:400,height:400});',
+        "rs_0", width="500px", height="520px",
+    ))
+
+    # Feature importance (interactive: outcome selector + tooltips)
     nb.cells.append(new_markdown_cell(
         "## Feature Importance\n"
         "Dimension importance from kernel lengthscales (shorter = more important)."
     ))
-    for i, outcome in enumerate(outcomes[:4]):
-        nb.cells.append(_viz_cell(
-            f'Ax.viz.renderFeatureImportance(c,p,{{outcome:"{outcome}"}});',
-            f"fi_{i}", height="220px", title=outcome,
-        ))
+    nb.cells.append(_viz_cell(
+        'Ax.viz.renderFeatureImportance(c,p,{interactive:true});',
+        "fi_0", height="280px",
+    ))
 
-    # Cross-validation
+    # Cross-validation (interactive: outcome selector + tooltips)
     nb.cells.append(new_markdown_cell(
         "## Leave-One-Out Cross-Validation\n"
         "Observed vs predicted with ±2σ confidence intervals and R²."
     ))
-    for i, outcome in enumerate(outcomes[:4]):
-        nb.cells.append(_viz_cell(
-            f'Ax.viz.renderCrossValidation(c,p,{{outcome:"{outcome}",'
-            f'width:c.offsetWidth||400,height:c.offsetHeight||380}});',
-            f"cv_{i}", width="450px", height="420px", title=outcome,
-        ))
+    nb.cells.append(_viz_cell(
+        'Ax.viz.renderCrossValidation(c,p,{interactive:true,'
+        'width:c.offsetWidth||400,height:c.offsetHeight||380});',
+        "cv_0", width="450px", height="450px",
+    ))
 
-    # Optimization trace
+    # Optimization trace (interactive: outcome selector + tooltips)
     nb.cells.append(new_markdown_cell(
         "## Optimization Trace\n"
         "Trial progression with running best-so-far."
     ))
-    for i, outcome in enumerate(outcomes[:4]):
-        nb.cells.append(_viz_cell(
-            f'Ax.viz.renderOptimizationTrace(c,p,{{outcome:"{outcome}",'
-            f'width:c.offsetWidth||650,height:c.offsetHeight||350}});',
-            f"ot_{i}", width="700px", height="400px", title=outcome,
-        ))
+    nb.cells.append(_viz_cell(
+        'Ax.viz.renderOptimizationTrace(c,p,{interactive:true,'
+        'width:c.offsetWidth||650,height:c.offsetHeight||350});',
+        "ot_0", width="700px", height="420px",
+    ))
 
     # About
     nb.cells.append(new_markdown_cell(
@@ -169,7 +188,7 @@ def main():
         print(f"HTML: {html_path} ({html_path.stat().st_size // 1024}KB)")
 
         # Verify
-        for tag in ["fi_0", "cv_0", "ot_0", "Ax.Predictor", "renderFeatureImportance"]:
+        for tag in ["sp_0", "rs_0", "fi_0", "cv_0", "ot_0", "Ax.Predictor", "renderSlicePlot", "renderResponseSurface"]:
             assert tag in body, f"Missing: {tag}"
         print("Verification: all expected content present")
     except ImportError:
