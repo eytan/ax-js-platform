@@ -140,11 +140,18 @@ model plus metadata and handles all the complexity above:
 
 ```typescript
 const predictor = new Predictor(experimentState);
-const preds = predictor.predict(points);     // Record<string, {mean, variance}>
-const rel = predictor.predictRelative(points); // % change vs status quo
+const preds = predictor.predict(points);       // Record<string, {mean, variance}>
 const td = predictor.getTrainingData("y");     // original-space training data
 const loo = predictor.loocv("y");              // analytic LOO-CV
 const ls = predictor.getLengthscales("y");      // kernel lengthscales
+
+// Relativization (% change vs status quo) — matches Ax's separated pattern:
+import { relativizePredictions } from "ax-js-platform";
+const sqPreds = predictor.predict([predictor.statusQuoPoint!]);
+const rel = relativizePredictions(
+  preds["y"].mean, preds["y"].variance,
+  sqPreds["y"].mean[0], sqPreds["y"].variance[0],
+);
 ```
 
 It dispatches correctly across model types (SingleTaskGP, ModelListGP, MultiTaskGP)
@@ -227,7 +234,7 @@ export interface KernelState {
 
 3. Add a deserialization case in `src/io/deserialize.ts` (`loadModel`).
 
-4. Handle it in `Predictor.predict()` and `Predictor.getCovariances()`.
+4. Handle it in `Predictor.predict()` and `getCovariances()`.
 
 5. Add extraction logic in `python/_extraction.py` and update `axjs_export.py`.
 

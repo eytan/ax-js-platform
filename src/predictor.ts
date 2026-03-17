@@ -25,10 +25,6 @@ import {
   ChainedOutcomeUntransform,
 } from "./transforms/outcome.js";
 import type { OutcomeUntransform } from "./transforms/outcome.js";
-import {
-  relativizePredictions,
-  type RelativizeOptions,
-} from "./transforms/relativize.js";
 
 /** Predictions keyed by outcome/metric name. */
 export type PredictionsByOutcome = Record<string, PredictionResult>;
@@ -143,51 +139,15 @@ export class Predictor {
   }
 
   /**
-   * Predict relative effects (% change vs status quo) at given points.
-   * Requires status_quo to be set in ExperimentState.
-   * Returns predictions keyed by outcome name with relativized mean/variance.
+   * Get covariances between predictions at each test point and the status quo.
+   * Returns a Float64Array of length `points.length`, where element `i` is the
+   * posterior covariance between `points[i]` and `statusQuoPoint` for the given
+   * outcome. Useful for covariance-aware relativization via `relativizePredictions()`.
    *
-   * By default, uses model covariance between test and status quo points for
-   * tighter confidence intervals. Pass `useCovariance: false` to assume
-   * independence (matches Ax's default `cov_means=0` behavior).
+   * Returns `undefined` if no status quo is defined or the model does not
+   * support `predictCovarianceWith`.
    */
-  predictRelative(
-    points: number[][],
-    opts?: RelativizeOptions & { useCovariance?: boolean },
-  ): PredictionsByOutcome {
-    if (!this.statusQuoPoint) {
-      throw new Error("Cannot relativize: no status_quo defined");
-    }
-
-    const absPreds = this.predict(points);
-    const sqPreds = this.predict([this.statusQuoPoint]);
-    const useCovariance = opts?.useCovariance !== false;
-
-    const out: PredictionsByOutcome = {};
-    for (const name of Object.keys(absPreds)) {
-      const sqMean = sqPreds[name].mean[0];
-      const sqVar = sqPreds[name].variance[0];
-      const covariances = useCovariance
-        ? this.getCovariances(name, points)
-        : undefined;
-
-      out[name] = relativizePredictions(
-        absPreds[name].mean,
-        absPreds[name].variance,
-        sqMean,
-        sqVar,
-        opts,
-        covariances,
-      );
-    }
-    return out;
-  }
-
-  /**
-   * Get covariances between predictions at points and the status quo.
-   * Used internally by predictRelative for tighter confidence intervals.
-   */
-  private getCovariances(
+  getCovariances(
     outcomeName: string,
     points: number[][],
   ): Float64Array | undefined {

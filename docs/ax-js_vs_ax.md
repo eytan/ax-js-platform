@@ -126,8 +126,8 @@ axjs was designed as a prediction-only library: Ax exports a snapshot (`Experime
 | Concept | Ax (Python) | axjs (TypeScript) | Gap |
 |---------|-------------|-------------------|-----|
 | Status quo arm | `experiment.status_quo` | `ExperimentState.status_quo.point` | **Parity** (point only, no arm name) |
-| Relativization | `Derelativize` transform + `relativize()` | `Predictor.predictRelative()` + `relativize()` | **Parity** |
-| Covariance-aware relativization | Ax uses `cov_means=0` (independence) | axjs defaults to model covariance (tighter CIs) | **Intentional divergence** -- axjs is better |
+| Relativization | `Derelativize` transform + `relativize()` | `predict()` + `relativizePredictions()` | **Parity** -- same separated pattern as Ax |
+| Covariance-aware relativization | Ax uses `cov_means=0` (independence) | axjs supports model covariance via `getCovariances()` + `relativizePredictions(..., covariances)` | **Intentional divergence** -- axjs can do better |
 
 ---
 
@@ -307,7 +307,7 @@ For follow-up action planning, here are the key files and what they'd need to ch
 | File | What it contains | Relevant for |
 |------|-----------------|--------------|
 | `src/models/types.ts` | `ExperimentState`, `Candidate`, `SearchSpaceParam`, `OptimizationConfig`, all model state types | Any schema changes (constraints, relative flag, Candidate cleanup) |
-| `src/predictor.ts` | `Predictor` class -- predict, predictRelative, getTrainingData, loocv, getLengthscales, etc. | Candidate creation API, acqf integration, validation |
+| `src/predictor.ts` | `Predictor` class -- predict, getCovariances, getTrainingData, loocv, getLengthscales, etc. | Candidate creation API, acqf integration, validation |
 | `src/index.ts` | Public API surface (~20 exports) | Exposing new types/methods |
 | `src/acquisition/optimize.ts` | `optimizeAcqf()` -- random search + projected L-BFGS | Bridge to Predictor |
 | `src/acquisition/acqf.ts` | UCB, EI, LogEI acquisition function implementations | Acqf config from Ax |

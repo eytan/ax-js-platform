@@ -20,6 +20,7 @@ import { readFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { Predictor } from "../../src/predictor.js";
+import { relativizePredictions } from "../../src/transforms/relativize.js";
 import type { FixtureData, Manifest } from "../../src/models/types.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -209,14 +210,19 @@ describe("Predictor ↔ Ax Adapter parity", () => {
           for (const name of Object.keys(perOutcome)) {
             it(`relativized "${name}" mean matches`, () => {
               const predictor = new Predictor(fixture.experiment);
-              // predictRelative uses non-SQ test points
               const testPoints = fixture.experiment.status_quo
                 ? fixture.test.test_points.slice(1)
                 : fixture.test.test_points;
-              const relPreds = predictor.predictRelative(testPoints, { useCovariance: false });
-              expect(relPreds[name]).toBeDefined();
+              const absPreds = predictor.predict(testPoints);
+              const sqPreds = predictor.predict([predictor.statusQuoPoint!]);
+              const rel = relativizePredictions(
+                absPreds[name].mean,
+                absPreds[name].variance,
+                sqPreds[name].mean[0],
+                sqPreds[name].variance[0],
+              );
               expectAllClose(
-                relPreds[name].mean,
+                rel.mean,
                 perOutcome[name].mean,
                 TOLERANCE,
                 `relative ${name} mean`,
@@ -228,9 +234,16 @@ describe("Predictor ↔ Ax Adapter parity", () => {
               const testPoints = fixture.experiment.status_quo
                 ? fixture.test.test_points.slice(1)
                 : fixture.test.test_points;
-              const relPreds = predictor.predictRelative(testPoints, { useCovariance: false });
+              const absPreds = predictor.predict(testPoints);
+              const sqPreds = predictor.predict([predictor.statusQuoPoint!]);
+              const rel = relativizePredictions(
+                absPreds[name].mean,
+                absPreds[name].variance,
+                sqPreds[name].mean[0],
+                sqPreds[name].variance[0],
+              );
               expectAllClose(
-                relPreds[name].variance,
+                rel.variance,
                 perOutcome[name].variance,
                 TOLERANCE,
                 `relative ${name} variance`,
@@ -248,11 +261,17 @@ describe("Predictor ↔ Ax Adapter parity", () => {
             const testPoints = fixture.experiment.status_quo
               ? fixture.test.test_points.slice(1)
               : fixture.test.test_points;
-            const relPreds = predictor.predictRelative(testPoints, { useCovariance: false });
             const outName = fixture.experiment.outcome_names?.[0] ?? "y";
-            expect(relPreds[outName]).toBeDefined();
+            const absPreds = predictor.predict(testPoints);
+            const sqPreds = predictor.predict([predictor.statusQuoPoint!]);
+            const rel = relativizePredictions(
+              absPreds[outName].mean,
+              absPreds[outName].variance,
+              sqPreds[outName].mean[0],
+              sqPreds[outName].variance[0],
+            );
             expectAllClose(
-              relPreds[outName].mean,
+              rel.mean,
               singleRel.mean,
               TOLERANCE,
               "relative mean",
@@ -264,10 +283,17 @@ describe("Predictor ↔ Ax Adapter parity", () => {
             const testPoints = fixture.experiment.status_quo
               ? fixture.test.test_points.slice(1)
               : fixture.test.test_points;
-            const relPreds = predictor.predictRelative(testPoints, { useCovariance: false });
             const outName = fixture.experiment.outcome_names?.[0] ?? "y";
+            const absPreds = predictor.predict(testPoints);
+            const sqPreds = predictor.predict([predictor.statusQuoPoint!]);
+            const rel = relativizePredictions(
+              absPreds[outName].mean,
+              absPreds[outName].variance,
+              sqPreds[outName].mean[0],
+              sqPreds[outName].variance[0],
+            );
             expectAllClose(
-              relPreds[outName].variance,
+              rel.variance,
               singleRel.variance,
               TOLERANCE,
               "relative variance",

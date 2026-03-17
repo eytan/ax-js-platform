@@ -9,6 +9,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { describe, it, expect } from "vitest";
 import { Predictor } from "../../src/predictor";
+import { relativizePredictions } from "../../src/transforms/relativize";
 
 const fixturesDir = join(__dirname, "..", "fixtures");
 const TOLERANCE = 1e-6;
@@ -177,18 +178,23 @@ describe("cockpit fixture metadata", () => {
     }
   });
 
-  it("predictRelative works with status quo", () => {
+  it("predict + relativizePredictions works with status quo", () => {
     const predictor = new Predictor(exp);
     // Just verify it runs without errors and produces finite results
     const testPoints = fixture.test.test_points.slice(0, 3);
-    const relPreds = predictor.predictRelative(testPoints, {
-      useCovariance: false,
-    });
+    const absPreds = predictor.predict(testPoints);
+    const sqPreds = predictor.predict([predictor.statusQuoPoint!]);
 
     for (const name of exp.outcome_names) {
+      const rel = relativizePredictions(
+        absPreds[name].mean,
+        absPreds[name].variance,
+        sqPreds[name].mean[0],
+        sqPreds[name].variance[0],
+      );
       for (let i = 0; i < testPoints.length; i++) {
-        expect(isFinite(relPreds[name].mean[i])).toBe(true);
-        expect(relPreds[name].variance[i]).toBeGreaterThanOrEqual(0);
+        expect(isFinite(rel.mean[i])).toBe(true);
+        expect(rel.variance[i]).toBeGreaterThanOrEqual(0);
       }
     }
   });

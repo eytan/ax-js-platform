@@ -77,7 +77,7 @@ Ax-level fixtures have `test.metadata.ax_level = true` and test:
 - Combined adapter + model transforms (e.g., LogY + Standardize)
 - Multi-output with per-metric adapter transforms
 - MultiTaskGP predictions for all tasks
-- Relativization via `Predictor.predictRelative()`
+- Relativization via `predict()` + `relativizePredictions()`
 
 ### 4. Integration Tests (`test/integration/relativize_parity.test.ts`)
 
