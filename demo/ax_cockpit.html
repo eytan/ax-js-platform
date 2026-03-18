@@ -4744,6 +4744,19 @@ function computePanelRange() {
 }
 computePanelRange();
 
+// ── Persistent metric ordering (survives re-renders) ──
+function computeDefaultMetricOrder() {
+  var obj = [], con = [], trk = [];
+  outcomeNames.forEach(function(name) {
+    if (objectiveSet[name]) obj.push(name);
+    else if (constraintMap[name]) con.push(name);
+    else trk.push(name);
+  });
+  obj.sort(); con.sort(); trk.sort();
+  return obj.concat(con).concat(trk);
+}
+var customMetricOrder = computeDefaultMetricOrder();
+
 // ── Populate dropdowns (uses customMetricOrder) ──
 var selX = document.getElementById('selX');
 var selY = document.getElementById('selY');
@@ -4769,7 +4782,7 @@ function populateSQDropdown() {
 }
 populateSQDropdown();
 
-var xOutIdx = 0, yOutIdx = 1;
+var xOutIdx = +selX.value, yOutIdx = +selY.value;
 
 // Legend-based visibility: set of hidden generation methods
 var hiddenGenMethods = {};
@@ -4824,20 +4837,6 @@ var rpBars = document.getElementById('rpBars');
 var rpSliders = document.getElementById('rpSliders');
 var selDistMode = document.getElementById('selDistMode');
 var legendEl = document.getElementById('legend');
-
-// ── Persistent metric ordering (survives re-renders) ──
-// Initialized to default grouped sort; user can reorder via drag handles.
-function computeDefaultMetricOrder() {
-  var obj = [], con = [], trk = [];
-  outcomeNames.forEach(function(name) {
-    if (objectiveSet[name]) obj.push(name);
-    else if (constraintMap[name]) con.push(name);
-    else trk.push(name);
-  });
-  obj.sort(); con.sort(); trk.sort();
-  return obj.concat(con).concat(trk);
-}
-var customMetricOrder = computeDefaultMetricOrder();
 
 // Helper: rebuild dropdown options using current metric order
 function rebuildDropdownOrder() {
