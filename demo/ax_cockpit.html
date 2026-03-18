@@ -4744,29 +4744,18 @@ function computePanelRange() {
 }
 computePanelRange();
 
-// ── Populate dropdowns (sorted: objectives → constraints → tracking, alpha within) ──
+// ── Populate dropdowns (uses customMetricOrder) ──
 var selX = document.getElementById('selX');
 var selY = document.getElementById('selY');
 var selSQ = document.getElementById('selSQ');
 
-// Build sorted index order matching deltoid view
-var _objN = [], _conN = [], _trkN = [];
-outcomeNames.forEach(function(name, idx) {
-  if (objectiveSet[name]) _objN.push({ name: name, idx: idx });
-  else if (constraintMap[name]) _conN.push({ name: name, idx: idx });
-  else _trkN.push({ name: name, idx: idx });
+customMetricOrder.forEach(function(name) {
+  var idx = outcomeNames.indexOf(name);
+  selX.innerHTML += '<option value="' + idx + '">' + name + '</option>';
+  selY.innerHTML += '<option value="' + idx + '">' + name + '</option>';
 });
-_objN.sort(function(a,b){ return a.name.localeCompare(b.name); });
-_conN.sort(function(a,b){ return a.name.localeCompare(b.name); });
-_trkN.sort(function(a,b){ return a.name.localeCompare(b.name); });
-var sortedOutcomeOrder = _objN.concat(_conN).concat(_trkN);
-
-sortedOutcomeOrder.forEach(function(entry) {
-  selX.innerHTML += '<option value="' + entry.idx + '">' + entry.name + '</option>';
-  selY.innerHTML += '<option value="' + entry.idx + '">' + entry.name + '</option>';
-});
-selX.value = String(sortedOutcomeOrder[0].idx);
-selY.value = String(sortedOutcomeOrder.length > 1 ? sortedOutcomeOrder[1].idx : sortedOutcomeOrder[0].idx);
+selX.value = String(outcomeNames.indexOf(customMetricOrder[0]));
+selY.value = String(outcomeNames.indexOf(customMetricOrder.length > 1 ? customMetricOrder[1] : customMetricOrder[0]));
 
 function populateSQDropdown() {
   selSQ.innerHTML = '';
@@ -4835,6 +4824,35 @@ var rpBars = document.getElementById('rpBars');
 var rpSliders = document.getElementById('rpSliders');
 var selDistMode = document.getElementById('selDistMode');
 var legendEl = document.getElementById('legend');
+
+// ── Persistent metric ordering (survives re-renders) ──
+// Initialized to default grouped sort; user can reorder via drag handles.
+function computeDefaultMetricOrder() {
+  var obj = [], con = [], trk = [];
+  outcomeNames.forEach(function(name) {
+    if (objectiveSet[name]) obj.push(name);
+    else if (constraintMap[name]) con.push(name);
+    else trk.push(name);
+  });
+  obj.sort(); con.sort(); trk.sort();
+  return obj.concat(con).concat(trk);
+}
+var customMetricOrder = computeDefaultMetricOrder();
+
+// Helper: rebuild dropdown options using current metric order
+function rebuildDropdownOrder() {
+  var xVal = selX.value, yVal = selY.value;
+  selX.innerHTML = ''; selY.innerHTML = '';
+  customMetricOrder.forEach(function(name) {
+    var idx = outcomeNames.indexOf(name);
+    selX.innerHTML += '<option value="' + idx + '">' + name + '</option>';
+    selY.innerHTML += '<option value="' + idx + '">' + name + '</option>';
+  });
+  selX.value = xVal; selY.value = yVal;
+}
+
+// ── Drag reordering state ──
+var dragState = null; // { name, startY, rowH, origIdx }
 
 // Deltoid tooltip: custom div for data-tip hover
 var deltoidTip = document.createElement('div');
@@ -5330,24 +5348,16 @@ function showDeltoid(item) {
     }
   });
 
-  // Sort outcomes into groups: objectives (top), constraints (middle), tracking (bottom)
-  // Alphabetical within each group
-  var objNames = [], conNames = [], trackNames = [];
-  outcomeNames.forEach(function(name) {
-    if (objectiveSet[name]) objNames.push(name);
-    else if (constraintMap[name]) conNames.push(name);
-    else trackNames.push(name);
-  });
-  objNames.sort(); conNames.sort(); trackNames.sort();
-  var sortedNames = objNames.concat(conNames).concat(trackNames);
+  // Use persistent custom metric order
+  var sortedNames = customMetricOrder;
 
-  var rowH = 30, barH = 11, labelW = 145, barW = 150, valW = 100, pad = 8;
-  var totalW = labelW + barW + valW + pad * 3;
+  var rowH = 30, barH = 11, handleW = 14, labelW = 140, barW = 150, valW = 100, pad = 8;
+  var totalW = handleW + labelW + barW + valW + pad * 3;
   var topPad = 20;
   var totalH = sortedNames.length * rowH + topPad + 8;
 
   var lo = panelRange.lo, hi = panelRange.hi;
-  function bx(v) { return labelW + pad + (v - lo) / (hi - lo) * barW; }
+  function bx(v) { return handleW + labelW + pad + (v - lo) / (hi - lo) * barW; }
 
   var s = '<svg width="' + totalW + '" height="' + totalH + '" xmlns="http://www.w3.org/2000/svg">';
 
@@ -5395,6 +5405,16 @@ function showDeltoid(item) {
     }
     if (isActiveOutcome) labelColor = '#4872f9';
 
+    // Drag handle nub (small grey strip with grip dots)
+    s += '<g data-drag-handle="' + name + '" style="cursor:grab">';
+    s += '<rect x="0" y="' + (cy - rowH/2) + '" width="' + handleW + '" height="' + rowH + '" fill="transparent"/>';
+    for (var di = 0; di < 3; di++) {
+      var dotY = cy - 4 + di * 4;
+      s += '<circle cx="' + (handleW/2 - 1.5) + '" cy="' + dotY + '" r="1.2" fill="#bbb"/>';
+      s += '<circle cx="' + (handleW/2 + 1.5) + '" cy="' + dotY + '" r="1.2" fill="#bbb"/>';
+    }
+    s += '</g>';
+
     // Clickable row group — click events bubble from children to <g>
     s += '<g data-outcome="' + name + '" style="cursor:pointer">';
 
@@ -5424,14 +5444,14 @@ function showDeltoid(item) {
       }
     }
 
-    // Violation badge: left-justified at x=4
+    // Violation badge: left-justified after handle
     if (violated) {
-      s += '<text x="4" y="' + (cy + 5) +
+      s += '<text x="' + (handleW + 2) + '" y="' + (cy + 5) +
            '" fill="#d32f2f" font-size="13" font-weight="700" font-family="sans-serif">\u26A0</text>';
     }
 
     // Label with tooltip for metric type
-    s += '<text data-tip="' + metricType + '" x="' + (labelW - 4) + '" y="' + (cy + 4) +
+    s += '<text data-tip="' + metricType + '" x="' + (handleW + labelW - 4) + '" y="' + (cy + 4) +
          '" text-anchor="end" fill="' + labelColor + '" font-size="11" font-family="sans-serif"' +
          (isActiveOutcome ? ' font-weight="600"' : '') + '>' + labelText + '</text>';
 
@@ -5509,10 +5529,10 @@ function showDeltoid(item) {
 
       // Value annotation
       var valStr = r.mean.toFixed(2) + '\u00B1' + (1.96 * r.sem).toFixed(2) + '%';
-      s += '<text x="' + (labelW + pad + barW + pad * 2) + '" y="' + (cy + 4) +
+      s += '<text x="' + (handleW + labelW + pad + barW + pad * 2) + '" y="' + (cy + 4) +
            '" fill="' + (violated ? '#c66' : '#777') + '" font-size="10" font-family="sans-serif">' + valStr + '</text>';
     } else {
-      s += '<text x="' + (labelW + pad + barW/2) + '" y="' + (cy + 4) +
+      s += '<text x="' + (handleW + labelW + pad + barW/2) + '" y="' + (cy + 4) +
            '" text-anchor="middle" fill="#999" font-size="10" font-style="italic" font-family="sans-serif">N/A</text>';
     }
     s += '</g>';
@@ -5548,6 +5568,90 @@ rpBars.addEventListener('click', function(e) {
     el = el.parentNode;
   }
 });
+
+// ── Drag reordering of deltoid metrics ──
+(function() {
+  var dragName = null;
+  var dragStartY = 0;
+  var dragOrigIdx = -1;
+  var dropIndicator = null;
+  var rowH = 30, topPad = 20;
+
+  function findDragHandle(el) {
+    while (el && el !== rpBars) {
+      var handle = el.getAttribute && el.getAttribute('data-drag-handle');
+      if (handle) return handle;
+      el = el.parentNode;
+    }
+    return null;
+  }
+
+  rpBars.addEventListener('pointerdown', function(e) {
+    var name = findDragHandle(e.target);
+    if (!name) return;
+    e.preventDefault();
+    dragName = name;
+    dragOrigIdx = customMetricOrder.indexOf(name);
+    dragStartY = e.clientY;
+    rpBars.setPointerCapture(e.pointerId);
+
+    // Create drop indicator line
+    if (!dropIndicator) {
+      dropIndicator = document.createElement('div');
+      dropIndicator.style.cssText =
+        'position:absolute;left:0;right:0;height:2px;background:#4872f9;' +
+        'pointer-events:none;display:none;border-radius:1px;z-index:100';
+      rpBars.style.position = 'relative';
+      rpBars.appendChild(dropIndicator);
+    }
+    // Change cursor
+    rpBars.style.cursor = 'grabbing';
+  });
+
+  rpBars.addEventListener('pointermove', function(e) {
+    if (!dragName) return;
+    var svgEl = rpBars.querySelector('svg');
+    if (!svgEl) return;
+    var svgRect = svgEl.getBoundingClientRect();
+    var localY = e.clientY - svgRect.top - topPad;
+    var targetIdx = Math.round(localY / rowH);
+    targetIdx = Math.max(0, Math.min(customMetricOrder.length, targetIdx));
+
+    // Show drop indicator
+    if (dropIndicator) {
+      var indicatorY = topPad + targetIdx * rowH;
+      dropIndicator.style.display = 'block';
+      dropIndicator.style.top = indicatorY + 'px';
+    }
+  });
+
+  rpBars.addEventListener('pointerup', function(e) {
+    if (!dragName) return;
+    var svgEl = rpBars.querySelector('svg');
+    rpBars.style.cursor = '';
+    if (dropIndicator) dropIndicator.style.display = 'none';
+
+    if (svgEl) {
+      var svgRect = svgEl.getBoundingClientRect();
+      var localY = e.clientY - svgRect.top - topPad;
+      var targetIdx = Math.round(localY / rowH);
+      targetIdx = Math.max(0, Math.min(customMetricOrder.length - 1, targetIdx));
+
+      if (targetIdx !== dragOrigIdx) {
+        // Reorder: remove from old position, insert at new
+        customMetricOrder.splice(dragOrigIdx, 1);
+        customMetricOrder.splice(targetIdx, 0, dragName);
+        // Sync dropdowns
+        rebuildDropdownOrder();
+        // Re-render deltoid
+        showDeltoid(null);
+      }
+    }
+
+    dragName = null;
+    dragOrigIdx = -1;
+  });
+})();
 
 // ── Slider panel ──
 function renderSliders() {
