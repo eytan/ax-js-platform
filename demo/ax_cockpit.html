@@ -8,51 +8,51 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #0f0f11; color: #e0e0e0;
+  background: #fff; color: #1a1a1a;
   padding: 1.5rem 2rem; min-height: 100vh;
 }
-h1 { font-size: 17px; font-weight: 500; color: #f0f0f0; margin-bottom: 3px; }
-.subtitle { font-size: 12px; color: #777; margin-bottom: 16px; }
+h1 { font-size: 17px; font-weight: 500; color: #111; margin-bottom: 3px; }
+.subtitle { font-size: 12px; color: #666; margin-bottom: 16px; }
 .controls {
   display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;
 }
-label { font-size: 13px; color: #aaa; }
+label { font-size: 13px; color: #555; }
 select, button {
   font-size: 13px; padding: 4px 9px; border-radius: 6px;
-  border: 0.5px solid #444; background: #1a1a1d; color: #e0e0e0; cursor: pointer; outline: none;
+  border: 0.5px solid #d0d0d0; background: #fff; color: #333; cursor: pointer; outline: none;
 }
-button:hover { background: #252528; }
-.cb-label { font-size: 13px; color: #aaa; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+button:hover { background: #f0f0f0; }
+.cb-label { font-size: 13px; color: #555; display: flex; align-items: center; gap: 4px; cursor: pointer; }
 .main-area { display: flex; gap: 20px; align-items: flex-start; }
 .scatter-wrap { position: relative; flex-shrink: 0; }
 #scatterSvg { display: block; }
 .right-panel {
-  background: #141418; border: 0.5px solid #222; border-radius: 8px;
+  background: #fff; border: 0.5px solid #e0e0e0; border-radius: 8px;
   padding: 14px 16px; flex-shrink: 0;
 }
 .rp-title {
-  font-size: 11px; color: #555; letter-spacing: 0.06em;
+  font-size: 11px; color: #999; letter-spacing: 0.06em;
   text-transform: uppercase; margin-bottom: 14px;
 }
 #rpBars svg { display: block; }
 .slider-section {
-  border-top: 0.5px solid #2a2a30; margin-top: 14px; padding-top: 12px;
+  border-top: 0.5px solid #e0e0e0; margin-top: 14px; padding-top: 12px;
 }
 .slider-section .section-title {
-  font-size: 11px; color: #555; letter-spacing: 0.06em;
+  font-size: 11px; color: #999; letter-spacing: 0.06em;
   text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
 }
 .clone-btn, .action-btn {
   font-size: 10px; padding: 2px 8px; border-radius: 4px;
-  border: 0.5px solid #555; background: #1e1e24; color: #aaa; cursor: pointer;
+  border: 0.5px solid #d0d0d0; background: #f0f0f0; color: #555; cursor: pointer;
   text-transform: none; letter-spacing: 0;
 }
-.clone-btn:hover, .action-btn:hover { background: #2a2a30; color: #ddd; }
+.clone-btn:hover, .action-btn:hover { background: #e0e0e0; color: #333; }
 .param-row {
   display: flex; align-items: center; gap: 6px; margin-bottom: 5px;
 }
 .param-row label {
-  font-size: 10px; color: #777; width: 100px; text-align: right; flex-shrink: 0;
+  font-size: 10px; color: #666; width: 100px; text-align: right; flex-shrink: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   position: relative; z-index: 1;
 }
@@ -62,33 +62,33 @@ button:hover { background: #252528; }
 }
 .param-row input[type=range] {
   flex: 1; height: 4px; -webkit-appearance: none; appearance: none;
-  background: #2a2a30; border-radius: 2px; outline: none; cursor: pointer;
+  background: #e0e0e0; border-radius: 2px; outline: none; cursor: pointer;
 }
 .param-row input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none; width: 12px; height: 12px;
-  border-radius: 50%; background: #7c8cc8; cursor: pointer; border: none;
+  border-radius: 50%; background: #636EFA; cursor: pointer; border: none;
 }
 .param-row input[type=range]:disabled { opacity: 0.4; cursor: default; }
 .param-row input[type=range]:disabled::-webkit-slider-thumb { background: #666; cursor: default; }
 .param-row .param-val {
-  font-size: 10px; color: #888; width: 42px; text-align: left; flex-shrink: 0;
+  font-size: 10px; color: #666; width: 42px; text-align: left; flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
 .delete-btn {
-  font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: auto;
-  border: 0.5px solid #555; background: #2a1a1a; color: #c66; cursor: pointer;
+  font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 4px;
+  border: 0.5px solid #e0a0a0; background: #fff0f0; color: #c66; cursor: pointer;
   text-transform: none; letter-spacing: 0;
 }
-.delete-btn:hover { background: #3a2020; color: #f88; }
+.delete-btn:hover { background: #ffe0e0; color: #a44; }
 .legend {
   display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; padding: 6px 0;
 }
 .legend-item {
-  display: flex; align-items: center; gap: 5px; font-size: 11px; color: #888;
+  display: flex; align-items: center; gap: 5px; font-size: 11px; color: #666;
   cursor: pointer; user-select: none; padding: 2px 6px; border-radius: 4px;
   transition: opacity 0.15s;
 }
-.legend-item:hover { background: #1e1e24; }
+.legend-item:hover { background: #f5f5f5; }
 .legend-item.hidden-gen { opacity: 0.3; }
 .legend-swatch {
   width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
@@ -105,7 +105,7 @@ button:hover { background: #252528; }
 </head>
 <body>
 
-<h1><a href="index.html" style="text-decoration:none"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="29" height="29" style="vertical-align:-4px;margin-right:8px;opacity:0.7"><path fill="#fff" d="M761.76,600h0l200-346.16H550.12l-400,692.32H961.76ZM573.41,274H926.82L750.12,579.85ZM550.12,926H185.06L555.94,284.07,738.47,600Zm23.29,0L750.12,620.15,926.82,926Z"/></svg></a>Ax Cockpit — Multi-Objective VSIP</h1>
+<h1><a href="index.html" style="text-decoration:none"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="29" height="29" style="vertical-align:-4px;margin-right:8px;opacity:0.7"><path fill="#222" d="M761.76,600h0l200-346.16H550.12l-400,692.32H961.76ZM573.41,274H926.82L750.12,579.85ZM550.12,926H185.06L555.94,284.07,738.47,600Zm23.29,0L750.12,620.15,926.82,926Z"/></svg></a>Ax Cockpit — Multi-Objective VSIP</h1>
 <p class="subtitle" id="subtitle">Loading...</p>
 
 <div class="controls">
@@ -119,7 +119,6 @@ button:hover { background: #252528; }
       <option value="kernel">kernel distance</option>
     </select>
   </label>
-  <button id="btnResample">resample</button>
   <button id="btnNewCand">+ candidate</button>
   <button id="btnExport">export JSON</button>
 </div>
@@ -2346,7 +2345,7 @@ var Ax;
   -webkit-user-select: auto;
   flex: 1;
   min-width: 100px;
-  accent-color: #7c6ff7;
+  accent-color: #4872f9;
 }
 :scope .axjs-slider::-webkit-slider-thumb {
   -webkit-appearance: auto;
@@ -2362,9 +2361,9 @@ var Ax;
 :scope .axjs-select {
   pointer-events: auto;
   cursor: pointer;
-  background: #1a1a1d;
-  color: #e0e0e0;
-  border: 1px solid #333;
+  background: #fff;
+  color: #333;
+  border: 1px solid #d0d0d0;
   border-radius: 4px;
   padding: 3px 8px;
   font-size: 12px;
@@ -2373,12 +2372,12 @@ var Ax;
 :scope .axjs-tooltip {
   position: fixed;
   display: none;
-  background: rgba(20,20,24,0.95);
-  border: 1px solid #444;
+  background: rgba(255,255,255,0.97);
+  border: 1px solid #d0d0d0;
   border-radius: 6px;
   padding: 8px 12px;
   font-size: 12px;
-  color: #e0e0e0;
+  color: #333;
   pointer-events: none;
   z-index: 10000;
   white-space: nowrap;
@@ -2395,7 +2394,7 @@ var Ax;
 }
 :scope .axjs-slider-label {
   font-size: 13px;
-  color: #888;
+  color: #666;
   min-width: 140px;
   text-align: right;
   overflow: hidden;
@@ -2405,7 +2404,7 @@ var Ax;
 :scope .axjs-slider-value {
   font-size: 13px;
   font-weight: 500;
-  color: #ccc;
+  color: #333;
   min-width: 70px;
   text-align: right;
 }
@@ -2517,13 +2516,13 @@ var Ax;
   }
 
   // src/viz/drawDataDot.ts
-  function drawDataDot(ctx, x, y, alpha, isActive, isHovered, fillRGB = [255, 60, 60]) {
+  function drawDataDot(ctx, x, y, alpha, isActive, isHovered, fillRGB = [217, 95, 78]) {
     if (alpha < 0.04) return;
     const outerR = isActive || isHovered ? 7.5 : 5;
     const innerR = isActive || isHovered ? 4 : 2.5;
     ctx.beginPath();
     ctx.arc(x, y, outerR, 0, 2 * Math.PI);
-    ctx.strokeStyle = isActive ? "rgba(255,255,255,1)" : `rgba(255,255,255,${Math.max(0.15, alpha * 0.6).toFixed(3)})`;
+    ctx.strokeStyle = isActive ? "rgba(68,68,68,1)" : `rgba(68,68,68,${Math.max(0.15, alpha * 0.6).toFixed(3)})`;
     ctx.lineWidth = isActive ? 2.5 : isHovered ? 2 : 1.5;
     ctx.stroke();
     ctx.beginPath();
@@ -2680,7 +2679,7 @@ var Ax;
         const sl = document.createElement("input");
         sl.type = "range";
         sl.className = "axjs-slider";
-        sl.style.cssText = "-webkit-appearance:auto;appearance:auto;cursor:pointer;touch-action:none;pointer-events:auto;user-select:auto;-webkit-user-select:auto;flex:1;min-width:100px;accent-color:#7c6ff7;";
+        sl.style.cssText = "-webkit-appearance:auto;appearance:auto;cursor:pointer;touch-action:none;pointer-events:auto;user-select:auto;-webkit-user-select:auto;flex:1;min-width:100px;accent-color:#4872f9;";
         sl.min = String(lo);
         sl.max = String(hi);
         sl.step = isInteger(p) ? "1" : String((hi - lo) / 200);
@@ -2730,7 +2729,7 @@ var Ax;
     const tooltip = document.createElement("div");
     tooltip.className = "axjs-tooltip";
     if (containerId) tooltip.setAttribute("data-axjs-for", containerId);
-    tooltip.style.cssText = "position:fixed;display:none;background:rgba(20,20,24,0.95);border:1px solid #444;border-radius:6px;padding:8px 12px;font-size:12px;color:#e0e0e0;pointer-events:none;z-index:10000;white-space:nowrap;";
+    tooltip.style.cssText = "position:fixed;display:none;background:rgba(255,255,255,0.97);border:1px solid #d0d0d0;border-radius:6px;padding:8px 12px;font-size:12px;color:#333;pointer-events:none;z-index:10000;white-space:nowrap;";
     document.body.appendChild(tooltip);
     return tooltip;
   }
@@ -2746,7 +2745,7 @@ var Ax;
     const wrapper = document.createElement("div");
     wrapper.style.cssText = "display:flex;align-items:center;gap:4px";
     const lbl = document.createElement("span");
-    lbl.style.cssText = "color:#888;font-size:12px";
+    lbl.style.cssText = "color:#666;font-size:12px";
     lbl.textContent = label;
     const select = document.createElement("select");
     select.className = "axjs-select";
@@ -2774,19 +2773,19 @@ var Ax;
     for (let i = 0; i < dots.length; i++) {
       const d = dots[i];
       if (i === activeIdx) {
-        d.el.setAttribute("fill", "rgba(255,80,80,0.95)");
-        d.el.setAttribute("stroke", "rgba(255,255,255,1)");
+        d.el.setAttribute("fill", "rgba(217,95,78,0.95)");
+        d.el.setAttribute("stroke", "rgba(68,68,68,1)");
         d.el.setAttribute("stroke-width", "2");
         d.el.setAttribute("r", String(d.defaultR + 2));
-        if (d.whisker) d.whisker.setAttribute("stroke", "rgba(255,80,80,0.5)");
+        if (d.whisker) d.whisker.setAttribute("stroke", "rgba(217,95,78,0.5)");
       } else {
         const relNorm = rels.max > 0 ? rels.raw[i] / rels.max : 0;
         const fa = Math.max(0.08, Math.min(0.9, Math.sqrt(relNorm)));
-        d.el.setAttribute("fill", `rgba(255,80,80,${fa.toFixed(3)})`);
-        d.el.setAttribute("stroke", `rgba(255,255,255,${Math.max(0.15, fa * 0.6).toFixed(3)})`);
+        d.el.setAttribute("fill", `rgba(217,95,78,${fa.toFixed(3)})`);
+        d.el.setAttribute("stroke", `rgba(68,68,68,${Math.max(0.15, fa * 0.6).toFixed(3)})`);
         d.el.setAttribute("stroke-width", "1");
         d.el.setAttribute("r", String(d.defaultR));
-        if (d.whisker) d.whisker.setAttribute("stroke", `rgba(255,80,80,${(fa * 0.35).toFixed(3)})`);
+        if (d.whisker) d.whisker.setAttribute("stroke", `rgba(217,95,78,${(fa * 0.35).toFixed(3)})`);
       }
     }
   }
@@ -2796,7 +2795,7 @@ var Ax;
       d.el.setAttribute("stroke", d.defaultStroke);
       d.el.setAttribute("stroke-width", "1");
       d.el.setAttribute("r", String(d.defaultR));
-      if (d.whisker) d.whisker.setAttribute("stroke", "rgba(124,154,255,0.3)");
+      if (d.whisker) d.whisker.setAttribute("stroke", "rgba(217,95,78,0.3)");
     }
   }
   function findNearestDot(dots, px, py, maxDist = 12) {
@@ -2819,14 +2818,14 @@ var Ax;
       const td = predictor.getTrainingData(name);
       if (idx >= td.Y.length) continue;
       const isSel = name === selectedOutcome;
-      const color = isSel ? "#7c9aff" : "#888";
+      const color = isSel ? "#4872f9" : "#666";
       html += `${isSel ? "<b>" : ""}${name} = <span style="color:${color}">${td.Y[idx].toFixed(4)}</span>${isSel ? "</b>" : ""}<br>`;
     }
-    html += '<hr style="border-color:#333;margin:4px 0">';
+    html += '<hr style="border-color:#e8e8e8;margin:4px 0">';
     const td0 = predictor.getTrainingData(predictor.outcomeNames[0]);
     if (idx < td0.X.length) {
       for (let j = 0; j < predictor.paramNames.length; j++) {
-        html += `<span style="color:#888">${predictor.paramNames[j]}</span> = ${td0.X[idx][j].toFixed(4)}<br>`;
+        html += `<span style="color:#666">${predictor.paramNames[j]}</span> = ${td0.X[idx][j].toFixed(4)}<br>`;
       }
     }
     return html;
@@ -2947,7 +2946,7 @@ var Ax;
       target.textContent = "No lengthscale data";
       return;
     }
-    const barColors = ["#7c6ff7", "#6fa0f7", "#6fcff7", "#6ff7c8", "#a0f76f", "#f7e06f", "#f7a06f", "#f76f6f"];
+    const barColors = ["#4872f9", "#5478fa", "#6088fa", "#7098fb", "#85a8fb", "#9ab8fc", "#b0c8fc", "#c7d4fd"];
     const importances = ranked.map((d) => 1 / d.lengthscale);
     const maxImp = Math.max(...importances);
     const W = Math.min((tooltipContainer ?? target).clientWidth || 500, 500);
@@ -2966,7 +2965,7 @@ var Ax;
         Object.assign(svgEl("text", {
           x: labelW - 8,
           y: y + barH / 2 + 4,
-          fill: "#ccc",
+          fill: "#333",
           "font-size": 13,
           "text-anchor": "end"
         }), { textContent: dim.paramName })
@@ -2977,7 +2976,7 @@ var Ax;
         width: trackW,
         height: barH,
         rx: 4,
-        fill: "#1a1a1d"
+        fill: "#f0f0f0"
       }));
       svg.appendChild(svgEl("rect", {
         x: labelW,
@@ -3013,7 +3012,7 @@ var Ax;
         Object.assign(svgEl("text", {
           x: labelW + trackW + 4,
           y: y + barH / 2 + 4,
-          fill: "#999",
+          fill: "#666",
           "font-size": 11,
           "text-anchor": "start",
           "pointer-events": "none"
@@ -3080,9 +3079,9 @@ var Ax;
         const tileW = 280, tileH = 280;
         for (const name of predictor.outcomeNames) {
           const tile = document.createElement("div");
-          tile.style.cssText = `background:#141418;border:0.5px solid #222;border-radius:8px;overflow:hidden;width:${tileW}px;height:${tileH + 28}px`;
+          tile.style.cssText = `background:transparent;border:0.5px solid #e0e0e0;border-radius:8px;overflow:hidden;width:${tileW}px;height:${tileH + 28}px`;
           const title = document.createElement("div");
-          title.style.cssText = "font-size:13px;font-weight:500;color:#ccc;text-align:center;padding:6px 0 0";
+          title.style.cssText = "font-size:13px;font-weight:500;color:#333;text-align:center;padding:6px 0 0";
           title.textContent = name;
           tile.appendChild(title);
           renderCVPanel(
@@ -3107,7 +3106,7 @@ var Ax;
         const W = options?.width ?? 440;
         const H = options?.height ?? 440;
         const cvTile = document.createElement("div");
-        cvTile.style.cssText = `background:#141418;border:0.5px solid #222;border-radius:8px;overflow:hidden;width:${W}px;height:${H}px`;
+        cvTile.style.cssText = `background:transparent;border:0.5px solid #e0e0e0;border-radius:8px;overflow:hidden;width:${W}px;height:${H}px`;
         renderCVPanel(
           cvTile,
           predictor,
@@ -3158,13 +3157,29 @@ var Ax;
     const sy = (v) => margin.top + ph - (v - lo) / (hi - lo) * ph;
     const svg = svgEl("svg", { width: W, height: H });
     svg.appendChild(svgEl("line", {
+      x1: margin.left,
+      x2: margin.left + pw,
+      y1: margin.top + ph,
+      y2: margin.top + ph,
+      stroke: "rgba(0,0,0,0.20)",
+      "stroke-width": 1
+    }));
+    svg.appendChild(svgEl("line", {
+      x1: margin.left,
+      x2: margin.left,
+      y1: margin.top,
+      y2: margin.top + ph,
+      stroke: "rgba(0,0,0,0.20)",
+      "stroke-width": 1
+    }));
+    svg.appendChild(svgEl("line", {
       x1: sx(lo),
       y1: sy(lo),
       x2: sx(hi),
       y2: sy(hi),
-      stroke: "rgba(255,255,255,0.15)",
-      "stroke-width": 1,
-      "stroke-dasharray": "4,4"
+      stroke: "rgba(0,0,0,0.20)",
+      "stroke-width": 1.5,
+      "stroke-dasharray": "6,4"
     }));
     const nTicks = isSmall ? 3 : 5;
     const tickFontSize = isSmall ? "8" : "10";
@@ -3175,19 +3190,19 @@ var Ax;
         x2: margin.left + pw,
         y1: sy(v),
         y2: sy(v),
-        stroke: "rgba(255,255,255,0.04)"
+        stroke: "rgba(0,0,0,0.06)"
       }));
       svg.appendChild(Object.assign(svgEl("text", {
         x: sx(v),
         y: margin.top + ph + (isSmall ? 12 : 16),
-        fill: "#555",
+        fill: "#999",
         "font-size": tickFontSize,
         "text-anchor": "middle"
       }), { textContent: v.toFixed(isSmall ? 0 : 2) }));
       svg.appendChild(Object.assign(svgEl("text", {
         x: margin.left - 4,
         y: sy(v) + 3,
-        fill: "#555",
+        fill: "#999",
         "font-size": tickFontSize,
         "text-anchor": "end"
       }), { textContent: v.toFixed(isSmall ? 0 : 2) }));
@@ -3195,8 +3210,8 @@ var Ax;
     const td = predictor.getTrainingData(outcome);
     const dotR = isSmall ? 3 : 4;
     const cvDots = [];
-    const defaultFill = "rgba(124,154,255,0.85)";
-    const defaultStroke = "rgba(255,255,255,0.5)";
+    const defaultFill = "rgba(217,95,78,0.85)";
+    const defaultStroke = "rgba(68,68,68,0.35)";
     for (let i = 0; i < n; i++) {
       const cx = sx(observed[i]), cy = sy(predicted[i]);
       const whisker = svgEl("line", {
@@ -3204,7 +3219,7 @@ var Ax;
         x2: cx,
         y1: sy(predicted[i] + 2 * predStd[i]),
         y2: sy(predicted[i] - 2 * predStd[i]),
-        stroke: "rgba(124,154,255,0.3)",
+        stroke: "rgba(217,95,78,0.3)",
         "stroke-width": isSmall ? 1 : 1.5
       });
       svg.appendChild(whisker);
@@ -3233,14 +3248,14 @@ var Ax;
       svg.appendChild(Object.assign(svgEl("text", {
         x: margin.left + pw / 2,
         y: H - 6,
-        fill: "#888",
+        fill: "#666",
         "font-size": 13,
         "text-anchor": "middle"
       }), { textContent: "Observed" }));
       svg.appendChild(Object.assign(svgEl("text", {
         x: 14,
         y: margin.top + ph / 2,
-        fill: "#888",
+        fill: "#666",
         "font-size": 13,
         "text-anchor": "middle",
         transform: `rotate(-90,14,${margin.top + ph / 2})`
@@ -3249,7 +3264,7 @@ var Ax;
     svg.appendChild(Object.assign(svgEl("text", {
       x: margin.left + 6,
       y: margin.top + (isSmall ? 14 : 18),
-      fill: "#7c9aff",
+      fill: "#4872f9",
       "font-size": isSmall ? 11 : 14,
       "font-weight": "600"
     }), { textContent: `R\xB2 = ${r2.toFixed(4)}` }));
@@ -3268,9 +3283,9 @@ var Ax;
       const best = findNearestDot(cvDots, px, py, HOVER_R);
       if (best >= 0) {
         const d = cvDots[best];
-        let html = `<div style="font-weight:600;color:#aaa;margin-bottom:4px">${outcome} \u2014 trial ${d.idx}</div>`;
-        html += `observed = <span style="color:#7c9aff">${observed[d.idx].toFixed(4)}</span><br>`;
-        html += `LOO predicted = <span style="color:#7c9aff">${predicted[d.idx].toFixed(4)}</span><br>`;
+        let html = `<div style="font-weight:600;color:#666;margin-bottom:4px">${outcome} \u2014 trial ${d.idx}</div>`;
+        html += `observed = <span style="color:#4872f9">${observed[d.idx].toFixed(4)}</span><br>`;
+        html += `LOO predicted = <span style="color:#4872f9">${predicted[d.idx].toFixed(4)}</span><br>`;
         html += `\xB1 2\u03C3 = [${(predicted[d.idx] - 2 * predStd[d.idx]).toFixed(4)}, ${(predicted[d.idx] + 2 * predStd[d.idx]).toFixed(4)}]<br>`;
         html += buildPointTooltipHtml(predictor, d.idx, outcome);
         tooltip.innerHTML = html;
@@ -3391,6 +3406,22 @@ var Ax;
     const sx = (i) => margin.left + i / Math.max(1, n - 1) * pw;
     const sy = (v) => margin.top + ph - (v - yMin) / (yMax - yMin) * ph;
     const svg = svgEl("svg", { width: W, height: H });
+    svg.appendChild(svgEl("line", {
+      x1: margin.left,
+      x2: margin.left + pw,
+      y1: margin.top + ph,
+      y2: margin.top + ph,
+      stroke: "rgba(0,0,0,0.20)",
+      "stroke-width": 1
+    }));
+    svg.appendChild(svgEl("line", {
+      x1: margin.left,
+      x2: margin.left,
+      y1: margin.top,
+      y2: margin.top + ph,
+      stroke: "rgba(0,0,0,0.20)",
+      "stroke-width": 1
+    }));
     const nTicks = 5;
     for (let t = 0; t <= nTicks; t++) {
       const v = yMin + (yMax - yMin) * t / nTicks;
@@ -3399,12 +3430,12 @@ var Ax;
         x2: margin.left + pw,
         y1: sy(v),
         y2: sy(v),
-        stroke: "rgba(255,255,255,0.05)"
+        stroke: "rgba(0,0,0,0.06)"
       }));
       svg.appendChild(Object.assign(svgEl("text", {
         x: margin.left - 8,
         y: sy(v) + 4,
-        fill: "#555",
+        fill: "#999",
         "font-size": 10,
         "text-anchor": "end"
       }), { textContent: v.toFixed(2) }));
@@ -3415,7 +3446,7 @@ var Ax;
     }
     svg.appendChild(Object.assign(svgEl("path", {
       d: bsfPath,
-      stroke: "#7c6ff7",
+      stroke: "#444",
       "stroke-width": 2.5,
       fill: "none",
       opacity: "0.7"
@@ -3423,8 +3454,8 @@ var Ax;
     const traceDots = [];
     for (let i = 0; i < n; i++) {
       const isBest = bestSoFar[i] === yVals[i];
-      const dotFill = isBest ? "rgba(124,111,247,0.9)" : "rgba(255,255,255,0.3)";
-      const dotStroke = isBest ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.15)";
+      const dotFill = isBest ? "rgba(217,95,78,0.9)" : "rgba(0,0,0,0.12)";
+      const dotStroke = isBest ? "rgba(68,68,68,0.5)" : "rgba(0,0,0,0.06)";
       const dot = svgEl("circle", {
         cx: sx(i),
         cy: sy(yVals[i]),
@@ -3448,14 +3479,14 @@ var Ax;
     svg.appendChild(Object.assign(svgEl("text", {
       x: margin.left + pw / 2,
       y: H - 6,
-      fill: "#888",
+      fill: "#666",
       "font-size": 13,
       "text-anchor": "middle"
     }), { textContent: "Trial" }));
     svg.appendChild(Object.assign(svgEl("text", {
       x: 14,
       y: margin.top + ph / 2,
-      fill: "#888",
+      fill: "#666",
       "font-size": 13,
       "text-anchor": "middle",
       transform: `rotate(-90,14,${margin.top + ph / 2})`
@@ -3465,7 +3496,7 @@ var Ax;
       svg.appendChild(Object.assign(svgEl("text", {
         x: sx(i),
         y: margin.top + ph + 18,
-        fill: "#555",
+        fill: "#999",
         "font-size": 10,
         "text-anchor": "middle"
       }), { textContent: String(i) }));
@@ -3475,13 +3506,13 @@ var Ax;
       x2: margin.left + pw - 100,
       y1: margin.top + 12,
       y2: margin.top + 12,
-      stroke: "#7c6ff7",
+      stroke: "#444",
       "stroke-width": 2.5
     }));
     svg.appendChild(Object.assign(svgEl("text", {
       x: margin.left + pw - 96,
       y: margin.top + 16,
-      fill: "#888",
+      fill: "#666",
       "font-size": 11
     }), { textContent: "best so far" }));
     if (tooltip && tooltipContainer) {
@@ -3695,29 +3726,45 @@ var Ax;
       const sy = (v) => margin.top + (1 - (v - yMin) / yRange) * ph;
       const svg = svgEl("svg", { width: W, height: H });
       svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      svg.appendChild(svgEl("line", {
+        x1: margin.left,
+        x2: margin.left + pw,
+        y1: margin.top + ph,
+        y2: margin.top + ph,
+        stroke: "rgba(0,0,0,0.20)",
+        "stroke-width": 1
+      }));
+      svg.appendChild(svgEl("line", {
+        x1: margin.left,
+        x2: margin.left,
+        y1: margin.top,
+        y2: margin.top + ph,
+        stroke: "rgba(0,0,0,0.20)",
+        "stroke-width": 1
+      }));
       svg.appendChild(Object.assign(
-        svgEl("text", { x: margin.left + pw / 2, y: 16, fill: "#999", "font-size": 12, "text-anchor": "middle" }),
+        svgEl("text", { x: margin.left + pw / 2, y: 16, fill: "#555", "font-size": 12, "text-anchor": "middle" }),
         { textContent: names[dim] }
       ));
       if (dimIsChoice) {
         for (let ci = 0; ci < xs.length; ci++) {
           const cx = sx(ci), cyMu = sy(means[ci]);
           const cyUp = sy(upper[ci]), cyLo = sy(lower[ci]);
-          svg.appendChild(svgEl("line", { x1: cx, y1: cyUp, x2: cx, y2: cyLo, stroke: "rgba(100,120,230,0.5)", "stroke-width": 2 }));
+          svg.appendChild(svgEl("line", { x1: cx, y1: cyUp, x2: cx, y2: cyLo, stroke: "rgba(72,114,249,0.4)", "stroke-width": 2 }));
           for (const capY of [cyUp, cyLo]) {
-            svg.appendChild(svgEl("line", { x1: cx - 4, y1: capY, x2: cx + 4, y2: capY, stroke: "rgba(100,120,230,0.5)", "stroke-width": 1.5 }));
+            svg.appendChild(svgEl("line", { x1: cx - 4, y1: capY, x2: cx + 4, y2: capY, stroke: "rgba(72,114,249,0.4)", "stroke-width": 1.5 }));
           }
-          svg.appendChild(svgEl("circle", { cx, cy: cyMu, r: 5, fill: "rgba(130,155,255,0.9)", stroke: "white", "stroke-width": 1.5 }));
+          svg.appendChild(svgEl("circle", { cx, cy: cyMu, r: 5, fill: "#4872f9", stroke: "#444", "stroke-width": 1.5 }));
         }
       } else {
         let bandD = `M ${sx(xs[0])} ${sy(upper[0])}`;
         for (let i = 1; i < xs.length; i++) bandD += ` L ${sx(xs[i])} ${sy(upper[i])}`;
         for (let i = xs.length - 1; i >= 0; i--) bandD += ` L ${sx(xs[i])} ${sy(lower[i])}`;
         bandD += " Z";
-        svg.appendChild(svgEl("path", { d: bandD, fill: "rgba(100,120,230,0.18)" }));
+        svg.appendChild(svgEl("path", { d: bandD, fill: "rgba(72,114,249,0.10)" }));
         let lineD = `M ${sx(xs[0])} ${sy(means[0])}`;
         for (let i = 1; i < xs.length; i++) lineD += ` L ${sx(xs[i])} ${sy(means[i])}`;
-        svg.appendChild(svgEl("path", { d: lineD, stroke: "rgba(130,155,255,0.9)", "stroke-width": 2, fill: "none" }));
+        svg.appendChild(svgEl("path", { d: lineD, stroke: "#4872f9", "stroke-width": 2, fill: "none" }));
       }
       const td = predictor.getTrainingData(outcome);
       const sliceDots = [];
@@ -3747,8 +3794,8 @@ var Ax;
               cx: ptScreenX,
               cy: ptScreenY,
               r: 3,
-              fill: "rgba(255,80,80,0.85)",
-              stroke: "rgba(255,255,255,0.5)",
+              fill: "rgba(217,95,78,0.9)",
+              stroke: "rgba(68,68,68,0.35)",
               "stroke-width": 1
             });
             svg.appendChild(dot);
@@ -3758,8 +3805,8 @@ var Ax;
               idx: i,
               pt: td.X[i],
               el: dot,
-              defaultFill: "rgba(255,80,80,0.85)",
-              defaultStroke: "rgba(255,255,255,0.5)",
+              defaultFill: "rgba(217,95,78,0.9)",
+              defaultStroke: "rgba(68,68,68,0.35)",
               defaultR: 3
             });
           }
@@ -3770,16 +3817,16 @@ var Ax;
       for (let t = 0; t <= nYTicks; t++) {
         const v = yMin + yRange * t / nYTicks;
         const yp = sy(v);
-        svg.appendChild(svgEl("line", { x1: margin.left, x2: margin.left + pw, y1: yp, y2: yp, stroke: "rgba(255,255,255,0.06)" }));
+        svg.appendChild(svgEl("line", { x1: margin.left, x2: margin.left + pw, y1: yp, y2: yp, stroke: "rgba(0,0,0,0.06)" }));
         svg.appendChild(Object.assign(
-          svgEl("text", { x: margin.left - 6, y: yp + 4, fill: "#666", "font-size": 10, "text-anchor": "end" }),
+          svgEl("text", { x: margin.left - 6, y: yp + 4, fill: "#999", "font-size": 10, "text-anchor": "end" }),
           { textContent: v.toFixed(2) }
         ));
       }
       if (dimIsChoice) {
         for (let ci = 0; ci < xs.length; ci++) {
           svg.appendChild(Object.assign(
-            svgEl("text", { x: sx(ci), y: H - margin.bottom + 16, fill: "#666", "font-size": 10, "text-anchor": "middle" }),
+            svgEl("text", { x: sx(ci), y: H - margin.bottom + 16, fill: "#999", "font-size": 10, "text-anchor": "middle" }),
             { textContent: String(p.values[ci]) }
           ));
         }
@@ -3789,19 +3836,19 @@ var Ax;
           let xv = xLo + (xHi - xLo) * t / nXTicks;
           if (dimIsInt) xv = Math.round(xv);
           svg.appendChild(Object.assign(
-            svgEl("text", { x: sx(xv), y: H - margin.bottom + 16, fill: "#666", "font-size": 10, "text-anchor": "middle" }),
+            svgEl("text", { x: sx(xv), y: H - margin.bottom + 16, fill: "#999", "font-size": 10, "text-anchor": "middle" }),
             { textContent: dimIsInt ? String(xv) : xv.toFixed(2) }
           ));
         }
       }
       svg.appendChild(Object.assign(
-        svgEl("text", { x: margin.left + pw / 2, y: H - 4, fill: "#666", "font-size": 11, "text-anchor": "middle" }),
+        svgEl("text", { x: margin.left + pw / 2, y: H - 4, fill: "#999", "font-size": 11, "text-anchor": "middle" }),
         { textContent: names[dim] }
       ));
-      const hoverLine = svgEl("line", { y1: margin.top, y2: margin.top + ph, stroke: "rgba(255,255,255,0.3)", "stroke-width": 1 });
+      const hoverLine = svgEl("line", { y1: margin.top, y2: margin.top + ph, stroke: "rgba(0,0,0,0.10)", "stroke-width": 1, "stroke-dasharray": "4,3" });
       hoverLine.style.display = "none";
       svg.appendChild(hoverLine);
-      const hoverDot = svgEl("circle", { r: 4, fill: "rgba(130,155,255,0.9)", stroke: "white", "stroke-width": 1.5 });
+      const hoverDot = svgEl("circle", { r: 4, fill: "#4872f9", stroke: "#444", "stroke-width": 1.5 });
       hoverDot.style.display = "none";
       svg.appendChild(hoverDot);
       if (_getPinned() >= 0) {
@@ -3841,9 +3888,9 @@ var Ax;
               applyDotHighlight(sliceDots, hitVpIdx, computeKernelRels(predictor, sliceDots, hitVpIdx, outcome));
               hoverHighlight = true;
             }
-            let html = `<div style="font-size:11px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">training point #${hitPt.idx + 1}</div>`;
-            html += `<span style="color:#ff6b6b;font-weight:500">y = ${td.Y[hitPt.idx].toFixed(4)}</span><br>`;
-            html += names.map((n, j) => `<span style="color:#a0c4ff">${n}</span> = ${formatParamValue(td.X[hitPt.idx][j], params[j])}`).join("<br>");
+            let html = `<div style="font-size:11px;color:#999;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">training point #${hitPt.idx + 1}</div>`;
+            html += `<span style="color:#333;font-weight:500">y = ${td.Y[hitPt.idx].toFixed(4)}</span><br>`;
+            html += names.map((n, j) => `<span style="color:#666">${n}</span> = ${formatParamValue(td.X[hitPt.idx][j], params[j])}`).join("<br>");
             tooltip.innerHTML = html;
             tooltip.style.display = "block";
             positionTooltip(tooltip, e.clientX, e.clientY);
@@ -3871,9 +3918,9 @@ var Ax;
             hoverDot.setAttribute("cy", String(sy(mu)));
             hoverDot.style.display = "";
             const xLabel = dimIsChoice ? String(p.values[idx]) : formatParamValue(xs[idx], p);
-            let html = `<div style="font-size:11px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">${names[dim]}</div>`;
-            html += `<span style="color:#a0c4ff">${names[dim]}</span> = ${xLabel}<br>`;
-            html += `\u03BC = <span style="color:#ff6b6b;font-weight:500">${mu.toFixed(4)}</span><br>`;
+            let html = `<div style="font-size:11px;color:#999;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">${names[dim]}</div>`;
+            html += `<span style="color:#666">${names[dim]}</span> = ${xLabel}<br>`;
+            html += `\u03BC = <span style="color:#4872f9;font-weight:500">${mu.toFixed(4)}</span><br>`;
             html += `\u03C3 = ${s.toFixed(4)}<br>`;
             html += `95% CI: [${(mu - 2 * s).toFixed(4)}, ${(mu + 2 * s).toFixed(4)}]`;
             tooltip.innerHTML = html;
@@ -4066,15 +4113,15 @@ var Ax;
       ctx.fillRect(x, y + i, w, 1);
     }
     ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.textAlign = "left";
     ctx.fillText(vMax.toFixed(2), x + w + 3, y + 8);
     ctx.fillText(vMin.toFixed(2), x + w + 3, y + h);
   }
   function drawAxes(ctx, ML, MT, N, xlo, xhi, ylo, yhi, xName, yName, showYAxis) {
     ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
-    ctx.strokeStyle = "rgba(255,255,255,0.2)";
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.strokeStyle = "rgba(0,0,0,0.15)";
     ctx.lineWidth = 1;
     const nTicks = 4;
     ctx.textAlign = "center";
@@ -4087,11 +4134,11 @@ var Ax;
       ctx.stroke();
       ctx.fillText(v.toFixed(2), tx, MT + N + 15);
     }
-    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
     ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
     ctx.fillText(xName, ML + N / 2, MT + N + 30);
     if (!showYAxis) return;
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
     ctx.textAlign = "right";
     for (let ti = 0; ti <= nTicks; ti++) {
@@ -4107,7 +4154,7 @@ var Ax;
     ctx.translate(12, MT + N / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = "center";
-    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
     ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
     ctx.fillText(yName, 0, 0);
     ctx.restore();
@@ -4115,17 +4162,17 @@ var Ax;
   function drawDots(ctx, dots, pinnedIdx) {
     for (const d of dots) {
       const isActive = d.idx === pinnedIdx;
-      const outerR = isActive ? 6 : 4;
-      const innerR = isActive ? 3.5 : 2.5;
+      const outerR = isActive ? 8 : 6;
+      const innerR = isActive ? 4.5 : 3.5;
       ctx.beginPath();
       ctx.arc(d.px, d.py, outerR, 0, 2 * Math.PI);
-      ctx.strokeStyle = isActive ? "rgba(255,255,255,1)" : `rgba(255,255,255,${Math.max(0.15, d.alpha * 0.7).toFixed(3)})`;
+      ctx.strokeStyle = isActive ? "rgba(68,68,68,1)" : `rgba(68,68,68,${Math.max(0.15, d.alpha * 0.7).toFixed(3)})`;
       ctx.lineWidth = isActive ? 2.5 : 1.5;
       ctx.stroke();
       if (d.alpha >= 0.04) {
         ctx.beginPath();
         ctx.arc(d.px, d.py, innerR, 0, 2 * Math.PI);
-        ctx.fillStyle = isActive ? "rgba(255,60,60,1)" : `rgba(255,60,60,${d.alpha.toFixed(3)})`;
+        ctx.fillStyle = isActive ? "rgba(217,95,78,1)" : `rgba(217,95,78,${d.alpha.toFixed(3)})`;
         ctx.fill();
       }
     }
@@ -4142,9 +4189,9 @@ var Ax;
     const CB_GAP = 4;
     const CB_LBL = 36;
     const MR = CB_GAP + CB_W + CB_LBL;
-    const totalW = options?.width ?? 420;
+    const totalW = options?.width ?? 800;
     const panelW = Math.floor((totalW - 12) / 2);
-    const defaultH = options?.height ?? 420;
+    const defaultH = options?.height ?? 380;
     const ML2 = 10;
     const N = Math.min(panelW - ML - MR, defaultH - MT - MB);
     const CW = N + ML + MR;
@@ -4241,7 +4288,7 @@ var Ax;
       const ctx = canvas.getContext("2d");
       if (!ctx) continue;
       ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
-      ctx.fillStyle = "rgba(255,255,255,0.4)";
+      ctx.fillStyle = "rgba(0,0,0,0.45)";
       ctx.textAlign = "center";
       ctx.fillText(panel.title, pML + N / 2, 12);
       ctx.putImageData(panel.img, pML, MT);
@@ -4490,7 +4537,7 @@ var FIXTURE_CAND_X = [
 
 // ── Batch color palette ──
 // Each batch gets a distinct color. Shapes distinguish completed (circle) vs candidate (star).
-var BATCH_PALETTE = ['#7c8cc8', '#4ecdc4', '#e8b84d', '#c57bdb', '#e07b9d', '#8cc87c', '#c8a87c', '#7cc8c8'];
+var BATCH_PALETTE = ['#636EFA', '#EF553B', '#00CC96', '#AB63FA', '#FFA15A', '#FF6692', '#19D3F3', '#B6E880'];
 function batchColor(batchIdx) {
   return BATCH_PALETTE[batchIdx % BATCH_PALETTE.length];
 }
@@ -4776,6 +4823,37 @@ var rpSliders = document.getElementById('rpSliders');
 var selDistMode = document.getElementById('selDistMode');
 var legendEl = document.getElementById('legend');
 
+// Deltoid tooltip: custom div for data-tip hover
+var deltoidTip = document.createElement('div');
+deltoidTip.style.cssText =
+  'position:fixed;display:none;background:rgba(255,255,255,0.97);border:1px solid #d0d0d0;' +
+  'border-radius:5px;padding:5px 10px;font-size:11px;color:#333;pointer-events:none;' +
+  'z-index:10000;white-space:pre-line;box-shadow:0 2px 8px rgba(0,0,0,0.1);max-width:300px';
+document.body.appendChild(deltoidTip);
+
+rpBars.addEventListener('mouseover', function(e) {
+  var el = e.target;
+  while (el && el !== rpBars) {
+    var tip = el.getAttribute && el.getAttribute('data-tip');
+    if (tip) {
+      deltoidTip.textContent = tip;
+      deltoidTip.style.display = 'block';
+      return;
+    }
+    el = el.parentNode;
+  }
+  deltoidTip.style.display = 'none';
+});
+rpBars.addEventListener('mousemove', function(e) {
+  if (deltoidTip.style.display === 'block') {
+    deltoidTip.style.left = (e.clientX + 14) + 'px';
+    deltoidTip.style.top = (e.clientY - 8) + 'px';
+  }
+});
+rpBars.addEventListener('mouseleave', function() {
+  deltoidTip.style.display = 'none';
+});
+
 var W = 520, H = 460;
 var margin = { top: 30, right: 20, bottom: 55, left: 65 };
 var pw = W - margin.left - margin.right;
@@ -4903,41 +4981,41 @@ function renderScatter() {
   function sy(v) { return margin.top + ph - (v - yMin) / (yMax - yMin) * ph; }
 
   var html = '';
-  html += '<rect width="' + W + '" height="' + H + '" fill="#141418" rx="8"/>';
+  html += '<rect width="' + W + '" height="' + H + '" fill="#fff" rx="8"/>';
   html += '<defs><clipPath id="plotClip"><rect x="' + margin.left + '" y="' + margin.top +
           '" width="' + pw + '" height="' + ph + '"/></clipPath></defs>';
 
   // Grid + tick labels
   xRange.ticks.forEach(function(tv) {
     html += '<line x1="' + sx(tv) + '" y1="' + margin.top + '" x2="' + sx(tv) +
-            '" y2="' + (margin.top + ph) + '" stroke="#1e1e24" stroke-width="0.5"/>';
+            '" y2="' + (margin.top + ph) + '" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>';
     html += '<text x="' + sx(tv) + '" y="' + (H - margin.bottom + 16) +
-            '" text-anchor="middle" fill="#555" font-size="10">' + tv + '%</text>';
+            '" text-anchor="middle" fill="#999" font-size="10">' + tv + '%</text>';
   });
   yRange.ticks.forEach(function(tv) {
     html += '<line x1="' + margin.left + '" y1="' + sy(tv) + '" x2="' + (margin.left + pw) +
-            '" y2="' + sy(tv) + '" stroke="#1e1e24" stroke-width="0.5"/>';
+            '" y2="' + sy(tv) + '" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>';
     html += '<text x="' + (margin.left - 8) + '" y="' + (sy(tv) + 3) +
-            '" text-anchor="end" fill="#555" font-size="10">' + tv + '%</text>';
+            '" text-anchor="end" fill="#999" font-size="10">' + tv + '%</text>';
   });
 
   // Zero reference lines
   if (xMin <= 0 && xMax >= 0) {
     html += '<line x1="' + sx(0) + '" y1="' + margin.top + '" x2="' + sx(0) +
-            '" y2="' + (margin.top + ph) + '" stroke="#3a3a44" stroke-width="1" stroke-dasharray="4,3"/>';
+            '" y2="' + (margin.top + ph) + '" stroke="rgba(0,0,0,0.10)" stroke-width="1" stroke-dasharray="4,3"/>';
   }
   if (yMin <= 0 && yMax >= 0) {
     html += '<line x1="' + margin.left + '" y1="' + sy(0) + '" x2="' + (margin.left + pw) +
-            '" y2="' + sy(0) + '" stroke="#3a3a44" stroke-width="1" stroke-dasharray="4,3"/>';
+            '" y2="' + sy(0) + '" stroke="rgba(0,0,0,0.10)" stroke-width="1" stroke-dasharray="4,3"/>';
   }
 
   // Axis labels
   var xLabel = xName + ' (% vs SQ)';
   var yLabel = yName + ' (% vs SQ)';
   html += '<text x="' + (margin.left + pw/2) + '" y="' + (H - 8) +
-          '" text-anchor="middle" fill="#888" font-size="12">' + xLabel + '</text>';
+          '" text-anchor="middle" fill="#666" font-size="12">' + xLabel + '</text>';
   html += '<text x="14" y="' + (margin.top + ph/2) +
-          '" text-anchor="middle" fill="#888" font-size="12" transform="rotate(-90,14,' +
+          '" text-anchor="middle" fill="#666" font-size="12" transform="rotate(-90,14,' +
           (margin.top + ph/2) + ')">' + yLabel + '</text>';
 
   // Draw items (clipped)
@@ -5076,17 +5154,26 @@ function updateOpacities() {
 
 // ── Right panel: CI bars with constraint visualization ──
 // desiredSign: -1 = lower is better (minimize), +1 = higher is better, 0 = neutral
-function ciColors(mean, desiredSign) {
+// Returns { c99, c95, c75, tick, isBad }
+function ciColors(mean, sem, desiredSign) {
+  var lo75 = mean - CI_Z.c75 * sem;
+  var hi75 = mean + CI_Z.c75 * sem;
+  var spans0 = lo75 <= 0 && hi75 >= 0;
+
   if (desiredSign === 0) {
-    // No preference known — neutral gray
-    return { c99: '#2a2a2a', c95: '#4a4a4a', c75: '#6a6a6a', tick: '#444' };
+    // No preference known — color by direction unless 75% CI spans 0
+    if (spans0) return { c99: '#e8e8e8', c95: '#d0d0d0', c75: '#b8b8b8', tick: '#666', isBad: false };
+    if (mean > 0) return { c99: '#e6f5d0', c95: '#b8e186', c75: '#7fbc41', tick: '#4d9221', isBad: false };
+    return { c99: '#fde0ef', c95: '#de77ae', c75: '#c51b7d', tick: '#8e0152', isBad: false };
   }
-  // Green when mean goes in desired direction, red when against
+  // Green when mean goes in desired direction, pink when against
   var isGood = mean * desiredSign > 0;
   var isBad = mean * desiredSign < 0;
-  if (isGood) return { c99: '#1a3a1a', c95: '#2a6a2a', c75: '#3a9a3a', tick: '#2a5a2a' };
-  if (isBad) return { c99: '#3a1a1a', c95: '#7a2a2a', c75: '#b03030', tick: '#5a2020' };
-  return { c99: '#2a2a2a', c95: '#4a4a4a', c75: '#6a6a6a', tick: '#444' };
+  // If 75% CI spans zero, use grey (uncertain)
+  if (spans0) return { c99: '#e8e8e8', c95: '#d0d0d0', c75: '#b8b8b8', tick: '#666', isBad: false };
+  if (isGood) return { c99: '#e6f5d0', c95: '#b8e186', c75: '#7fbc41', tick: '#4d9221', isBad: false };
+  if (isBad) return { c99: '#fde0ef', c95: '#de77ae', c75: '#c51b7d', tick: '#8e0152', isBad: true };
+  return { c99: '#e8e8e8', c95: '#d0d0d0', c75: '#b8b8b8', tick: '#666', isBad: false };
 }
 
 // Determine desired sign for each outcome
@@ -5169,13 +5256,23 @@ function getItemLabel(item) {
 
 function getItemStatusBadge(item) {
   if (!item || item.type !== 'candidate') return '';
-  return ' <span style="color:#e8b84d;font-size:9px;font-weight:600">[PENDING]</span>';
+  return ' <span style="color:#999;font-size:inherit">[PENDING]</span>';
 }
 
 function getItemPreds(item) {
   if (!item) return null;
   if (item.type === 'candidate') return candidates[item.idx] ? candidates[item.idx].preds : null;
   return arms[item.idx] ? arms[item.idx].preds : null;
+}
+
+function getItemColor(item) {
+  if (!item) return '#999';
+  if (item.type === 'candidate') {
+    var cand = candidates[item.idx];
+    return cand ? batchColor(cand.batchIndex) : '#999';
+  }
+  var arm = arms[item.idx];
+  return arm ? batchColor(arm.batchIndex) : '#999';
 }
 
 function showDeltoid(item) {
@@ -5188,12 +5285,14 @@ function showDeltoid(item) {
 
   var itemRelData = getItemRelData(displayItem);
   if (!itemRelData) {
-    rpTitle.innerHTML = getItemLabel(displayItem) + getItemStatusBadge(displayItem) + ' \u2014 no data';
+    var titleColor = getItemColor(displayItem);
+    rpTitle.innerHTML = '<span style="color:' + titleColor + '">' + getItemLabel(displayItem) + '</span>' + getItemStatusBadge(displayItem) + ' \u2014 no data';
     rpBars.innerHTML = '';
     return;
   }
 
-  rpTitle.innerHTML = getItemLabel(displayItem) + getItemStatusBadge(displayItem) + ' \u2014 % vs SQ';
+  var titleColor = getItemColor(displayItem);
+  rpTitle.innerHTML = '<span style="color:' + titleColor + '">' + getItemLabel(displayItem) + '</span>' + getItemStatusBadge(displayItem) + ' \u2014 % vs SQ';
 
   // Get raw predictions for constraint checking
   var itemPreds = getItemPreds(displayItem);
@@ -5218,82 +5317,148 @@ function showDeltoid(item) {
     }
   });
 
+  // Sort outcomes into groups: objectives (top), constraints (middle), tracking (bottom)
+  // Alphabetical within each group
+  var objNames = [], conNames = [], trackNames = [];
+  outcomeNames.forEach(function(name) {
+    if (objectiveSet[name]) objNames.push(name);
+    else if (constraintMap[name]) conNames.push(name);
+    else trackNames.push(name);
+  });
+  objNames.sort(); conNames.sort(); trackNames.sort();
+  var sortedNames = objNames.concat(conNames).concat(trackNames);
+
   var rowH = 30, barH = 11, labelW = 145, barW = 150, valW = 100, pad = 8;
   var totalW = labelW + barW + valW + pad * 3;
   var topPad = 20;
-  var totalH = outcomeNames.length * rowH + topPad + 8;
+  var totalH = sortedNames.length * rowH + topPad + 8;
 
   var lo = panelRange.lo, hi = panelRange.hi;
   function bx(v) { return labelW + pad + (v - lo) / (hi - lo) * barW; }
 
   var s = '<svg width="' + totalW + '" height="' + totalH + '" xmlns="http://www.w3.org/2000/svg">';
 
+  // Layer 1: Alternating row stripes (bottom)
+  sortedNames.forEach(function(name, k) {
+    if (k % 2 === 1) {
+      var stripY = k * rowH + topPad;
+      s += '<rect x="0" y="' + stripY + '" width="' + totalW + '" height="' + rowH + '" fill="#f7f7f7"/>';
+    }
+  });
+
+  // Layer 2: Grid lines + zero reference (on top of stripes)
   panelRange.ticks.forEach(function(tv) {
     var tx = bx(tv);
-    s += '<text x="' + tx + '" y="12" text-anchor="middle" fill="#555" font-size="9" font-family="sans-serif">' + tv + '%</text>';
-    s += '<line x1="' + tx + '" y1="16" x2="' + tx + '" y2="' + (totalH - 4) + '" stroke="#1e1e24" stroke-width="0.5"/>';
+    s += '<text x="' + tx + '" y="12" text-anchor="middle" fill="#999" font-size="9" font-family="sans-serif">' + tv + '%</text>';
+    s += '<line x1="' + tx + '" y1="16" x2="' + tx + '" y2="' + (totalH - 4) + '" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>';
   });
 
   if (lo <= 0 && hi >= 0) {
     var x0 = bx(0);
-    s += '<line x1="' + x0 + '" y1="16" x2="' + x0 + '" y2="' + (totalH - 4) + '" stroke="#3a3a44" stroke-width="1" stroke-dasharray="3,2"/>';
+    s += '<line x1="' + x0 + '" y1="16" x2="' + x0 + '" y2="' + (totalH - 4) + '" stroke="rgba(0,0,0,0.30)" stroke-width="1"/>';
   }
 
-  outcomeNames.forEach(function(name, k) {
+  // Layer 3: Row content (labels, CI bars, badges)
+  sortedNames.forEach(function(name, k) {
     var cy = k * rowH + rowH / 2 + topPad;
     var r = itemRelData[name];
+
+    // Classify metric type
+    var isObj = objectiveSet[name];
+    var constraint = constraintMap[name];
+    var threshold = thresholdMap[name];
+    var metricType = isObj ? 'Objective' : (constraint ? 'Constraint' : 'Tracking metric');
+    var isActiveOutcome = (sliderOutcome === name);
 
     // Build label with objective/constraint annotation
     var labelText = name;
     var labelColor = '#999';
-    var isObj = objectiveSet[name];
-    var constraint = constraintMap[name];
-    var isActiveOutcome = (sliderOutcome === name);
-
     if (isObj) {
       labelText = (isObj.minimize ? '\u2193 ' : '\u2191 ') + name;
-      labelColor = '#ccc';
+      labelColor = '#333';
     } else if (constraint) {
       labelText = name + ' ' + (constraint.op === 'LEQ' ? '\u2264' : '\u2265') + ' ' + constraint.bound;
-      labelColor = '#aaa';
+      labelColor = '#555';
     }
-    // Highlight active outcome for slider ordering
-    if (isActiveOutcome) labelColor = '#e8b84d';
+    if (isActiveOutcome) labelColor = '#4872f9';
 
-    // Clickable row — invisible hit area + label
+    // Clickable row group — click events bubble from children to <g>
     s += '<g data-outcome="' + name + '" style="cursor:pointer">';
-    s += '<rect x="0" y="' + (cy - rowH/2) + '" width="' + (labelW + pad + barW + pad) +
-         '" height="' + rowH + '" fill="transparent"/>';
-    // Check constraint violation (need this before rendering label for badge)
+
+    // Check constraint OR objective threshold violation
     var violated = false;
-    if (r && constraint && itemPreds) {
+    var violatedBound = null;
+    var violatedOp = null;
+    if (r && itemPreds) {
       var predMean = itemPreds[name].mean[0];
       var predVar = itemPreds[name].variance[0];
       var predSem = Math.sqrt(Math.max(0, predVar));
-      if (constraint.op === 'LEQ' && predMean + 1.96 * predSem > constraint.bound) violated = true;
-      if (constraint.op === 'GEQ' && predMean - 1.96 * predSem < constraint.bound) violated = true;
+      if (constraint) {
+        if (constraint.op === 'LEQ' && predMean + 1.96 * predSem > constraint.bound) {
+          violated = true; violatedBound = constraint.bound; violatedOp = constraint.op;
+        }
+        if (constraint.op === 'GEQ' && predMean - 1.96 * predSem < constraint.bound) {
+          violated = true; violatedBound = constraint.bound; violatedOp = constraint.op;
+        }
+      }
+      if (threshold) {
+        if (threshold.op === 'LEQ' && predMean + 1.96 * predSem > threshold.bound) {
+          violated = true; violatedBound = threshold.bound; violatedOp = threshold.op;
+        }
+        if (threshold.op === 'GEQ' && predMean - 1.96 * predSem < threshold.bound) {
+          violated = true; violatedBound = threshold.bound; violatedOp = threshold.op;
+        }
+      }
     }
 
-    // Violation badge: small triangle to the LEFT of the label
+    // Violation badge: left-justified at x=4
     if (violated) {
-      var badgeX = labelW - 4 - labelText.length * 6.2 - 14;
-      s += '<text x="' + Math.max(2, badgeX) + '" y="' + (cy + 4) +
-           '" fill="#c66" font-size="12" font-family="sans-serif">\u26A0</text>';
+      s += '<text x="4" y="' + (cy + 5) +
+           '" fill="#d32f2f" font-size="13" font-weight="700" font-family="sans-serif">\u26A0</text>';
     }
 
-    s += '<text x="' + (labelW - 4) + '" y="' + (cy + 4) +
+    // Label with tooltip for metric type
+    s += '<text data-tip="' + metricType + '" x="' + (labelW - 4) + '" y="' + (cy + 4) +
          '" text-anchor="end" fill="' + labelColor + '" font-size="11" font-family="sans-serif"' +
          (isActiveOutcome ? ' font-weight="600"' : '') + '>' + labelText + '</text>';
 
     if (r) {
 
       var desiredSign = outcomeDesiredSign(name);
-      var cols = ciColors(r.mean, desiredSign);
-      // Override colors for violated constraints
+      var cols = ciColors(r.mean, r.sem, desiredSign);
       if (violated) {
-        cols = { c99: '#3a1a1a', c95: '#7a2a2a', c75: '#b03030', tick: '#5a2020' };
+        cols = { c99: '#fde0ef', c95: '#de77ae', c75: '#c51b7d', tick: '#8e0152', isBad: true };
       }
 
+      // Determine interval tooltip text
+      var intervalTooltip;
+      if (cols.isBad) {
+        intervalTooltip = 'Metric regression: ' + r.mean.toFixed(2) + '% vs SQ';
+        if (violated && violatedBound !== null) {
+          var boundRel = relConstraintBounds[name];
+          if (boundRel) {
+            intervalTooltip += '\nFalls ' + (violatedOp === 'LEQ' ? 'above' : 'below') +
+              ' constraint threshold ' + violatedBound + ' (' + boundRel.rel.toFixed(1) + '% vs SQ)';
+          }
+        }
+      } else if (cols.c75 === '#b8b8b8') {
+        intervalTooltip = 'Likely neutral: ' + r.mean.toFixed(2) + '% vs SQ';
+      } else {
+        intervalTooltip = 'Metric improvement: ' + r.mean.toFixed(2) + '% vs SQ';
+      }
+
+      // Red outline halo for constraint-violating intervals
+      if (violated) {
+        var haloX1 = bx(r.mean - CI_Z.c99 * r.sem) - 2;
+        var haloX2 = bx(r.mean + CI_Z.c99 * r.sem) + 2;
+        var haloW = Math.max(4, haloX2 - haloX1);
+        s += '<rect x="' + haloX1 + '" y="' + (cy - barH/2 - 2) +
+             '" width="' + haloW + '" height="' + (barH + 4) +
+             '" fill="none" stroke="#d32f2f" stroke-width="1.5" rx="3"/>';
+      }
+
+      // CI interval bars with tooltip
+      var escapedTip = intervalTooltip.replace(/"/g, '&quot;');
       var intervals = [
         { z: CI_Z.c99, fill: cols.c99, h: barH },
         { z: CI_Z.c95, fill: cols.c95, h: barH - 2 },
@@ -5304,23 +5469,29 @@ function showDeltoid(item) {
         var x1 = bx(r.mean - ci.z * r.sem);
         var x2 = bx(r.mean + ci.z * r.sem);
         var w = Math.max(1, x2 - x1);
-        s += '<rect x="' + x1 + '" y="' + (cy - ci.h/2) +
+        s += '<rect data-tip="' + escapedTip + '" x="' + x1 + '" y="' + (cy - ci.h/2) +
              '" width="' + w + '" height="' + ci.h +
              '" fill="' + ci.fill + '" rx="1.5"/>';
       }
 
       var xm = bx(r.mean);
-      s += '<line x1="' + xm + '" y1="' + (cy - barH/2 + 1) + '" x2="' + xm +
+      s += '<line data-tip="' + escapedTip + '" x1="' + xm + '" y1="' + (cy - barH/2 + 1) + '" x2="' + xm +
            '" y2="' + (cy + barH/2 - 1) + '" stroke="' + cols.tick + '" stroke-width="2"/>';
 
       // Constraint/threshold bound dashed line (in relative space)
       var boundInfo = relConstraintBounds[name];
       if (boundInfo && boundInfo.rel >= lo && boundInfo.rel <= hi) {
         var bxPos = bx(boundInfo.rel);
-        var boundColor = constraint ? '#c66' : '#e8b84d';
-        s += '<line x1="' + bxPos + '" y1="' + (cy - barH/2 - 3) + '" x2="' + bxPos +
+        var boundColor = violated ? '#d32f2f' : '#4d9221';
+        var opWord = boundInfo.op === 'LEQ' ? 'less' : 'greater';
+        var boundTooltip = name + ' must be ' + opWord + ' than ' + boundInfo.rel.toFixed(1) + '% vs SQ';
+        var escapedBound = boundTooltip.replace(/"/g, '&quot;');
+        s += '<line data-tip="' + escapedBound + '" x1="' + bxPos + '" y1="' + (cy - barH/2 - 3) + '" x2="' + bxPos +
              '" y2="' + (cy + barH/2 + 3) + '" stroke="' + boundColor +
              '" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.7"/>';
+        // Invisible wider hit area for easier hover
+        s += '<line data-tip="' + escapedBound + '" x1="' + bxPos + '" y1="' + (cy - barH/2 - 3) + '" x2="' + bxPos +
+             '" y2="' + (cy + barH/2 + 3) + '" stroke="transparent" stroke-width="8"/>';
       }
 
       // Value annotation
@@ -5329,7 +5500,7 @@ function showDeltoid(item) {
            '" fill="' + (violated ? '#c66' : '#777') + '" font-size="10" font-family="sans-serif">' + valStr + '</text>';
     } else {
       s += '<text x="' + (labelW + pad + barW/2) + '" y="' + (cy + 4) +
-           '" text-anchor="middle" fill="#555" font-size="10" font-style="italic" font-family="sans-serif">N/A</text>';
+           '" text-anchor="middle" fill="#999" font-size="10" font-style="italic" font-family="sans-serif">N/A</text>';
     }
     s += '</g>';
   });
@@ -5342,7 +5513,7 @@ function showDeltoid(item) {
     var pofPct = (pof * 100).toFixed(1);
     var col = pofColor(pof);
     pofHtml = '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;padding:4px 0">';
-    pofHtml += '<span style="font-size:10px;color:#555;letter-spacing:.06em;text-transform:uppercase">P(feasible)</span>';
+    pofHtml += '<span style="font-size:10px;color:#999;letter-spacing:.06em;text-transform:uppercase">P(feasible)</span>';
     pofHtml += '<span style="font-size:15px;font-weight:600;color:' + col + '">' + pofPct + '%</span>';
     pofHtml += '</div>';
   }
@@ -5378,10 +5549,9 @@ function renderSliders() {
   var label = getItemLabel(selectedItem);
 
   var html = '<div class="slider-section">';
-  // Candidates get white title to indicate they're mutable
-  var titleStyle = isCandidate ? ' style="color:#e0e0e0"' : '';
+  var itemColor = getItemColor(selectedItem);
   var badge = getItemStatusBadge(selectedItem);
-  html += '<div class="section-title"' + titleStyle + '>' + label + badge;
+  html += '<div class="section-title"><span style="color:' + itemColor + '">' + label + '</span>' + badge;
 
   html += ' <button class="clone-btn" id="btnClone">clone</button>';
   if (isCandidate) {
@@ -5401,7 +5571,7 @@ function renderSliders() {
         if (impScores[d] > maxImp) maxImp = impScores[d];
       }
     }
-    html += '<div style="font-size:10px;color:#e8b84d;margin-bottom:6px">Sorted by ' + sliderOutcome + ' importance</div>';
+    html += '<div style="font-size:10px;color:#4872f9;margin-bottom:6px">Sorted by ' + sliderOutcome + ' importance</div>';
   } else {
     // No outcome selected: geometric mean of 1/LS across all outcomes
     for (var d = 0; d < nDims; d++) {
@@ -5424,9 +5594,9 @@ function renderSliders() {
     var step = (bHi - bLo) / 200;
     var impFrac = maxImp > 0 ? impScores[j] / maxImp : 0;
     var barW = Math.round(impFrac * 96); // max 96px within 100px label
-    var barColor = sliderOutcome ? '#e8b84d' : '#7c8cc8';
+    var barColor = sliderOutcome ? '#4872f9' : '#636EFA';
     html += '<div class="param-row">';
-    var labelStyle = isEditable ? ' style="color:#bbb"' : '';
+    var labelStyle = isEditable ? ' style="color:#333"' : '';
     html += '<label' + labelStyle + '>' + paramNames[j];
     if (barW > 2) {
       html += '<span class="imp-bar" style="width:' + barW + 'px;background:' + barColor + '"></span>';
@@ -5461,7 +5631,7 @@ function renderSliders() {
             // Update slider section title in-place to show (edited)
             var titleEl = rpSliders.querySelector('.section-title');
             if (titleEl) {
-              var newLabel = getItemLabel(selectedItem) + getItemStatusBadge(selectedItem);
+              var newLabel = '<span style="color:' + getItemColor(selectedItem) + '">' + getItemLabel(selectedItem) + '</span>' + getItemStatusBadge(selectedItem);
               // Preserve buttons at the end
               var btns = titleEl.querySelectorAll('button');
               titleEl.innerHTML = newLabel;
@@ -5652,22 +5822,7 @@ selSQ.addEventListener('change', function() {
 });
 selDistMode.addEventListener('change', function() { updateOpacities(); });
 
-document.getElementById('btnResample').addEventListener('click', function() {
-  selectedItem = null;
-  hoveredItem = null;
-  sliderOutcome = null;
-  sliderDimOrder = null;
-  rpTitle.textContent = 'Hover over an arm to see all outcomes';
-  rpBars.innerHTML = '';
-  rpSliders.innerHTML = '';
-  buildFromFixture(FIXTURE_SOBOL_X, FIXTURE_SOBOL_Y, FIXTURE_EHVI_X, FIXTURE_EHVI_Y, FIXTURE_CAND_X);
-  nArms = arms.length;
-  computeAllRelData();
-  computePanelRange();
-  populateSQDropdown();
-  renderScatter();
-  updateSubtitle();
-});
+
 
 document.getElementById('btnNewCand').addEventListener('click', createNewCandidate);
 document.getElementById('btnExport').addEventListener('click', exportCandidates);
@@ -5683,7 +5838,11 @@ function updateSubtitle() {
 
 // ── Init ──
 updateSubtitle();
+// Auto-select the first arm so the RHS panel is populated on load
+selectedItem = { type: 'arm', idx: 0 };
 renderScatter();
+showDeltoid(selectedItem);
+renderSliders();
 })();
 
 </script>

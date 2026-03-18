@@ -10,13 +10,13 @@ return `<!DOCTYPE html>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #0f0f11; color: #e0e0e0; padding: 2rem; min-height: 100vh; }
-  h1 { font-size: 18px; font-weight: 500; color: #f0f0f0; margin-bottom: 4px; }
-  .subtitle { font-size: 13px; color: #888; margin-bottom: 16px; }
+    background: #fff; color: #1a1a1a; padding: 2rem; min-height: 100vh; }
+  h1 { font-size: 18px; font-weight: 500; color: #111; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 16px; }
   .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
-  label { font-size: 13px; color: #aaa; }
+  label { font-size: 13px; color: #555; }
   select, input[type=file] { font-size: 13px; padding: 5px 10px;
-    border-radius: 6px; border: 0.5px solid #444; background: #1a1a1d; color: #e0e0e0; cursor: pointer; outline: none; }
+    border-radius: 6px; border: 0.5px solid #d0d0d0; background: #fff; color: #333; cursor: pointer; outline: none; }
 </style>
 </head>
 <body>

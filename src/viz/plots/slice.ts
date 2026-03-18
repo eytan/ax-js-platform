@@ -257,9 +257,19 @@ function renderSlicePlotStatic(
     const svg = svgEl("svg", { width: W, height: H });
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
 
+    // Axis border lines (bottom + left)
+    svg.appendChild(svgEl("line", {
+      x1: margin.left, x2: margin.left + pw, y1: margin.top + ph, y2: margin.top + ph,
+      stroke: "rgba(0,0,0,0.20)", "stroke-width": 1,
+    }));
+    svg.appendChild(svgEl("line", {
+      x1: margin.left, x2: margin.left, y1: margin.top, y2: margin.top + ph,
+      stroke: "rgba(0,0,0,0.20)", "stroke-width": 1,
+    }));
+
     // Title
     svg.appendChild(Object.assign(
-      svgEl("text", { x: margin.left + pw / 2, y: 16, fill: "#999", "font-size": 12, "text-anchor": "middle" }),
+      svgEl("text", { x: margin.left + pw / 2, y: 16, fill: "#555", "font-size": 12, "text-anchor": "middle" }),
       { textContent: names[dim] },
     ));
 
@@ -269,13 +279,13 @@ function renderSlicePlotStatic(
         const cx = sx(ci), cyMu = sy(means[ci]);
         const cyUp = sy(upper[ci]), cyLo = sy(lower[ci]);
         // Error bar
-        svg.appendChild(svgEl("line", { x1: cx, y1: cyUp, x2: cx, y2: cyLo, stroke: "rgba(100,120,230,0.5)", "stroke-width": 2 }));
+        svg.appendChild(svgEl("line", { x1: cx, y1: cyUp, x2: cx, y2: cyLo, stroke: "rgba(72,114,249,0.4)", "stroke-width": 2 }));
         // Caps
         for (const capY of [cyUp, cyLo]) {
-          svg.appendChild(svgEl("line", { x1: cx - 4, y1: capY, x2: cx + 4, y2: capY, stroke: "rgba(100,120,230,0.5)", "stroke-width": 1.5 }));
+          svg.appendChild(svgEl("line", { x1: cx - 4, y1: capY, x2: cx + 4, y2: capY, stroke: "rgba(72,114,249,0.4)", "stroke-width": 1.5 }));
         }
         // Mean dot
-        svg.appendChild(svgEl("circle", { cx, cy: cyMu, r: 5, fill: "rgba(130,155,255,0.9)", stroke: "white", "stroke-width": 1.5 }));
+        svg.appendChild(svgEl("circle", { cx, cy: cyMu, r: 5, fill: "#4872f9", stroke: "#444", "stroke-width": 1.5 }));
       }
     } else {
       // Continuous: CI band + mean line
@@ -283,11 +293,11 @@ function renderSlicePlotStatic(
       for (let i = 1; i < xs.length; i++) bandD += ` L ${sx(xs[i])} ${sy(upper[i])}`;
       for (let i = xs.length - 1; i >= 0; i--) bandD += ` L ${sx(xs[i])} ${sy(lower[i])}`;
       bandD += " Z";
-      svg.appendChild(svgEl("path", { d: bandD, fill: "rgba(100,120,230,0.18)" }));
+      svg.appendChild(svgEl("path", { d: bandD, fill: "rgba(72,114,249,0.10)" }));
 
       let lineD = `M ${sx(xs[0])} ${sy(means[0])}`;
       for (let i = 1; i < xs.length; i++) lineD += ` L ${sx(xs[i])} ${sy(means[i])}`;
-      svg.appendChild(svgEl("path", { d: lineD, stroke: "rgba(130,155,255,0.9)", "stroke-width": 2, fill: "none" }));
+      svg.appendChild(svgEl("path", { d: lineD, stroke: "#4872f9", "stroke-width": 2, fill: "none" }));
     }
 
     // Training data dots
@@ -314,12 +324,12 @@ function renderSlicePlotStatic(
         if (ptScreenY >= margin.top && ptScreenY <= H - margin.bottom) {
           const dot = svgEl("circle", {
             cx: ptScreenX, cy: ptScreenY, r: 3,
-            fill: "rgba(255,80,80,0.85)", stroke: "rgba(255,255,255,0.5)", "stroke-width": 1,
+            fill: "rgba(217,95,78,0.9)", stroke: "rgba(68,68,68,0.35)", "stroke-width": 1,
           });
           svg.appendChild(dot);
           sliceDots.push({
             cx: ptScreenX, cy: ptScreenY, idx: i, pt: td.X[i], el: dot,
-            defaultFill: "rgba(255,80,80,0.85)", defaultStroke: "rgba(255,255,255,0.5)", defaultR: 3,
+            defaultFill: "rgba(217,95,78,0.9)", defaultStroke: "rgba(68,68,68,0.35)", defaultR: 3,
           });
         }
       }
@@ -331,9 +341,9 @@ function renderSlicePlotStatic(
     for (let t = 0; t <= nYTicks; t++) {
       const v = yMin + (yRange * t) / nYTicks;
       const yp = sy(v);
-      svg.appendChild(svgEl("line", { x1: margin.left, x2: margin.left + pw, y1: yp, y2: yp, stroke: "rgba(255,255,255,0.06)" }));
+      svg.appendChild(svgEl("line", { x1: margin.left, x2: margin.left + pw, y1: yp, y2: yp, stroke: "rgba(0,0,0,0.06)" }));
       svg.appendChild(Object.assign(
-        svgEl("text", { x: margin.left - 6, y: yp + 4, fill: "#666", "font-size": 10, "text-anchor": "end" }),
+        svgEl("text", { x: margin.left - 6, y: yp + 4, fill: "#999", "font-size": 10, "text-anchor": "end" }),
         { textContent: v.toFixed(2) },
       ));
     }
@@ -342,7 +352,7 @@ function renderSlicePlotStatic(
     if (dimIsChoice) {
       for (let ci = 0; ci < xs.length; ci++) {
         svg.appendChild(Object.assign(
-          svgEl("text", { x: sx(ci), y: H - margin.bottom + 16, fill: "#666", "font-size": 10, "text-anchor": "middle" }),
+          svgEl("text", { x: sx(ci), y: H - margin.bottom + 16, fill: "#999", "font-size": 10, "text-anchor": "middle" }),
           { textContent: String(p.values![ci]) },
         ));
       }
@@ -352,7 +362,7 @@ function renderSlicePlotStatic(
         let xv = xLo + (xHi - xLo) * t / nXTicks;
         if (dimIsInt) xv = Math.round(xv);
         svg.appendChild(Object.assign(
-          svgEl("text", { x: sx(xv), y: H - margin.bottom + 16, fill: "#666", "font-size": 10, "text-anchor": "middle" }),
+          svgEl("text", { x: sx(xv), y: H - margin.bottom + 16, fill: "#999", "font-size": 10, "text-anchor": "middle" }),
           { textContent: dimIsInt ? String(xv) : xv.toFixed(2) },
         ));
       }
@@ -360,15 +370,15 @@ function renderSlicePlotStatic(
 
     // X-axis label
     svg.appendChild(Object.assign(
-      svgEl("text", { x: margin.left + pw / 2, y: H - 4, fill: "#666", "font-size": 11, "text-anchor": "middle" }),
+      svgEl("text", { x: margin.left + pw / 2, y: H - 4, fill: "#999", "font-size": 11, "text-anchor": "middle" }),
       { textContent: names[dim] },
     ));
 
     // Hover line + dot on mean curve (hidden by default)
-    const hoverLine = svgEl("line", { y1: margin.top, y2: margin.top + ph, stroke: "rgba(255,255,255,0.3)", "stroke-width": 1 });
+    const hoverLine = svgEl("line", { y1: margin.top, y2: margin.top + ph, stroke: "rgba(0,0,0,0.10)", "stroke-width": 1, "stroke-dasharray": "4,3" });
     (hoverLine as unknown as HTMLElement).style.display = "none";
     svg.appendChild(hoverLine);
-    const hoverDot = svgEl("circle", { r: 4, fill: "rgba(130,155,255,0.9)", stroke: "white", "stroke-width": 1.5 });
+    const hoverDot = svgEl("circle", { r: 4, fill: "#4872f9", stroke: "#444", "stroke-width": 1.5 });
     (hoverDot as unknown as HTMLElement).style.display = "none";
     svg.appendChild(hoverDot);
 
@@ -419,9 +429,9 @@ function renderSlicePlotStatic(
           }
 
           // Build tooltip for training point
-          let html = `<div style="font-size:11px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">training point #${hitPt.idx + 1}</div>`;
-          html += `<span style="color:#ff6b6b;font-weight:500">y = ${td.Y[hitPt.idx].toFixed(4)}</span><br>`;
-          html += names.map((n, j) => `<span style="color:#a0c4ff">${n}</span> = ${formatParamValue(td.X[hitPt.idx][j], params[j])}`).join("<br>");
+          let html = `<div style="font-size:11px;color:#999;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">training point #${hitPt.idx + 1}</div>`;
+          html += `<span style="color:#333;font-weight:500">y = ${td.Y[hitPt.idx].toFixed(4)}</span><br>`;
+          html += names.map((n, j) => `<span style="color:#666">${n}</span> = ${formatParamValue(td.X[hitPt.idx][j], params[j])}`).join("<br>");
           tooltip!.innerHTML = html;
           tooltip!.style.display = "block";
           positionTooltip(tooltip!, e.clientX, e.clientY);
@@ -453,9 +463,9 @@ function renderSlicePlotStatic(
           (hoverDot as unknown as HTMLElement).style.display = "";
 
           const xLabel = dimIsChoice ? String(p.values![idx]) : formatParamValue(xs[idx], p);
-          let html = `<div style="font-size:11px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">${names[dim]}</div>`;
-          html += `<span style="color:#a0c4ff">${names[dim]}</span> = ${xLabel}<br>`;
-          html += `\u03BC = <span style="color:#ff6b6b;font-weight:500">${mu.toFixed(4)}</span><br>`;
+          let html = `<div style="font-size:11px;color:#999;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">${names[dim]}</div>`;
+          html += `<span style="color:#666">${names[dim]}</span> = ${xLabel}<br>`;
+          html += `\u03BC = <span style="color:#4872f9;font-weight:500">${mu.toFixed(4)}</span><br>`;
           html += `\u03C3 = ${s.toFixed(4)}<br>`;
           html += `95% CI: [${(mu - 2 * s).toFixed(4)}, ${(mu + 2 * s).toFixed(4)}]`;
           tooltip!.innerHTML = html;

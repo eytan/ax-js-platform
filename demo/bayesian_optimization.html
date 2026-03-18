@@ -8,55 +8,55 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #0f0f11; color: #e0e0e0;
+    background: #fff; color: #1a1a1a;
     padding: 2rem; min-height: 100vh;
   }
-  h1 { font-size: 18px; font-weight: 500; color: #f0f0f0; margin-bottom: 4px; }
-  .subtitle { font-size: 13px; color: #888; margin-bottom: 16px; }
+  h1 { font-size: 18px; font-weight: 500; color: #111; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 16px; }
   .controls { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; }
   button {
     font-size: 13px; padding: 6px 16px;
-    border-radius: 6px; border: 0.5px solid #444;
-    background: #1a1a1d; color: #e0e0e0; cursor: pointer; outline: none;
+    border-radius: 6px; border: 0.5px solid #d0d0d0;
+    background: #fff; color: #333; cursor: pointer; outline: none;
   }
   select {
     font-size: 13px; padding: 5px 10px;
-    border-radius: 6px; border: 0.5px solid #444;
-    background: #1a1a1d; color: #e0e0e0; cursor: pointer; outline: none;
+    border-radius: 6px; border: 0.5px solid #d0d0d0;
+    background: #fff; color: #333; cursor: pointer; outline: none;
   }
-  button:hover, select:hover { background: #252528; }
+  button:hover, select:hover { background: #f0f0f0; }
   button:disabled { opacity: 0.4; cursor: default; }
-  .status { font-size: 13px; color: #888; }
-  .status span { font-weight: 500; color: #ccc; }
+  .status { font-size: 13px; color: #666; }
+  .status span { font-weight: 500; color: #333; }
   .plots { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
   .plot { display: flex; flex-direction: column; gap: 6px; }
-  .plot-title { font-size: 12px; color: #888; text-align: center; letter-spacing: 0.04em; }
+  .plot-title { font-size: 12px; color: #666; text-align: center; letter-spacing: 0.04em; }
   .canvas-wrap { position: relative; display: inline-block; }
   canvas.main {
     display: block; border-radius: 6px;
-    border: 0.5px solid #333; cursor: crosshair;
+    border: 0.5px solid #d0d0d0; cursor: crosshair;
   }
   canvas.overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
   .cbrow { display: flex; align-items: center; gap: 6px; }
   .cblbl { font-size: 11px; color: #666; min-width: 40px; }
   canvas.cbar { height: 16px; flex: 1; border-radius: 4px; }
-  .info { font-size: 13px; color: #777; margin-top: 14px; line-height: 1.8; }
-  .info span { font-weight: 500; color: #ccc; }
-  .statline { font-size: 13px; color: #777; margin-top: 14px; min-height: 1.5em; }
-  .statline span { font-weight: 500; color: #ddd; }
-  .legend { display: flex; gap: 16px; margin-top: 10px; font-size: 12px; color: #777; }
+  .info { font-size: 13px; color: #666; margin-top: 14px; line-height: 1.8; }
+  .info span { font-weight: 500; color: #333; }
+  .statline { font-size: 13px; color: #666; margin-top: 14px; min-height: 1.5em; }
+  .statline span { font-weight: 500; color: #333; }
+  .legend { display: flex; gap: 16px; margin-top: 10px; font-size: 12px; color: #666; }
   .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
   #tooltip {
     position: fixed; display: none;
-    background: #1e1e22; border: 0.5px solid #555;
+    background: rgba(255,255,255,0.97); border: 0.5px solid #d0d0d0;
     border-radius: 7px; padding: 9px 13px;
-    font-size: 12px; color: #ccc;
+    font-size: 12px; color: #333;
     pointer-events: none; z-index: 100;
     line-height: 1.8; white-space: nowrap;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
   }
   #tooltip .tt-title {
-    font-size: 11px; color: #888; letter-spacing: 0.05em;
+    font-size: 11px; color: #999; letter-spacing: 0.05em;
     text-transform: uppercase; margin-bottom: 4px;
   }
   #tooltip .tt-val { color: #ff6b6b; font-weight: 500; }
@@ -65,7 +65,7 @@
 </head>
 <body>
 
-<h1><a href="index.html" style="text-decoration:none"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="29" height="29" style="vertical-align:-4px;margin-right:8px;opacity:0.7"><path fill="#fff" d="M761.76,600h0l200-346.16H550.12l-400,692.32H961.76ZM573.41,274H926.82L750.12,579.85ZM550.12,926H185.06L555.94,284.07,738.47,600Zm23.29,0L750.12,620.15,926.82,926Z"/></svg></a>Bayesian Optimization</h1>
+<h1><a href="index.html" style="text-decoration:none"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="29" height="29" style="vertical-align:-4px;margin-right:8px;opacity:0.7"><path fill="#222" d="M761.76,600h0l200-346.16H550.12l-400,692.32H961.76ZM573.41,274H926.82L750.12,579.85ZM550.12,926H185.06L555.94,284.07,738.47,600Zm23.29,0L750.12,620.15,926.82,926Z"/></svg></a>Bayesian Optimization</h1>
 <p class="subtitle">Thompson Sampling (2D) - ScaleKernel(RBF) - GP fitted via MAP</p>
 
 <div class="controls">
@@ -122,16 +122,16 @@
   </div>
   <div class="plot">
     <div class="plot-title">optimization trace</div>
-    <div id="traceContainer" style="width:320px;height:320px;background:#111;border-radius:6px;border:0.5px solid #333;position:relative;overflow:hidden;"></div>
+    <div id="traceContainer" style="width:320px;height:320px;background:#fff;border-radius:6px;border:0.5px solid #d0d0d0;position:relative;overflow:hidden;"></div>
   </div>
 </div>
 
 <div id="tooltip"><div class="tt-title" id="tt-title"></div><div id="tt-body"></div></div>
 
 <div class="legend">
-  <span><span class="legend-dot" style="background:#fff"></span>initial points</span>
-  <span><span class="legend-dot" style="background:#6f6"></span>BO points</span>
-  <span><span class="legend-dot" style="background:#f44"></span>latest</span>
+  <span><span class="legend-dot" style="background:#888"></span>initial points</span>
+  <span><span class="legend-dot" style="background:#4872f9"></span>BO points</span>
+  <span><span class="legend-dot" style="background:#d95f4e"></span>latest</span>
   <span><span class="legend-dot" style="background:#ff0; border:1px solid #aa0"></span>global minima</span>
 </div>
 <div class="statline" id="statline">hover over posterior maps to inspect</div>
@@ -2347,7 +2347,7 @@ var Ax;
   -webkit-user-select: auto;
   flex: 1;
   min-width: 100px;
-  accent-color: #7c6ff7;
+  accent-color: #4872f9;
 }
 :scope .axjs-slider::-webkit-slider-thumb {
   -webkit-appearance: auto;
@@ -2363,9 +2363,9 @@ var Ax;
 :scope .axjs-select {
   pointer-events: auto;
   cursor: pointer;
-  background: #1a1a1d;
-  color: #e0e0e0;
-  border: 1px solid #333;
+  background: #fff;
+  color: #333;
+  border: 1px solid #d0d0d0;
   border-radius: 4px;
   padding: 3px 8px;
   font-size: 12px;
@@ -2374,12 +2374,12 @@ var Ax;
 :scope .axjs-tooltip {
   position: fixed;
   display: none;
-  background: rgba(20,20,24,0.95);
-  border: 1px solid #444;
+  background: rgba(255,255,255,0.97);
+  border: 1px solid #d0d0d0;
   border-radius: 6px;
   padding: 8px 12px;
   font-size: 12px;
-  color: #e0e0e0;
+  color: #333;
   pointer-events: none;
   z-index: 10000;
   white-space: nowrap;
@@ -2396,7 +2396,7 @@ var Ax;
 }
 :scope .axjs-slider-label {
   font-size: 13px;
-  color: #888;
+  color: #666;
   min-width: 140px;
   text-align: right;
   overflow: hidden;
@@ -2406,7 +2406,7 @@ var Ax;
 :scope .axjs-slider-value {
   font-size: 13px;
   font-weight: 500;
-  color: #ccc;
+  color: #333;
   min-width: 70px;
   text-align: right;
 }
@@ -2518,13 +2518,13 @@ var Ax;
   }
 
   // src/viz/drawDataDot.ts
-  function drawDataDot(ctx, x, y, alpha, isActive, isHovered, fillRGB = [255, 60, 60]) {
+  function drawDataDot(ctx, x, y, alpha, isActive, isHovered, fillRGB = [217, 95, 78]) {
     if (alpha < 0.04) return;
     const outerR = isActive || isHovered ? 7.5 : 5;
     const innerR = isActive || isHovered ? 4 : 2.5;
     ctx.beginPath();
     ctx.arc(x, y, outerR, 0, 2 * Math.PI);
-    ctx.strokeStyle = isActive ? "rgba(255,255,255,1)" : `rgba(255,255,255,${Math.max(0.15, alpha * 0.6).toFixed(3)})`;
+    ctx.strokeStyle = isActive ? "rgba(68,68,68,1)" : `rgba(68,68,68,${Math.max(0.15, alpha * 0.6).toFixed(3)})`;
     ctx.lineWidth = isActive ? 2.5 : isHovered ? 2 : 1.5;
     ctx.stroke();
     ctx.beginPath();
@@ -2681,7 +2681,7 @@ var Ax;
         const sl = document.createElement("input");
         sl.type = "range";
         sl.className = "axjs-slider";
-        sl.style.cssText = "-webkit-appearance:auto;appearance:auto;cursor:pointer;touch-action:none;pointer-events:auto;user-select:auto;-webkit-user-select:auto;flex:1;min-width:100px;accent-color:#7c6ff7;";
+        sl.style.cssText = "-webkit-appearance:auto;appearance:auto;cursor:pointer;touch-action:none;pointer-events:auto;user-select:auto;-webkit-user-select:auto;flex:1;min-width:100px;accent-color:#4872f9;";
         sl.min = String(lo);
         sl.max = String(hi);
         sl.step = isInteger(p) ? "1" : String((hi - lo) / 200);
@@ -2731,7 +2731,7 @@ var Ax;
     const tooltip = document.createElement("div");
     tooltip.className = "axjs-tooltip";
     if (containerId) tooltip.setAttribute("data-axjs-for", containerId);
-    tooltip.style.cssText = "position:fixed;display:none;background:rgba(20,20,24,0.95);border:1px solid #444;border-radius:6px;padding:8px 12px;font-size:12px;color:#e0e0e0;pointer-events:none;z-index:10000;white-space:nowrap;";
+    tooltip.style.cssText = "position:fixed;display:none;background:rgba(255,255,255,0.97);border:1px solid #d0d0d0;border-radius:6px;padding:8px 12px;font-size:12px;color:#333;pointer-events:none;z-index:10000;white-space:nowrap;";
     document.body.appendChild(tooltip);
     return tooltip;
   }
@@ -2747,7 +2747,7 @@ var Ax;
     const wrapper = document.createElement("div");
     wrapper.style.cssText = "display:flex;align-items:center;gap:4px";
     const lbl = document.createElement("span");
-    lbl.style.cssText = "color:#888;font-size:12px";
+    lbl.style.cssText = "color:#666;font-size:12px";
     lbl.textContent = label;
     const select = document.createElement("select");
     select.className = "axjs-select";
@@ -2775,19 +2775,19 @@ var Ax;
     for (let i = 0; i < dots.length; i++) {
       const d = dots[i];
       if (i === activeIdx) {
-        d.el.setAttribute("fill", "rgba(255,80,80,0.95)");
-        d.el.setAttribute("stroke", "rgba(255,255,255,1)");
+        d.el.setAttribute("fill", "rgba(217,95,78,0.95)");
+        d.el.setAttribute("stroke", "rgba(68,68,68,1)");
         d.el.setAttribute("stroke-width", "2");
         d.el.setAttribute("r", String(d.defaultR + 2));
-        if (d.whisker) d.whisker.setAttribute("stroke", "rgba(255,80,80,0.5)");
+        if (d.whisker) d.whisker.setAttribute("stroke", "rgba(217,95,78,0.5)");
       } else {
         const relNorm = rels.max > 0 ? rels.raw[i] / rels.max : 0;
         const fa = Math.max(0.08, Math.min(0.9, Math.sqrt(relNorm)));
-        d.el.setAttribute("fill", `rgba(255,80,80,${fa.toFixed(3)})`);
-        d.el.setAttribute("stroke", `rgba(255,255,255,${Math.max(0.15, fa * 0.6).toFixed(3)})`);
+        d.el.setAttribute("fill", `rgba(217,95,78,${fa.toFixed(3)})`);
+        d.el.setAttribute("stroke", `rgba(68,68,68,${Math.max(0.15, fa * 0.6).toFixed(3)})`);
         d.el.setAttribute("stroke-width", "1");
         d.el.setAttribute("r", String(d.defaultR));
-        if (d.whisker) d.whisker.setAttribute("stroke", `rgba(255,80,80,${(fa * 0.35).toFixed(3)})`);
+        if (d.whisker) d.whisker.setAttribute("stroke", `rgba(217,95,78,${(fa * 0.35).toFixed(3)})`);
       }
     }
   }
@@ -2797,7 +2797,7 @@ var Ax;
       d.el.setAttribute("stroke", d.defaultStroke);
       d.el.setAttribute("stroke-width", "1");
       d.el.setAttribute("r", String(d.defaultR));
-      if (d.whisker) d.whisker.setAttribute("stroke", "rgba(124,154,255,0.3)");
+      if (d.whisker) d.whisker.setAttribute("stroke", "rgba(217,95,78,0.3)");
     }
   }
   function findNearestDot(dots, px, py, maxDist = 12) {
@@ -2820,14 +2820,14 @@ var Ax;
       const td = predictor.getTrainingData(name);
       if (idx >= td.Y.length) continue;
       const isSel = name === selectedOutcome;
-      const color = isSel ? "#7c9aff" : "#888";
+      const color = isSel ? "#4872f9" : "#666";
       html += `${isSel ? "<b>" : ""}${name} = <span style="color:${color}">${td.Y[idx].toFixed(4)}</span>${isSel ? "</b>" : ""}<br>`;
     }
-    html += '<hr style="border-color:#333;margin:4px 0">';
+    html += '<hr style="border-color:#e8e8e8;margin:4px 0">';
     const td0 = predictor.getTrainingData(predictor.outcomeNames[0]);
     if (idx < td0.X.length) {
       for (let j = 0; j < predictor.paramNames.length; j++) {
-        html += `<span style="color:#888">${predictor.paramNames[j]}</span> = ${td0.X[idx][j].toFixed(4)}<br>`;
+        html += `<span style="color:#666">${predictor.paramNames[j]}</span> = ${td0.X[idx][j].toFixed(4)}<br>`;
       }
     }
     return html;
@@ -2948,7 +2948,7 @@ var Ax;
       target.textContent = "No lengthscale data";
       return;
     }
-    const barColors = ["#7c6ff7", "#6fa0f7", "#6fcff7", "#6ff7c8", "#a0f76f", "#f7e06f", "#f7a06f", "#f76f6f"];
+    const barColors = ["#4872f9", "#5478fa", "#6088fa", "#7098fb", "#85a8fb", "#9ab8fc", "#b0c8fc", "#c7d4fd"];
     const importances = ranked.map((d) => 1 / d.lengthscale);
     const maxImp = Math.max(...importances);
     const W = Math.min((tooltipContainer ?? target).clientWidth || 500, 500);
@@ -2967,7 +2967,7 @@ var Ax;
         Object.assign(svgEl("text", {
           x: labelW - 8,
           y: y + barH / 2 + 4,
-          fill: "#ccc",
+          fill: "#333",
           "font-size": 13,
           "text-anchor": "end"
         }), { textContent: dim.paramName })
@@ -2978,7 +2978,7 @@ var Ax;
         width: trackW,
         height: barH,
         rx: 4,
-        fill: "#1a1a1d"
+        fill: "#f0f0f0"
       }));
       svg.appendChild(svgEl("rect", {
         x: labelW,
@@ -3014,7 +3014,7 @@ var Ax;
         Object.assign(svgEl("text", {
           x: labelW + trackW + 4,
           y: y + barH / 2 + 4,
-          fill: "#999",
+          fill: "#666",
           "font-size": 11,
           "text-anchor": "start",
           "pointer-events": "none"
@@ -3081,9 +3081,9 @@ var Ax;
         const tileW = 280, tileH = 280;
         for (const name of predictor.outcomeNames) {
           const tile = document.createElement("div");
-          tile.style.cssText = `background:#141418;border:0.5px solid #222;border-radius:8px;overflow:hidden;width:${tileW}px;height:${tileH + 28}px`;
+          tile.style.cssText = `background:transparent;border:0.5px solid #e0e0e0;border-radius:8px;overflow:hidden;width:${tileW}px;height:${tileH + 28}px`;
           const title = document.createElement("div");
-          title.style.cssText = "font-size:13px;font-weight:500;color:#ccc;text-align:center;padding:6px 0 0";
+          title.style.cssText = "font-size:13px;font-weight:500;color:#333;text-align:center;padding:6px 0 0";
           title.textContent = name;
           tile.appendChild(title);
           renderCVPanel(
@@ -3108,7 +3108,7 @@ var Ax;
         const W = options?.width ?? 440;
         const H = options?.height ?? 440;
         const cvTile = document.createElement("div");
-        cvTile.style.cssText = `background:#141418;border:0.5px solid #222;border-radius:8px;overflow:hidden;width:${W}px;height:${H}px`;
+        cvTile.style.cssText = `background:transparent;border:0.5px solid #e0e0e0;border-radius:8px;overflow:hidden;width:${W}px;height:${H}px`;
         renderCVPanel(
           cvTile,
           predictor,
@@ -3159,13 +3159,29 @@ var Ax;
     const sy = (v) => margin.top + ph - (v - lo) / (hi - lo) * ph;
     const svg = svgEl("svg", { width: W, height: H });
     svg.appendChild(svgEl("line", {
+      x1: margin.left,
+      x2: margin.left + pw,
+      y1: margin.top + ph,
+      y2: margin.top + ph,
+      stroke: "rgba(0,0,0,0.20)",
+      "stroke-width": 1
+    }));
+    svg.appendChild(svgEl("line", {
+      x1: margin.left,
+      x2: margin.left,
+      y1: margin.top,
+      y2: margin.top + ph,
+      stroke: "rgba(0,0,0,0.20)",
+      "stroke-width": 1
+    }));
+    svg.appendChild(svgEl("line", {
       x1: sx(lo),
       y1: sy(lo),
       x2: sx(hi),
       y2: sy(hi),
-      stroke: "rgba(255,255,255,0.15)",
-      "stroke-width": 1,
-      "stroke-dasharray": "4,4"
+      stroke: "rgba(0,0,0,0.20)",
+      "stroke-width": 1.5,
+      "stroke-dasharray": "6,4"
     }));
     const nTicks = isSmall ? 3 : 5;
     const tickFontSize = isSmall ? "8" : "10";
@@ -3176,19 +3192,19 @@ var Ax;
         x2: margin.left + pw,
         y1: sy(v),
         y2: sy(v),
-        stroke: "rgba(255,255,255,0.04)"
+        stroke: "rgba(0,0,0,0.06)"
       }));
       svg.appendChild(Object.assign(svgEl("text", {
         x: sx(v),
         y: margin.top + ph + (isSmall ? 12 : 16),
-        fill: "#555",
+        fill: "#999",
         "font-size": tickFontSize,
         "text-anchor": "middle"
       }), { textContent: v.toFixed(isSmall ? 0 : 2) }));
       svg.appendChild(Object.assign(svgEl("text", {
         x: margin.left - 4,
         y: sy(v) + 3,
-        fill: "#555",
+        fill: "#999",
         "font-size": tickFontSize,
         "text-anchor": "end"
       }), { textContent: v.toFixed(isSmall ? 0 : 2) }));
@@ -3196,8 +3212,8 @@ var Ax;
     const td = predictor.getTrainingData(outcome);
     const dotR = isSmall ? 3 : 4;
     const cvDots = [];
-    const defaultFill = "rgba(124,154,255,0.85)";
-    const defaultStroke = "rgba(255,255,255,0.5)";
+    const defaultFill = "rgba(217,95,78,0.85)";
+    const defaultStroke = "rgba(68,68,68,0.35)";
     for (let i = 0; i < n; i++) {
       const cx = sx(observed[i]), cy = sy(predicted[i]);
       const whisker = svgEl("line", {
@@ -3205,7 +3221,7 @@ var Ax;
         x2: cx,
         y1: sy(predicted[i] + 2 * predStd[i]),
         y2: sy(predicted[i] - 2 * predStd[i]),
-        stroke: "rgba(124,154,255,0.3)",
+        stroke: "rgba(217,95,78,0.3)",
         "stroke-width": isSmall ? 1 : 1.5
       });
       svg.appendChild(whisker);
@@ -3234,14 +3250,14 @@ var Ax;
       svg.appendChild(Object.assign(svgEl("text", {
         x: margin.left + pw / 2,
         y: H - 6,
-        fill: "#888",
+        fill: "#666",
         "font-size": 13,
         "text-anchor": "middle"
       }), { textContent: "Observed" }));
       svg.appendChild(Object.assign(svgEl("text", {
         x: 14,
         y: margin.top + ph / 2,
-        fill: "#888",
+        fill: "#666",
         "font-size": 13,
         "text-anchor": "middle",
         transform: `rotate(-90,14,${margin.top + ph / 2})`
@@ -3250,7 +3266,7 @@ var Ax;
     svg.appendChild(Object.assign(svgEl("text", {
       x: margin.left + 6,
       y: margin.top + (isSmall ? 14 : 18),
-      fill: "#7c9aff",
+      fill: "#4872f9",
       "font-size": isSmall ? 11 : 14,
       "font-weight": "600"
     }), { textContent: `R\xB2 = ${r2.toFixed(4)}` }));
@@ -3269,9 +3285,9 @@ var Ax;
       const best = findNearestDot(cvDots, px, py, HOVER_R);
       if (best >= 0) {
         const d = cvDots[best];
-        let html = `<div style="font-weight:600;color:#aaa;margin-bottom:4px">${outcome} \u2014 trial ${d.idx}</div>`;
-        html += `observed = <span style="color:#7c9aff">${observed[d.idx].toFixed(4)}</span><br>`;
-        html += `LOO predicted = <span style="color:#7c9aff">${predicted[d.idx].toFixed(4)}</span><br>`;
+        let html = `<div style="font-weight:600;color:#666;margin-bottom:4px">${outcome} \u2014 trial ${d.idx}</div>`;
+        html += `observed = <span style="color:#4872f9">${observed[d.idx].toFixed(4)}</span><br>`;
+        html += `LOO predicted = <span style="color:#4872f9">${predicted[d.idx].toFixed(4)}</span><br>`;
         html += `\xB1 2\u03C3 = [${(predicted[d.idx] - 2 * predStd[d.idx]).toFixed(4)}, ${(predicted[d.idx] + 2 * predStd[d.idx]).toFixed(4)}]<br>`;
         html += buildPointTooltipHtml(predictor, d.idx, outcome);
         tooltip.innerHTML = html;
@@ -3392,6 +3408,22 @@ var Ax;
     const sx = (i) => margin.left + i / Math.max(1, n - 1) * pw;
     const sy = (v) => margin.top + ph - (v - yMin) / (yMax - yMin) * ph;
     const svg = svgEl("svg", { width: W, height: H });
+    svg.appendChild(svgEl("line", {
+      x1: margin.left,
+      x2: margin.left + pw,
+      y1: margin.top + ph,
+      y2: margin.top + ph,
+      stroke: "rgba(0,0,0,0.20)",
+      "stroke-width": 1
+    }));
+    svg.appendChild(svgEl("line", {
+      x1: margin.left,
+      x2: margin.left,
+      y1: margin.top,
+      y2: margin.top + ph,
+      stroke: "rgba(0,0,0,0.20)",
+      "stroke-width": 1
+    }));
     const nTicks = 5;
     for (let t = 0; t <= nTicks; t++) {
       const v = yMin + (yMax - yMin) * t / nTicks;
@@ -3400,12 +3432,12 @@ var Ax;
         x2: margin.left + pw,
         y1: sy(v),
         y2: sy(v),
-        stroke: "rgba(255,255,255,0.05)"
+        stroke: "rgba(0,0,0,0.06)"
       }));
       svg.appendChild(Object.assign(svgEl("text", {
         x: margin.left - 8,
         y: sy(v) + 4,
-        fill: "#555",
+        fill: "#999",
         "font-size": 10,
         "text-anchor": "end"
       }), { textContent: v.toFixed(2) }));
@@ -3416,7 +3448,7 @@ var Ax;
     }
     svg.appendChild(Object.assign(svgEl("path", {
       d: bsfPath,
-      stroke: "#7c6ff7",
+      stroke: "#444",
       "stroke-width": 2.5,
       fill: "none",
       opacity: "0.7"
@@ -3424,8 +3456,8 @@ var Ax;
     const traceDots = [];
     for (let i = 0; i < n; i++) {
       const isBest = bestSoFar[i] === yVals[i];
-      const dotFill = isBest ? "rgba(124,111,247,0.9)" : "rgba(255,255,255,0.3)";
-      const dotStroke = isBest ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.15)";
+      const dotFill = isBest ? "rgba(217,95,78,0.9)" : "rgba(0,0,0,0.12)";
+      const dotStroke = isBest ? "rgba(68,68,68,0.5)" : "rgba(0,0,0,0.06)";
       const dot = svgEl("circle", {
         cx: sx(i),
         cy: sy(yVals[i]),
@@ -3449,14 +3481,14 @@ var Ax;
     svg.appendChild(Object.assign(svgEl("text", {
       x: margin.left + pw / 2,
       y: H - 6,
-      fill: "#888",
+      fill: "#666",
       "font-size": 13,
       "text-anchor": "middle"
     }), { textContent: "Trial" }));
     svg.appendChild(Object.assign(svgEl("text", {
       x: 14,
       y: margin.top + ph / 2,
-      fill: "#888",
+      fill: "#666",
       "font-size": 13,
       "text-anchor": "middle",
       transform: `rotate(-90,14,${margin.top + ph / 2})`
@@ -3466,7 +3498,7 @@ var Ax;
       svg.appendChild(Object.assign(svgEl("text", {
         x: sx(i),
         y: margin.top + ph + 18,
-        fill: "#555",
+        fill: "#999",
         "font-size": 10,
         "text-anchor": "middle"
       }), { textContent: String(i) }));
@@ -3476,13 +3508,13 @@ var Ax;
       x2: margin.left + pw - 100,
       y1: margin.top + 12,
       y2: margin.top + 12,
-      stroke: "#7c6ff7",
+      stroke: "#444",
       "stroke-width": 2.5
     }));
     svg.appendChild(Object.assign(svgEl("text", {
       x: margin.left + pw - 96,
       y: margin.top + 16,
-      fill: "#888",
+      fill: "#666",
       "font-size": 11
     }), { textContent: "best so far" }));
     if (tooltip && tooltipContainer) {
@@ -3696,29 +3728,45 @@ var Ax;
       const sy = (v) => margin.top + (1 - (v - yMin) / yRange) * ph;
       const svg = svgEl("svg", { width: W, height: H });
       svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      svg.appendChild(svgEl("line", {
+        x1: margin.left,
+        x2: margin.left + pw,
+        y1: margin.top + ph,
+        y2: margin.top + ph,
+        stroke: "rgba(0,0,0,0.20)",
+        "stroke-width": 1
+      }));
+      svg.appendChild(svgEl("line", {
+        x1: margin.left,
+        x2: margin.left,
+        y1: margin.top,
+        y2: margin.top + ph,
+        stroke: "rgba(0,0,0,0.20)",
+        "stroke-width": 1
+      }));
       svg.appendChild(Object.assign(
-        svgEl("text", { x: margin.left + pw / 2, y: 16, fill: "#999", "font-size": 12, "text-anchor": "middle" }),
+        svgEl("text", { x: margin.left + pw / 2, y: 16, fill: "#555", "font-size": 12, "text-anchor": "middle" }),
         { textContent: names[dim] }
       ));
       if (dimIsChoice) {
         for (let ci = 0; ci < xs.length; ci++) {
           const cx = sx(ci), cyMu = sy(means[ci]);
           const cyUp = sy(upper[ci]), cyLo = sy(lower[ci]);
-          svg.appendChild(svgEl("line", { x1: cx, y1: cyUp, x2: cx, y2: cyLo, stroke: "rgba(100,120,230,0.5)", "stroke-width": 2 }));
+          svg.appendChild(svgEl("line", { x1: cx, y1: cyUp, x2: cx, y2: cyLo, stroke: "rgba(72,114,249,0.4)", "stroke-width": 2 }));
           for (const capY of [cyUp, cyLo]) {
-            svg.appendChild(svgEl("line", { x1: cx - 4, y1: capY, x2: cx + 4, y2: capY, stroke: "rgba(100,120,230,0.5)", "stroke-width": 1.5 }));
+            svg.appendChild(svgEl("line", { x1: cx - 4, y1: capY, x2: cx + 4, y2: capY, stroke: "rgba(72,114,249,0.4)", "stroke-width": 1.5 }));
           }
-          svg.appendChild(svgEl("circle", { cx, cy: cyMu, r: 5, fill: "rgba(130,155,255,0.9)", stroke: "white", "stroke-width": 1.5 }));
+          svg.appendChild(svgEl("circle", { cx, cy: cyMu, r: 5, fill: "#4872f9", stroke: "#444", "stroke-width": 1.5 }));
         }
       } else {
         let bandD = `M ${sx(xs[0])} ${sy(upper[0])}`;
         for (let i = 1; i < xs.length; i++) bandD += ` L ${sx(xs[i])} ${sy(upper[i])}`;
         for (let i = xs.length - 1; i >= 0; i--) bandD += ` L ${sx(xs[i])} ${sy(lower[i])}`;
         bandD += " Z";
-        svg.appendChild(svgEl("path", { d: bandD, fill: "rgba(100,120,230,0.18)" }));
+        svg.appendChild(svgEl("path", { d: bandD, fill: "rgba(72,114,249,0.10)" }));
         let lineD = `M ${sx(xs[0])} ${sy(means[0])}`;
         for (let i = 1; i < xs.length; i++) lineD += ` L ${sx(xs[i])} ${sy(means[i])}`;
-        svg.appendChild(svgEl("path", { d: lineD, stroke: "rgba(130,155,255,0.9)", "stroke-width": 2, fill: "none" }));
+        svg.appendChild(svgEl("path", { d: lineD, stroke: "#4872f9", "stroke-width": 2, fill: "none" }));
       }
       const td = predictor.getTrainingData(outcome);
       const sliceDots = [];
@@ -3748,8 +3796,8 @@ var Ax;
               cx: ptScreenX,
               cy: ptScreenY,
               r: 3,
-              fill: "rgba(255,80,80,0.85)",
-              stroke: "rgba(255,255,255,0.5)",
+              fill: "rgba(217,95,78,0.9)",
+              stroke: "rgba(68,68,68,0.35)",
               "stroke-width": 1
             });
             svg.appendChild(dot);
@@ -3759,8 +3807,8 @@ var Ax;
               idx: i,
               pt: td.X[i],
               el: dot,
-              defaultFill: "rgba(255,80,80,0.85)",
-              defaultStroke: "rgba(255,255,255,0.5)",
+              defaultFill: "rgba(217,95,78,0.9)",
+              defaultStroke: "rgba(68,68,68,0.35)",
               defaultR: 3
             });
           }
@@ -3771,16 +3819,16 @@ var Ax;
       for (let t = 0; t <= nYTicks; t++) {
         const v = yMin + yRange * t / nYTicks;
         const yp = sy(v);
-        svg.appendChild(svgEl("line", { x1: margin.left, x2: margin.left + pw, y1: yp, y2: yp, stroke: "rgba(255,255,255,0.06)" }));
+        svg.appendChild(svgEl("line", { x1: margin.left, x2: margin.left + pw, y1: yp, y2: yp, stroke: "rgba(0,0,0,0.06)" }));
         svg.appendChild(Object.assign(
-          svgEl("text", { x: margin.left - 6, y: yp + 4, fill: "#666", "font-size": 10, "text-anchor": "end" }),
+          svgEl("text", { x: margin.left - 6, y: yp + 4, fill: "#999", "font-size": 10, "text-anchor": "end" }),
           { textContent: v.toFixed(2) }
         ));
       }
       if (dimIsChoice) {
         for (let ci = 0; ci < xs.length; ci++) {
           svg.appendChild(Object.assign(
-            svgEl("text", { x: sx(ci), y: H - margin.bottom + 16, fill: "#666", "font-size": 10, "text-anchor": "middle" }),
+            svgEl("text", { x: sx(ci), y: H - margin.bottom + 16, fill: "#999", "font-size": 10, "text-anchor": "middle" }),
             { textContent: String(p.values[ci]) }
           ));
         }
@@ -3790,19 +3838,19 @@ var Ax;
           let xv = xLo + (xHi - xLo) * t / nXTicks;
           if (dimIsInt) xv = Math.round(xv);
           svg.appendChild(Object.assign(
-            svgEl("text", { x: sx(xv), y: H - margin.bottom + 16, fill: "#666", "font-size": 10, "text-anchor": "middle" }),
+            svgEl("text", { x: sx(xv), y: H - margin.bottom + 16, fill: "#999", "font-size": 10, "text-anchor": "middle" }),
             { textContent: dimIsInt ? String(xv) : xv.toFixed(2) }
           ));
         }
       }
       svg.appendChild(Object.assign(
-        svgEl("text", { x: margin.left + pw / 2, y: H - 4, fill: "#666", "font-size": 11, "text-anchor": "middle" }),
+        svgEl("text", { x: margin.left + pw / 2, y: H - 4, fill: "#999", "font-size": 11, "text-anchor": "middle" }),
         { textContent: names[dim] }
       ));
-      const hoverLine = svgEl("line", { y1: margin.top, y2: margin.top + ph, stroke: "rgba(255,255,255,0.3)", "stroke-width": 1 });
+      const hoverLine = svgEl("line", { y1: margin.top, y2: margin.top + ph, stroke: "rgba(0,0,0,0.10)", "stroke-width": 1, "stroke-dasharray": "4,3" });
       hoverLine.style.display = "none";
       svg.appendChild(hoverLine);
-      const hoverDot = svgEl("circle", { r: 4, fill: "rgba(130,155,255,0.9)", stroke: "white", "stroke-width": 1.5 });
+      const hoverDot = svgEl("circle", { r: 4, fill: "#4872f9", stroke: "#444", "stroke-width": 1.5 });
       hoverDot.style.display = "none";
       svg.appendChild(hoverDot);
       if (_getPinned() >= 0) {
@@ -3842,9 +3890,9 @@ var Ax;
               applyDotHighlight(sliceDots, hitVpIdx, computeKernelRels(predictor, sliceDots, hitVpIdx, outcome));
               hoverHighlight = true;
             }
-            let html = `<div style="font-size:11px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">training point #${hitPt.idx + 1}</div>`;
-            html += `<span style="color:#ff6b6b;font-weight:500">y = ${td.Y[hitPt.idx].toFixed(4)}</span><br>`;
-            html += names.map((n, j) => `<span style="color:#a0c4ff">${n}</span> = ${formatParamValue(td.X[hitPt.idx][j], params[j])}`).join("<br>");
+            let html = `<div style="font-size:11px;color:#999;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">training point #${hitPt.idx + 1}</div>`;
+            html += `<span style="color:#333;font-weight:500">y = ${td.Y[hitPt.idx].toFixed(4)}</span><br>`;
+            html += names.map((n, j) => `<span style="color:#666">${n}</span> = ${formatParamValue(td.X[hitPt.idx][j], params[j])}`).join("<br>");
             tooltip.innerHTML = html;
             tooltip.style.display = "block";
             positionTooltip(tooltip, e.clientX, e.clientY);
@@ -3872,9 +3920,9 @@ var Ax;
             hoverDot.setAttribute("cy", String(sy(mu)));
             hoverDot.style.display = "";
             const xLabel = dimIsChoice ? String(p.values[idx]) : formatParamValue(xs[idx], p);
-            let html = `<div style="font-size:11px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">${names[dim]}</div>`;
-            html += `<span style="color:#a0c4ff">${names[dim]}</span> = ${xLabel}<br>`;
-            html += `\u03BC = <span style="color:#ff6b6b;font-weight:500">${mu.toFixed(4)}</span><br>`;
+            let html = `<div style="font-size:11px;color:#999;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">${names[dim]}</div>`;
+            html += `<span style="color:#666">${names[dim]}</span> = ${xLabel}<br>`;
+            html += `\u03BC = <span style="color:#4872f9;font-weight:500">${mu.toFixed(4)}</span><br>`;
             html += `\u03C3 = ${s.toFixed(4)}<br>`;
             html += `95% CI: [${(mu - 2 * s).toFixed(4)}, ${(mu + 2 * s).toFixed(4)}]`;
             tooltip.innerHTML = html;
@@ -4067,15 +4115,15 @@ var Ax;
       ctx.fillRect(x, y + i, w, 1);
     }
     ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.textAlign = "left";
     ctx.fillText(vMax.toFixed(2), x + w + 3, y + 8);
     ctx.fillText(vMin.toFixed(2), x + w + 3, y + h);
   }
   function drawAxes(ctx, ML, MT, N, xlo, xhi, ylo, yhi, xName, yName, showYAxis) {
     ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
-    ctx.strokeStyle = "rgba(255,255,255,0.2)";
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.strokeStyle = "rgba(0,0,0,0.15)";
     ctx.lineWidth = 1;
     const nTicks = 4;
     ctx.textAlign = "center";
@@ -4088,11 +4136,11 @@ var Ax;
       ctx.stroke();
       ctx.fillText(v.toFixed(2), tx, MT + N + 15);
     }
-    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
     ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
     ctx.fillText(xName, ML + N / 2, MT + N + 30);
     if (!showYAxis) return;
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
     ctx.textAlign = "right";
     for (let ti = 0; ti <= nTicks; ti++) {
@@ -4108,7 +4156,7 @@ var Ax;
     ctx.translate(12, MT + N / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = "center";
-    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
     ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
     ctx.fillText(yName, 0, 0);
     ctx.restore();
@@ -4116,17 +4164,17 @@ var Ax;
   function drawDots(ctx, dots, pinnedIdx) {
     for (const d of dots) {
       const isActive = d.idx === pinnedIdx;
-      const outerR = isActive ? 6 : 4;
-      const innerR = isActive ? 3.5 : 2.5;
+      const outerR = isActive ? 8 : 6;
+      const innerR = isActive ? 4.5 : 3.5;
       ctx.beginPath();
       ctx.arc(d.px, d.py, outerR, 0, 2 * Math.PI);
-      ctx.strokeStyle = isActive ? "rgba(255,255,255,1)" : `rgba(255,255,255,${Math.max(0.15, d.alpha * 0.7).toFixed(3)})`;
+      ctx.strokeStyle = isActive ? "rgba(68,68,68,1)" : `rgba(68,68,68,${Math.max(0.15, d.alpha * 0.7).toFixed(3)})`;
       ctx.lineWidth = isActive ? 2.5 : 1.5;
       ctx.stroke();
       if (d.alpha >= 0.04) {
         ctx.beginPath();
         ctx.arc(d.px, d.py, innerR, 0, 2 * Math.PI);
-        ctx.fillStyle = isActive ? "rgba(255,60,60,1)" : `rgba(255,60,60,${d.alpha.toFixed(3)})`;
+        ctx.fillStyle = isActive ? "rgba(217,95,78,1)" : `rgba(217,95,78,${d.alpha.toFixed(3)})`;
         ctx.fill();
       }
     }
@@ -4143,9 +4191,9 @@ var Ax;
     const CB_GAP = 4;
     const CB_LBL = 36;
     const MR = CB_GAP + CB_W + CB_LBL;
-    const totalW = options?.width ?? 420;
+    const totalW = options?.width ?? 800;
     const panelW = Math.floor((totalW - 12) / 2);
-    const defaultH = options?.height ?? 420;
+    const defaultH = options?.height ?? 380;
     const ML2 = 10;
     const N = Math.min(panelW - ML - MR, defaultH - MT - MB);
     const CW = N + ML + MR;
@@ -4242,7 +4290,7 @@ var Ax;
       const ctx = canvas.getContext("2d");
       if (!ctx) continue;
       ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
-      ctx.fillStyle = "rgba(255,255,255,0.4)";
+      ctx.fillStyle = "rgba(0,0,0,0.45)";
       ctx.textAlign = "center";
       ctx.fillText(panel.title, pML + N / 2, 12);
       ctx.putImageData(panel.img, pML, MT);
@@ -4751,14 +4799,14 @@ function drawTrueOverlay(X, nInit, latest) {
   for (var i=0;i<X.length;i++) {
     var px=X[i][0]*CN, py=(1-X[i][1])*CN;
     ctxT.beginPath(); ctxT.arc(px,py, i===latest?5:3.5, 0, 2*Math.PI);
-    if (i<nInit) ctxT.fillStyle='rgba(255,255,255,0.9)';
-    else if (i===latest) ctxT.fillStyle='#ff4444';
-    else ctxT.fillStyle='rgba(100,255,100,0.85)';
+    if (i<nInit) ctxT.fillStyle='rgba(128,128,128,0.9)';
+    else if (i===latest) ctxT.fillStyle='#d95f4e';
+    else ctxT.fillStyle='rgba(72,114,249,0.85)';
     ctxT.fill();
     ctxT.strokeStyle='rgba(0,0,0,0.6)'; ctxT.lineWidth=1; ctxT.stroke();
   }
   // Axis labels
-  ctxT.font='10px sans-serif'; ctxT.fillStyle='rgba(255,255,255,0.4)';
+  ctxT.font='10px sans-serif'; ctxT.fillStyle='rgba(0,0,0,0.4)';
   for (var ti=0;ti<=4;ti++) {
     ctxT.fillText((ti/4).toFixed(2), ti*CN/4-8, CN-2);
     ctxT.fillText((1-ti/4).toFixed(2), 2, ti*CN/4+10);
@@ -4783,7 +4831,7 @@ function drawContourLines(ctx, vals, gs, canvasN, vMin, vRange) {
   ];
   for (var li = 1; li < nLevels; li++) {
     var level = vMin + vRange * li / nLevels;
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 0.8;
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 0.8;
     ctx.beginPath();
     for (var gj = 0; gj < gs-1; gj++) {
       for (var gi = 0; gi < gs-1; gi++) {
@@ -4880,14 +4928,14 @@ function drawOverlays(hx, hy, hoveredIdx, neighborActiveIdx) {
     if (hx !== undefined) {
       ctx.beginPath(); ctx.moveTo(hx, 0); ctx.lineTo(hx, CN);
       ctx.moveTo(0, hy); ctx.lineTo(CN, hy);
-      ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 0.5; ctx.stroke();
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 0.5; ctx.stroke();
     }
     // Axis labels
-    ctx.font = '12px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = '12px sans-serif'; ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillText('x0 ->', CN - 50, CN - 8);
     ctx.save(); ctx.translate(14, 60); ctx.rotate(-Math.PI / 2);
     ctx.fillText('x1 ->', 0, 0); ctx.restore();
-    ctx.font = '10px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '10px sans-serif'; ctx.fillStyle = 'rgba(0,0,0,0.4)';
     for (var ti = 0; ti <= 4; ti++) {
       ctx.fillText((ti/4).toFixed(2), ti*CN/4 - 8, CN - 2);
       ctx.fillText((1-ti/4).toFixed(2), 2, ti*CN/4 + 10);
@@ -4917,11 +4965,11 @@ function drawOverlays(hx, hy, hoveredIdx, neighborActiveIdx) {
       var outerR = (isActive || isHovered) ? 7.5 : 5;
       var innerR = (isActive || isHovered) ? 4 : 2.5;
       ctx.beginPath(); ctx.arc(ppx, ppy, outerR, 0, 2*Math.PI);
-      ctx.strokeStyle = isActive ? 'rgba(255,255,255,1)'
-        : 'rgba(255,255,255,' + Math.max(0.15, fillAlpha*0.6).toFixed(3) + ')';
+      ctx.strokeStyle = isActive ? 'rgba(68,68,68,1)'
+        : 'rgba(68,68,68,' + Math.max(0.15, fillAlpha*0.6).toFixed(3) + ')';
       ctx.lineWidth = isActive ? 2.5 : (isHovered ? 2 : 1.5); ctx.stroke();
       ctx.beginPath(); ctx.arc(ppx, ppy, innerR, 0, 2*Math.PI);
-      var bc = i < N_INIT ? [255,255,255] : (i === lastX.length-1 ? [255,68,68] : [100,255,100]);
+      var bc = i < N_INIT ? [128,128,128] : (i === lastX.length-1 ? [217,95,78] : [72,114,249]);
       ctx.fillStyle = (isActive || isHovered)
         ? 'rgba(' + bc.join(',') + ',1)'
         : 'rgba(' + bc.join(',') + ',' + fillAlpha.toFixed(3) + ')';
@@ -5032,14 +5080,14 @@ function renderLOO() {
   var margin = 32, pw = CN - 2*margin;
   // Clear and draw
   ctxLOO.clearRect(0,0,CN,CN);
-  ctxLOO.fillStyle = '#111'; ctxLOO.fillRect(0,0,CN,CN);
+  ctxLOO.fillStyle = '#fff'; ctxLOO.fillRect(0,0,CN,CN);
   // Diagonal line (perfect prediction)
-  ctxLOO.strokeStyle = 'rgba(255,255,255,0.15)'; ctxLOO.lineWidth = 1;
+  ctxLOO.strokeStyle = 'rgba(0,0,0,0.15)'; ctxLOO.lineWidth = 1;
   ctxLOO.beginPath();
   ctxLOO.moveTo(margin, margin); ctxLOO.lineTo(margin+pw, margin+pw);
   ctxLOO.stroke();
   // Axis labels
-  ctxLOO.font = '10px sans-serif'; ctxLOO.fillStyle = 'rgba(255,255,255,0.3)';
+  ctxLOO.font = '10px sans-serif'; ctxLOO.fillStyle = 'rgba(0,0,0,0.4)';
   ctxLOO.fillText('observed', margin + pw/2 - 20, CN - 4);
   ctxLOO.save(); ctxLOO.translate(10, margin + pw/2 + 16); ctxLOO.rotate(-Math.PI/2);
   ctxLOO.fillText('predicted', 0, 0); ctxLOO.restore();
@@ -5047,7 +5095,7 @@ function renderLOO() {
   for (var t=0;t<=4;t++) {
     var val = lo + t*range/4;
     var px = margin + t*pw/4, py = margin + t*pw/4;
-    ctxLOO.fillStyle = 'rgba(255,255,255,0.25)';
+    ctxLOO.fillStyle = 'rgba(0,0,0,0.35)';
     ctxLOO.fillText(val.toFixed(1), px - 8, CN - margin + 14);
     ctxLOO.fillText(val.toFixed(1), 2, py + 3);
   }
@@ -5056,11 +5104,11 @@ function renderLOO() {
     var px = margin + (obs[i]-lo)/range*pw;
     var py = margin + pw - (pmean[i]-lo)/range*pw;
     var errH = 2*Math.sqrt(pvar[i])/range*pw;
-    ctxLOO.strokeStyle = 'rgba(100,180,255,0.3)'; ctxLOO.lineWidth = 1.5;
+    ctxLOO.strokeStyle = 'rgba(217,95,78,0.3)'; ctxLOO.lineWidth = 1.5;
     ctxLOO.beginPath(); ctxLOO.moveTo(px,py-errH); ctxLOO.lineTo(px,py+errH); ctxLOO.stroke();
     ctxLOO.beginPath(); ctxLOO.arc(px,py,3,0,2*Math.PI);
-    ctxLOO.fillStyle = 'rgba(100,180,255,0.85)'; ctxLOO.fill();
-    ctxLOO.strokeStyle = 'rgba(255,255,255,0.4)'; ctxLOO.lineWidth = 0.5; ctxLOO.stroke();
+    ctxLOO.fillStyle = 'rgba(217,95,78,0.85)'; ctxLOO.fill();
+    ctxLOO.strokeStyle = 'rgba(68,68,68,0.35)'; ctxLOO.lineWidth = 0.5; ctxLOO.stroke();
   }
   // Compute R^2
   var mObs = 0; for (var i=0;i<n;i++) mObs += obs[i]; mObs /= n;
@@ -5108,11 +5156,11 @@ function renderTrace() {
     var gl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     gl.setAttribute('x1', margin.left); gl.setAttribute('x2', margin.left + pw);
     gl.setAttribute('y1', sy(v)); gl.setAttribute('y2', sy(v));
-    gl.setAttribute('stroke', 'rgba(255,255,255,0.05)');
+    gl.setAttribute('stroke', 'rgba(0,0,0,0.06)');
     svg.appendChild(gl);
     var yt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     yt.setAttribute('x', margin.left - 4); yt.setAttribute('y', sy(v) + 3);
-    yt.setAttribute('fill', '#555'); yt.setAttribute('font-size', '8');
+    yt.setAttribute('fill', '#999'); yt.setAttribute('font-size', '8');
     yt.setAttribute('text-anchor', 'end'); yt.textContent = v.toFixed(1);
     svg.appendChild(yt);
   }
@@ -5124,7 +5172,7 @@ function renderTrace() {
   }
   var bsfLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   bsfLine.setAttribute('d', bsfPath);
-  bsfLine.setAttribute('stroke', '#7c6ff7'); bsfLine.setAttribute('stroke-width', '2');
+  bsfLine.setAttribute('stroke', '#444'); bsfLine.setAttribute('stroke-width', '2');
   bsfLine.setAttribute('fill', 'none'); bsfLine.setAttribute('opacity', '0.7');
   svg.appendChild(bsfLine);
 
@@ -5137,9 +5185,9 @@ function renderTrace() {
     var cx = sx(i), cy = sy(rawY[i]);
     dot.setAttribute('cx', cx); dot.setAttribute('cy', cy);
     dot.setAttribute('r', isLatest ? '4' : '3');
-    var baseColor = isLatest ? '255,68,68' : (isInit ? '255,255,255' : '100,255,100');
+    var baseColor = isLatest ? '217,95,78' : (isInit ? '128,128,128' : '72,114,249');
     dot.setAttribute('fill', 'rgba(' + baseColor + ',' + (isBest ? '0.95' : '0.5') + ')');
-    dot.setAttribute('stroke', isBest ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.15)');
+    dot.setAttribute('stroke', isBest ? 'rgba(68,68,68,0.5)' : 'rgba(0,0,0,0.06)');
     dot.setAttribute('stroke-width', '1');
     svg.appendChild(dot);
     traceDots.push({ el: dot, idx: i, value: rawY[i], best: bestSoFar[i],
@@ -5150,7 +5198,7 @@ function renderTrace() {
   // Axis labels
   var xl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
   xl.setAttribute('x', margin.left + pw/2); xl.setAttribute('y', H - 4);
-  xl.setAttribute('fill', '#888'); xl.setAttribute('font-size', '10');
+  xl.setAttribute('fill', '#666'); xl.setAttribute('font-size', '10');
   xl.setAttribute('text-anchor', 'middle'); xl.textContent = 'trial';
   svg.appendChild(xl);
 
@@ -5159,7 +5207,7 @@ function renderTrace() {
   for (var i = 0; i < n; i += xStep) {
     var xt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     xt.setAttribute('x', sx(i)); xt.setAttribute('y', margin.top + ph + 14);
-    xt.setAttribute('fill', '#555'); xt.setAttribute('font-size', '8');
+    xt.setAttribute('fill', '#999'); xt.setAttribute('font-size', '8');
     xt.setAttribute('text-anchor', 'middle'); xt.textContent = String(i);
     svg.appendChild(xt);
   }
@@ -5169,11 +5217,11 @@ function renderTrace() {
   var lr = document.createElementNS('http://www.w3.org/2000/svg', 'line');
   lr.setAttribute('x1', margin.left + pw - 90); lr.setAttribute('x2', margin.left + pw - 76);
   lr.setAttribute('y1', margin.top + 10); lr.setAttribute('y2', margin.top + 10);
-  lr.setAttribute('stroke', '#7c6ff7'); lr.setAttribute('stroke-width', '2');
+  lr.setAttribute('stroke', '#444'); lr.setAttribute('stroke-width', '2');
   leg.appendChild(lr);
   var lt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
   lt.setAttribute('x', margin.left + pw - 73); lt.setAttribute('y', margin.top + 13);
-  lt.setAttribute('fill', '#888'); lt.setAttribute('font-size', '9');
+  lt.setAttribute('fill', '#666'); lt.setAttribute('font-size', '9');
   lt.textContent = 'best so far';
   leg.appendChild(lt);
   svg.appendChild(leg);
@@ -5259,19 +5307,19 @@ function highlightTraceDots(activeIdx) {
     var d = traceDots[i];
     if (activePt) {
       if (i === activeIdx) {
-        d.el.setAttribute('fill', 'rgba(255,80,80,0.95)');
-        d.el.setAttribute('stroke', 'rgba(255,255,255,1)');
+        d.el.setAttribute('fill', 'rgba(217,95,78,0.95)');
+        d.el.setAttribute('stroke', 'rgba(68,68,68,1)');
         d.el.setAttribute('stroke-width', '2'); d.el.setAttribute('r', '5');
       } else {
         var relNorm = maxRel > 0 ? rels[i] / maxRel : 0;
         var fa = Math.max(0.08, Math.min(0.90, Math.sqrt(relNorm)));
         d.el.setAttribute('fill', 'rgba(' + d.baseColor + ',' + fa.toFixed(3) + ')');
-        d.el.setAttribute('stroke', 'rgba(255,255,255,' + Math.max(0.15, fa * 0.6).toFixed(3) + ')');
+        d.el.setAttribute('stroke', 'rgba(68,68,68,' + Math.max(0.15, fa * 0.6).toFixed(3) + ')');
         d.el.setAttribute('stroke-width', '1'); d.el.setAttribute('r', d.isLatest ? '4' : '3');
       }
     } else {
       d.el.setAttribute('fill', 'rgba(' + d.baseColor + ',' + (d.isBest ? '0.95' : '0.5') + ')');
-      d.el.setAttribute('stroke', d.isBest ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.15)');
+      d.el.setAttribute('stroke', d.isBest ? 'rgba(68,68,68,0.5)' : 'rgba(0,0,0,0.06)');
       d.el.setAttribute('stroke-width', '1'); d.el.setAttribute('r', d.isLatest ? '4' : '3');
     }
   }

@@ -85,9 +85,9 @@ export function renderCrossValidation(
       const tileW = 280, tileH = 280;
       for (const name of predictor.outcomeNames) {
         const tile = document.createElement("div");
-        tile.style.cssText = `background:#141418;border:0.5px solid #222;border-radius:8px;overflow:hidden;width:${tileW}px;height:${tileH + 28}px`;
+        tile.style.cssText = `background:transparent;border:0.5px solid #e0e0e0;border-radius:8px;overflow:hidden;width:${tileW}px;height:${tileH + 28}px`;
         const title = document.createElement("div");
-        title.style.cssText = "font-size:13px;font-weight:500;color:#ccc;text-align:center;padding:6px 0 0";
+        title.style.cssText = "font-size:13px;font-weight:500;color:#333;text-align:center;padding:6px 0 0";
         title.textContent = name;
         tile.appendChild(title);
         renderCVPanel(tile, predictor, name, tileW, tileH, true, tooltip, panels,
@@ -99,7 +99,7 @@ export function renderCrossValidation(
       const W = options?.width ?? 440;
       const H = options?.height ?? 440;
       const cvTile = document.createElement("div");
-      cvTile.style.cssText = `background:#141418;border:0.5px solid #222;border-radius:8px;overflow:hidden;width:${W}px;height:${H}px`;
+      cvTile.style.cssText = `background:transparent;border:0.5px solid #e0e0e0;border-radius:8px;overflow:hidden;width:${W}px;height:${H}px`;
       renderCVPanel(cvTile, predictor, selectedOutcome, W, H, false, tooltip, panels,
         () => pinnedIdx, (v) => { pinnedIdx = v; }, broadcastHighlight, broadcastClear);
       plotsDiv.appendChild(cvTile);
@@ -155,10 +155,20 @@ function renderCVPanel(
 
   const svg = svgEl("svg", { width: W, height: H });
 
+  // Axis border lines (bottom + left)
+  svg.appendChild(svgEl("line", {
+    x1: margin.left, x2: margin.left + pw, y1: margin.top + ph, y2: margin.top + ph,
+    stroke: "rgba(0,0,0,0.20)", "stroke-width": 1,
+  }));
+  svg.appendChild(svgEl("line", {
+    x1: margin.left, x2: margin.left, y1: margin.top, y2: margin.top + ph,
+    stroke: "rgba(0,0,0,0.20)", "stroke-width": 1,
+  }));
+
   // Diagonal
   svg.appendChild(svgEl("line", {
     x1: sx(lo), y1: sy(lo), x2: sx(hi), y2: sy(hi),
-    stroke: "rgba(255,255,255,0.15)", "stroke-width": 1, "stroke-dasharray": "4,4",
+    stroke: "rgba(0,0,0,0.20)", "stroke-width": 1.5, "stroke-dasharray": "6,4",
   }));
 
   // Grid + ticks
@@ -168,13 +178,13 @@ function renderCVPanel(
     const v = lo + ((hi - lo) * t) / nTicks;
     svg.appendChild(svgEl("line", {
       x1: margin.left, x2: margin.left + pw, y1: sy(v), y2: sy(v),
-      stroke: "rgba(255,255,255,0.04)",
+      stroke: "rgba(0,0,0,0.06)",
     }));
     svg.appendChild(Object.assign(svgEl("text", {
-      x: sx(v), y: margin.top + ph + (isSmall ? 12 : 16), fill: "#555", "font-size": tickFontSize, "text-anchor": "middle",
+      x: sx(v), y: margin.top + ph + (isSmall ? 12 : 16), fill: "#999", "font-size": tickFontSize, "text-anchor": "middle",
     }), { textContent: v.toFixed(isSmall ? 0 : 2) }));
     svg.appendChild(Object.assign(svgEl("text", {
-      x: margin.left - 4, y: sy(v) + 3, fill: "#555", "font-size": tickFontSize, "text-anchor": "end",
+      x: margin.left - 4, y: sy(v) + 3, fill: "#999", "font-size": tickFontSize, "text-anchor": "end",
     }), { textContent: v.toFixed(isSmall ? 0 : 2) }));
   }
 
@@ -182,15 +192,15 @@ function renderCVPanel(
   const td = predictor.getTrainingData(outcome);
   const dotR = isSmall ? 3 : 4;
   const cvDots: DotInfo[] = [];
-  const defaultFill = "rgba(124,154,255,0.85)";
-  const defaultStroke = "rgba(255,255,255,0.5)";
+  const defaultFill = "rgba(217,95,78,0.85)";
+  const defaultStroke = "rgba(68,68,68,0.35)";
   for (let i = 0; i < n; i++) {
     const cx = sx(observed[i]), cy = sy(predicted[i]);
     const whisker = svgEl("line", {
       x1: cx, x2: cx,
       y1: sy(predicted[i] + 2 * predStd[i]),
       y2: sy(predicted[i] - 2 * predStd[i]),
-      stroke: "rgba(124,154,255,0.3)", "stroke-width": isSmall ? 1 : 1.5,
+      stroke: "rgba(217,95,78,0.3)", "stroke-width": isSmall ? 1 : 1.5,
     });
     svg.appendChild(whisker);
     const dot = svgEl("circle", {
@@ -207,17 +217,17 @@ function renderCVPanel(
   // Axis labels
   if (!isSmall) {
     svg.appendChild(Object.assign(svgEl("text", {
-      x: margin.left + pw / 2, y: H - 6, fill: "#888", "font-size": 13, "text-anchor": "middle",
+      x: margin.left + pw / 2, y: H - 6, fill: "#666", "font-size": 13, "text-anchor": "middle",
     }), { textContent: "Observed" }));
     svg.appendChild(Object.assign(svgEl("text", {
-      x: 14, y: margin.top + ph / 2, fill: "#888", "font-size": 13, "text-anchor": "middle",
+      x: 14, y: margin.top + ph / 2, fill: "#666", "font-size": 13, "text-anchor": "middle",
       transform: `rotate(-90,14,${margin.top + ph / 2})`,
     }), { textContent: "LOO Predicted" }));
   }
 
   // R-squared
   svg.appendChild(Object.assign(svgEl("text", {
-    x: margin.left + 6, y: margin.top + (isSmall ? 14 : 18), fill: "#7c9aff", "font-size": isSmall ? 11 : 14, "font-weight": "600",
+    x: margin.left + 6, y: margin.top + (isSmall ? 14 : 18), fill: "#4872f9", "font-size": isSmall ? 11 : 14, "font-weight": "600",
   }), { textContent: `R\u00B2 = ${r2.toFixed(4)}` }));
 
   target.appendChild(svg);
@@ -239,9 +249,9 @@ function renderCVPanel(
     const best = findNearestDot(cvDots, px, py, HOVER_R);
     if (best >= 0) {
       const d = cvDots[best];
-      let html = `<div style="font-weight:600;color:#aaa;margin-bottom:4px">${outcome} — trial ${d.idx}</div>`;
-      html += `observed = <span style="color:#7c9aff">${observed[d.idx].toFixed(4)}</span><br>`;
-      html += `LOO predicted = <span style="color:#7c9aff">${predicted[d.idx].toFixed(4)}</span><br>`;
+      let html = `<div style="font-weight:600;color:#666;margin-bottom:4px">${outcome} — trial ${d.idx}</div>`;
+      html += `observed = <span style="color:#4872f9">${observed[d.idx].toFixed(4)}</span><br>`;
+      html += `LOO predicted = <span style="color:#4872f9">${predicted[d.idx].toFixed(4)}</span><br>`;
       html += `\u00B1 2\u03C3 = [${(predicted[d.idx] - 2 * predStd[d.idx]).toFixed(4)}, ${(predicted[d.idx] + 2 * predStd[d.idx]).toFixed(4)}]<br>`;
       html += buildPointTooltipHtml(predictor, d.idx, outcome);
       tooltip.innerHTML = html;

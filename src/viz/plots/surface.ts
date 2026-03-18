@@ -143,7 +143,7 @@ function drawVerticalColorbar(
   }
   // Labels
   ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
-  ctx.fillStyle = "rgba(255,255,255,0.5)";
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
   ctx.textAlign = "left";
   ctx.fillText(vMax.toFixed(2), x + w + 3, y + 8);
   ctx.fillText(vMin.toFixed(2), x + w + 3, y + h);
@@ -157,8 +157,8 @@ function drawAxes(
   xName: string, yName: string, showYAxis: boolean,
 ) {
   ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
-  ctx.fillStyle = "rgba(255,255,255,0.5)";
-  ctx.strokeStyle = "rgba(255,255,255,0.2)";
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
+  ctx.strokeStyle = "rgba(0,0,0,0.15)";
   ctx.lineWidth = 1;
   const nTicks = 4;
 
@@ -170,14 +170,14 @@ function drawAxes(
     ctx.beginPath(); ctx.moveTo(tx, MT + N); ctx.lineTo(tx, MT + N + 4); ctx.stroke();
     ctx.fillText(v.toFixed(2), tx, MT + N + 15);
   }
-  ctx.fillStyle = "rgba(255,255,255,0.6)";
+  ctx.fillStyle = "rgba(0,0,0,0.6)";
   ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
   ctx.fillText(xName, ML + N / 2, MT + N + 30);
 
   if (!showYAxis) return;
 
   // Y-axis ticks
-  ctx.fillStyle = "rgba(255,255,255,0.5)";
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
   ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
   ctx.textAlign = "right";
   for (let ti = 0; ti <= nTicks; ti++) {
@@ -190,7 +190,7 @@ function drawAxes(
   ctx.translate(12, MT + N / 2);
   ctx.rotate(-Math.PI / 2);
   ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(255,255,255,0.6)";
+  ctx.fillStyle = "rgba(0,0,0,0.6)";
   ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
   ctx.fillText(yName, 0, 0);
   ctx.restore();
@@ -200,21 +200,21 @@ function drawAxes(
 function drawDots(ctx: CanvasRenderingContext2D, dots: CanvasDot[], pinnedIdx: number) {
   for (const d of dots) {
     const isActive = d.idx === pinnedIdx;
-    const outerR = isActive ? 6 : 4;
-    const innerR = isActive ? 3.5 : 2.5;
+    const outerR = isActive ? 8 : 6;
+    const innerR = isActive ? 4.5 : 3.5;
     ctx.beginPath();
     ctx.arc(d.px, d.py, outerR, 0, 2 * Math.PI);
     ctx.strokeStyle = isActive
-      ? "rgba(255,255,255,1)"
-      : `rgba(255,255,255,${Math.max(0.15, d.alpha * 0.7).toFixed(3)})`;
+      ? "rgba(68,68,68,1)"
+      : `rgba(68,68,68,${Math.max(0.15, d.alpha * 0.7).toFixed(3)})`;
     ctx.lineWidth = isActive ? 2.5 : 1.5;
     ctx.stroke();
     if (d.alpha >= 0.04) {
       ctx.beginPath();
       ctx.arc(d.px, d.py, innerR, 0, 2 * Math.PI);
       ctx.fillStyle = isActive
-        ? "rgba(255,60,60,1)"
-        : `rgba(255,60,60,${d.alpha.toFixed(3)})`;
+        ? "rgba(217,95,78,1)"
+        : `rgba(217,95,78,${d.alpha.toFixed(3)})`;
       ctx.fill();
     }
   }
@@ -252,9 +252,9 @@ function renderResponseSurfaceStatic(
   const CB_LBL = 36;  // space for colorbar labels
   const MR = CB_GAP + CB_W + CB_LBL;
   // Width/height are for the total area; each panel gets half the width
-  const totalW = options?.width ?? 420;
+  const totalW = options?.width ?? 800;
   const panelW = Math.floor((totalW - 12) / 2); // 12px gap between panels
-  const defaultH = (options?.height ?? 420);
+  const defaultH = (options?.height ?? 380);
   // Second panel omits Y-axis, so its ML is smaller
   const ML2 = 10;
   const N = Math.min(panelW - ML - MR, defaultH - MT - MB);
@@ -370,7 +370,7 @@ function renderResponseSurfaceStatic(
 
     // Panel title
     ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.4)";
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
     ctx.textAlign = "center";
     ctx.fillText(panel.title, pML + N / 2, 12);
 

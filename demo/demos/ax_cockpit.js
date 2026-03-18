@@ -11,51 +11,51 @@ return `<!DOCTYPE html>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #0f0f11; color: #e0e0e0;
+  background: #fff; color: #1a1a1a;
   padding: 1.5rem 2rem; min-height: 100vh;
 }
-h1 { font-size: 17px; font-weight: 500; color: #f0f0f0; margin-bottom: 3px; }
-.subtitle { font-size: 12px; color: #777; margin-bottom: 16px; }
+h1 { font-size: 17px; font-weight: 500; color: #111; margin-bottom: 3px; }
+.subtitle { font-size: 12px; color: #666; margin-bottom: 16px; }
 .controls {
   display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;
 }
-label { font-size: 13px; color: #aaa; }
+label { font-size: 13px; color: #555; }
 select, button {
   font-size: 13px; padding: 4px 9px; border-radius: 6px;
-  border: 0.5px solid #444; background: #1a1a1d; color: #e0e0e0; cursor: pointer; outline: none;
+  border: 0.5px solid #d0d0d0; background: #fff; color: #333; cursor: pointer; outline: none;
 }
-button:hover { background: #252528; }
-.cb-label { font-size: 13px; color: #aaa; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+button:hover { background: #f0f0f0; }
+.cb-label { font-size: 13px; color: #555; display: flex; align-items: center; gap: 4px; cursor: pointer; }
 .main-area { display: flex; gap: 20px; align-items: flex-start; }
 .scatter-wrap { position: relative; flex-shrink: 0; }
 #scatterSvg { display: block; }
 .right-panel {
-  background: #141418; border: 0.5px solid #222; border-radius: 8px;
+  background: #fff; border: 0.5px solid #e0e0e0; border-radius: 8px;
   padding: 14px 16px; flex-shrink: 0;
 }
 .rp-title {
-  font-size: 11px; color: #555; letter-spacing: 0.06em;
+  font-size: 11px; color: #999; letter-spacing: 0.06em;
   text-transform: uppercase; margin-bottom: 14px;
 }
 #rpBars svg { display: block; }
 .slider-section {
-  border-top: 0.5px solid #2a2a30; margin-top: 14px; padding-top: 12px;
+  border-top: 0.5px solid #e0e0e0; margin-top: 14px; padding-top: 12px;
 }
 .slider-section .section-title {
-  font-size: 11px; color: #555; letter-spacing: 0.06em;
+  font-size: 11px; color: #999; letter-spacing: 0.06em;
   text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
 }
 .clone-btn, .action-btn {
   font-size: 10px; padding: 2px 8px; border-radius: 4px;
-  border: 0.5px solid #555; background: #1e1e24; color: #aaa; cursor: pointer;
+  border: 0.5px solid #d0d0d0; background: #f0f0f0; color: #555; cursor: pointer;
   text-transform: none; letter-spacing: 0;
 }
-.clone-btn:hover, .action-btn:hover { background: #2a2a30; color: #ddd; }
+.clone-btn:hover, .action-btn:hover { background: #e0e0e0; color: #333; }
 .param-row {
   display: flex; align-items: center; gap: 6px; margin-bottom: 5px;
 }
 .param-row label {
-  font-size: 10px; color: #777; width: 100px; text-align: right; flex-shrink: 0;
+  font-size: 10px; color: #666; width: 100px; text-align: right; flex-shrink: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   position: relative; z-index: 1;
 }
@@ -65,33 +65,33 @@ button:hover { background: #252528; }
 }
 .param-row input[type=range] {
   flex: 1; height: 4px; -webkit-appearance: none; appearance: none;
-  background: #2a2a30; border-radius: 2px; outline: none; cursor: pointer;
+  background: #e0e0e0; border-radius: 2px; outline: none; cursor: pointer;
 }
 .param-row input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none; width: 12px; height: 12px;
-  border-radius: 50%; background: #7c8cc8; cursor: pointer; border: none;
+  border-radius: 50%; background: #636EFA; cursor: pointer; border: none;
 }
 .param-row input[type=range]:disabled { opacity: 0.4; cursor: default; }
 .param-row input[type=range]:disabled::-webkit-slider-thumb { background: #666; cursor: default; }
 .param-row .param-val {
-  font-size: 10px; color: #888; width: 42px; text-align: left; flex-shrink: 0;
+  font-size: 10px; color: #666; width: 42px; text-align: left; flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
 .delete-btn {
-  font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: auto;
-  border: 0.5px solid #555; background: #2a1a1a; color: #c66; cursor: pointer;
+  font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 4px;
+  border: 0.5px solid #e0a0a0; background: #fff0f0; color: #c66; cursor: pointer;
   text-transform: none; letter-spacing: 0;
 }
-.delete-btn:hover { background: #3a2020; color: #f88; }
+.delete-btn:hover { background: #ffe0e0; color: #a44; }
 .legend {
   display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; padding: 6px 0;
 }
 .legend-item {
-  display: flex; align-items: center; gap: 5px; font-size: 11px; color: #888;
+  display: flex; align-items: center; gap: 5px; font-size: 11px; color: #666;
   cursor: pointer; user-select: none; padding: 2px 6px; border-radius: 4px;
   transition: opacity 0.15s;
 }
-.legend-item:hover { background: #1e1e24; }
+.legend-item:hover { background: #f5f5f5; }
 .legend-item.hidden-gen { opacity: 0.3; }
 .legend-swatch {
   width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
@@ -122,7 +122,6 @@ button:hover { background: #252528; }
       <option value="kernel">kernel distance</option>
     </select>
   </label>
-  <button id="btnResample">resample</button>
   <button id="btnNewCand">+ candidate</button>
   <button id="btnExport">export JSON</button>
 </div>
@@ -237,7 +236,7 @@ var FIXTURE_CAND_X = [
 
 // ── Batch color palette ──
 // Each batch gets a distinct color. Shapes distinguish completed (circle) vs candidate (star).
-var BATCH_PALETTE = ['#7c8cc8', '#4ecdc4', '#e8b84d', '#c57bdb', '#e07b9d', '#8cc87c', '#c8a87c', '#7cc8c8'];
+var BATCH_PALETTE = ['#636EFA', '#EF553B', '#00CC96', '#AB63FA', '#FFA15A', '#FF6692', '#19D3F3', '#B6E880'];
 function batchColor(batchIdx) {
   return BATCH_PALETTE[batchIdx % BATCH_PALETTE.length];
 }
@@ -523,6 +522,37 @@ var rpSliders = document.getElementById('rpSliders');
 var selDistMode = document.getElementById('selDistMode');
 var legendEl = document.getElementById('legend');
 
+// Deltoid tooltip: custom div for data-tip hover
+var deltoidTip = document.createElement('div');
+deltoidTip.style.cssText =
+  'position:fixed;display:none;background:rgba(255,255,255,0.97);border:1px solid #d0d0d0;' +
+  'border-radius:5px;padding:5px 10px;font-size:11px;color:#333;pointer-events:none;' +
+  'z-index:10000;white-space:pre-line;box-shadow:0 2px 8px rgba(0,0,0,0.1);max-width:300px';
+document.body.appendChild(deltoidTip);
+
+rpBars.addEventListener('mouseover', function(e) {
+  var el = e.target;
+  while (el && el !== rpBars) {
+    var tip = el.getAttribute && el.getAttribute('data-tip');
+    if (tip) {
+      deltoidTip.textContent = tip;
+      deltoidTip.style.display = 'block';
+      return;
+    }
+    el = el.parentNode;
+  }
+  deltoidTip.style.display = 'none';
+});
+rpBars.addEventListener('mousemove', function(e) {
+  if (deltoidTip.style.display === 'block') {
+    deltoidTip.style.left = (e.clientX + 14) + 'px';
+    deltoidTip.style.top = (e.clientY - 8) + 'px';
+  }
+});
+rpBars.addEventListener('mouseleave', function() {
+  deltoidTip.style.display = 'none';
+});
+
 var W = 520, H = 460;
 var margin = { top: 30, right: 20, bottom: 55, left: 65 };
 var pw = W - margin.left - margin.right;
@@ -650,41 +680,41 @@ function renderScatter() {
   function sy(v) { return margin.top + ph - (v - yMin) / (yMax - yMin) * ph; }
 
   var html = '';
-  html += '<rect width="' + W + '" height="' + H + '" fill="#141418" rx="8"/>';
+  html += '<rect width="' + W + '" height="' + H + '" fill="#fff" rx="8"/>';
   html += '<defs><clipPath id="plotClip"><rect x="' + margin.left + '" y="' + margin.top +
           '" width="' + pw + '" height="' + ph + '"/></clipPath></defs>';
 
   // Grid + tick labels
   xRange.ticks.forEach(function(tv) {
     html += '<line x1="' + sx(tv) + '" y1="' + margin.top + '" x2="' + sx(tv) +
-            '" y2="' + (margin.top + ph) + '" stroke="#1e1e24" stroke-width="0.5"/>';
+            '" y2="' + (margin.top + ph) + '" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>';
     html += '<text x="' + sx(tv) + '" y="' + (H - margin.bottom + 16) +
-            '" text-anchor="middle" fill="#555" font-size="10">' + tv + '%</text>';
+            '" text-anchor="middle" fill="#999" font-size="10">' + tv + '%</text>';
   });
   yRange.ticks.forEach(function(tv) {
     html += '<line x1="' + margin.left + '" y1="' + sy(tv) + '" x2="' + (margin.left + pw) +
-            '" y2="' + sy(tv) + '" stroke="#1e1e24" stroke-width="0.5"/>';
+            '" y2="' + sy(tv) + '" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>';
     html += '<text x="' + (margin.left - 8) + '" y="' + (sy(tv) + 3) +
-            '" text-anchor="end" fill="#555" font-size="10">' + tv + '%</text>';
+            '" text-anchor="end" fill="#999" font-size="10">' + tv + '%</text>';
   });
 
   // Zero reference lines
   if (xMin <= 0 && xMax >= 0) {
     html += '<line x1="' + sx(0) + '" y1="' + margin.top + '" x2="' + sx(0) +
-            '" y2="' + (margin.top + ph) + '" stroke="#3a3a44" stroke-width="1" stroke-dasharray="4,3"/>';
+            '" y2="' + (margin.top + ph) + '" stroke="rgba(0,0,0,0.10)" stroke-width="1" stroke-dasharray="4,3"/>';
   }
   if (yMin <= 0 && yMax >= 0) {
     html += '<line x1="' + margin.left + '" y1="' + sy(0) + '" x2="' + (margin.left + pw) +
-            '" y2="' + sy(0) + '" stroke="#3a3a44" stroke-width="1" stroke-dasharray="4,3"/>';
+            '" y2="' + sy(0) + '" stroke="rgba(0,0,0,0.10)" stroke-width="1" stroke-dasharray="4,3"/>';
   }
 
   // Axis labels
   var xLabel = xName + ' (% vs SQ)';
   var yLabel = yName + ' (% vs SQ)';
   html += '<text x="' + (margin.left + pw/2) + '" y="' + (H - 8) +
-          '" text-anchor="middle" fill="#888" font-size="12">' + xLabel + '</text>';
+          '" text-anchor="middle" fill="#666" font-size="12">' + xLabel + '</text>';
   html += '<text x="14" y="' + (margin.top + ph/2) +
-          '" text-anchor="middle" fill="#888" font-size="12" transform="rotate(-90,14,' +
+          '" text-anchor="middle" fill="#666" font-size="12" transform="rotate(-90,14,' +
           (margin.top + ph/2) + ')">' + yLabel + '</text>';
 
   // Draw items (clipped)
@@ -823,17 +853,26 @@ function updateOpacities() {
 
 // ── Right panel: CI bars with constraint visualization ──
 // desiredSign: -1 = lower is better (minimize), +1 = higher is better, 0 = neutral
-function ciColors(mean, desiredSign) {
+// Returns { c99, c95, c75, tick, isBad }
+function ciColors(mean, sem, desiredSign) {
+  var lo75 = mean - CI_Z.c75 * sem;
+  var hi75 = mean + CI_Z.c75 * sem;
+  var spans0 = lo75 <= 0 && hi75 >= 0;
+
   if (desiredSign === 0) {
-    // No preference known — neutral gray
-    return { c99: '#2a2a2a', c95: '#4a4a4a', c75: '#6a6a6a', tick: '#444' };
+    // No preference known — color by direction unless 75% CI spans 0
+    if (spans0) return { c99: '#e8e8e8', c95: '#d0d0d0', c75: '#b8b8b8', tick: '#666', isBad: false };
+    if (mean > 0) return { c99: '#e6f5d0', c95: '#b8e186', c75: '#7fbc41', tick: '#4d9221', isBad: false };
+    return { c99: '#fde0ef', c95: '#de77ae', c75: '#c51b7d', tick: '#8e0152', isBad: false };
   }
-  // Green when mean goes in desired direction, red when against
+  // Green when mean goes in desired direction, pink when against
   var isGood = mean * desiredSign > 0;
   var isBad = mean * desiredSign < 0;
-  if (isGood) return { c99: '#1a3a1a', c95: '#2a6a2a', c75: '#3a9a3a', tick: '#2a5a2a' };
-  if (isBad) return { c99: '#3a1a1a', c95: '#7a2a2a', c75: '#b03030', tick: '#5a2020' };
-  return { c99: '#2a2a2a', c95: '#4a4a4a', c75: '#6a6a6a', tick: '#444' };
+  // If 75% CI spans zero, use grey (uncertain)
+  if (spans0) return { c99: '#e8e8e8', c95: '#d0d0d0', c75: '#b8b8b8', tick: '#666', isBad: false };
+  if (isGood) return { c99: '#e6f5d0', c95: '#b8e186', c75: '#7fbc41', tick: '#4d9221', isBad: false };
+  if (isBad) return { c99: '#fde0ef', c95: '#de77ae', c75: '#c51b7d', tick: '#8e0152', isBad: true };
+  return { c99: '#e8e8e8', c95: '#d0d0d0', c75: '#b8b8b8', tick: '#666', isBad: false };
 }
 
 // Determine desired sign for each outcome
@@ -916,13 +955,23 @@ function getItemLabel(item) {
 
 function getItemStatusBadge(item) {
   if (!item || item.type !== 'candidate') return '';
-  return ' <span style="color:#e8b84d;font-size:9px;font-weight:600">[PENDING]</span>';
+  return ' <span style="color:#999;font-size:inherit">[PENDING]</span>';
 }
 
 function getItemPreds(item) {
   if (!item) return null;
   if (item.type === 'candidate') return candidates[item.idx] ? candidates[item.idx].preds : null;
   return arms[item.idx] ? arms[item.idx].preds : null;
+}
+
+function getItemColor(item) {
+  if (!item) return '#999';
+  if (item.type === 'candidate') {
+    var cand = candidates[item.idx];
+    return cand ? batchColor(cand.batchIndex) : '#999';
+  }
+  var arm = arms[item.idx];
+  return arm ? batchColor(arm.batchIndex) : '#999';
 }
 
 function showDeltoid(item) {
@@ -935,12 +984,14 @@ function showDeltoid(item) {
 
   var itemRelData = getItemRelData(displayItem);
   if (!itemRelData) {
-    rpTitle.innerHTML = getItemLabel(displayItem) + getItemStatusBadge(displayItem) + ' \\u2014 no data';
+    var titleColor = getItemColor(displayItem);
+    rpTitle.innerHTML = '<span style="color:' + titleColor + '">' + getItemLabel(displayItem) + '</span>' + getItemStatusBadge(displayItem) + ' \\u2014 no data';
     rpBars.innerHTML = '';
     return;
   }
 
-  rpTitle.innerHTML = getItemLabel(displayItem) + getItemStatusBadge(displayItem) + ' \\u2014 % vs SQ';
+  var titleColor = getItemColor(displayItem);
+  rpTitle.innerHTML = '<span style="color:' + titleColor + '">' + getItemLabel(displayItem) + '</span>' + getItemStatusBadge(displayItem) + ' \\u2014 % vs SQ';
 
   // Get raw predictions for constraint checking
   var itemPreds = getItemPreds(displayItem);
@@ -965,82 +1016,148 @@ function showDeltoid(item) {
     }
   });
 
+  // Sort outcomes into groups: objectives (top), constraints (middle), tracking (bottom)
+  // Alphabetical within each group
+  var objNames = [], conNames = [], trackNames = [];
+  outcomeNames.forEach(function(name) {
+    if (objectiveSet[name]) objNames.push(name);
+    else if (constraintMap[name]) conNames.push(name);
+    else trackNames.push(name);
+  });
+  objNames.sort(); conNames.sort(); trackNames.sort();
+  var sortedNames = objNames.concat(conNames).concat(trackNames);
+
   var rowH = 30, barH = 11, labelW = 145, barW = 150, valW = 100, pad = 8;
   var totalW = labelW + barW + valW + pad * 3;
   var topPad = 20;
-  var totalH = outcomeNames.length * rowH + topPad + 8;
+  var totalH = sortedNames.length * rowH + topPad + 8;
 
   var lo = panelRange.lo, hi = panelRange.hi;
   function bx(v) { return labelW + pad + (v - lo) / (hi - lo) * barW; }
 
   var s = '<svg width="' + totalW + '" height="' + totalH + '" xmlns="http://www.w3.org/2000/svg">';
 
+  // Layer 1: Alternating row stripes (bottom)
+  sortedNames.forEach(function(name, k) {
+    if (k % 2 === 1) {
+      var stripY = k * rowH + topPad;
+      s += '<rect x="0" y="' + stripY + '" width="' + totalW + '" height="' + rowH + '" fill="#f7f7f7"/>';
+    }
+  });
+
+  // Layer 2: Grid lines + zero reference (on top of stripes)
   panelRange.ticks.forEach(function(tv) {
     var tx = bx(tv);
-    s += '<text x="' + tx + '" y="12" text-anchor="middle" fill="#555" font-size="9" font-family="sans-serif">' + tv + '%</text>';
-    s += '<line x1="' + tx + '" y1="16" x2="' + tx + '" y2="' + (totalH - 4) + '" stroke="#1e1e24" stroke-width="0.5"/>';
+    s += '<text x="' + tx + '" y="12" text-anchor="middle" fill="#999" font-size="9" font-family="sans-serif">' + tv + '%</text>';
+    s += '<line x1="' + tx + '" y1="16" x2="' + tx + '" y2="' + (totalH - 4) + '" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>';
   });
 
   if (lo <= 0 && hi >= 0) {
     var x0 = bx(0);
-    s += '<line x1="' + x0 + '" y1="16" x2="' + x0 + '" y2="' + (totalH - 4) + '" stroke="#3a3a44" stroke-width="1" stroke-dasharray="3,2"/>';
+    s += '<line x1="' + x0 + '" y1="16" x2="' + x0 + '" y2="' + (totalH - 4) + '" stroke="rgba(0,0,0,0.30)" stroke-width="1"/>';
   }
 
-  outcomeNames.forEach(function(name, k) {
+  // Layer 3: Row content (labels, CI bars, badges)
+  sortedNames.forEach(function(name, k) {
     var cy = k * rowH + rowH / 2 + topPad;
     var r = itemRelData[name];
+
+    // Classify metric type
+    var isObj = objectiveSet[name];
+    var constraint = constraintMap[name];
+    var threshold = thresholdMap[name];
+    var metricType = isObj ? 'Objective' : (constraint ? 'Constraint' : 'Tracking metric');
+    var isActiveOutcome = (sliderOutcome === name);
 
     // Build label with objective/constraint annotation
     var labelText = name;
     var labelColor = '#999';
-    var isObj = objectiveSet[name];
-    var constraint = constraintMap[name];
-    var isActiveOutcome = (sliderOutcome === name);
-
     if (isObj) {
       labelText = (isObj.minimize ? '\\u2193 ' : '\\u2191 ') + name;
-      labelColor = '#ccc';
+      labelColor = '#333';
     } else if (constraint) {
       labelText = name + ' ' + (constraint.op === 'LEQ' ? '\\u2264' : '\\u2265') + ' ' + constraint.bound;
-      labelColor = '#aaa';
+      labelColor = '#555';
     }
-    // Highlight active outcome for slider ordering
-    if (isActiveOutcome) labelColor = '#e8b84d';
+    if (isActiveOutcome) labelColor = '#4872f9';
 
-    // Clickable row — invisible hit area + label
+    // Clickable row group — click events bubble from children to <g>
     s += '<g data-outcome="' + name + '" style="cursor:pointer">';
-    s += '<rect x="0" y="' + (cy - rowH/2) + '" width="' + (labelW + pad + barW + pad) +
-         '" height="' + rowH + '" fill="transparent"/>';
-    // Check constraint violation (need this before rendering label for badge)
+
+    // Check constraint OR objective threshold violation
     var violated = false;
-    if (r && constraint && itemPreds) {
+    var violatedBound = null;
+    var violatedOp = null;
+    if (r && itemPreds) {
       var predMean = itemPreds[name].mean[0];
       var predVar = itemPreds[name].variance[0];
       var predSem = Math.sqrt(Math.max(0, predVar));
-      if (constraint.op === 'LEQ' && predMean + 1.96 * predSem > constraint.bound) violated = true;
-      if (constraint.op === 'GEQ' && predMean - 1.96 * predSem < constraint.bound) violated = true;
+      if (constraint) {
+        if (constraint.op === 'LEQ' && predMean + 1.96 * predSem > constraint.bound) {
+          violated = true; violatedBound = constraint.bound; violatedOp = constraint.op;
+        }
+        if (constraint.op === 'GEQ' && predMean - 1.96 * predSem < constraint.bound) {
+          violated = true; violatedBound = constraint.bound; violatedOp = constraint.op;
+        }
+      }
+      if (threshold) {
+        if (threshold.op === 'LEQ' && predMean + 1.96 * predSem > threshold.bound) {
+          violated = true; violatedBound = threshold.bound; violatedOp = threshold.op;
+        }
+        if (threshold.op === 'GEQ' && predMean - 1.96 * predSem < threshold.bound) {
+          violated = true; violatedBound = threshold.bound; violatedOp = threshold.op;
+        }
+      }
     }
 
-    // Violation badge: small triangle to the LEFT of the label
+    // Violation badge: left-justified at x=4
     if (violated) {
-      var badgeX = labelW - 4 - labelText.length * 6.2 - 14;
-      s += '<text x="' + Math.max(2, badgeX) + '" y="' + (cy + 4) +
-           '" fill="#c66" font-size="12" font-family="sans-serif">\\u26A0</text>';
+      s += '<text x="4" y="' + (cy + 5) +
+           '" fill="#d32f2f" font-size="13" font-weight="700" font-family="sans-serif">\\u26A0</text>';
     }
 
-    s += '<text x="' + (labelW - 4) + '" y="' + (cy + 4) +
+    // Label with tooltip for metric type
+    s += '<text data-tip="' + metricType + '" x="' + (labelW - 4) + '" y="' + (cy + 4) +
          '" text-anchor="end" fill="' + labelColor + '" font-size="11" font-family="sans-serif"' +
          (isActiveOutcome ? ' font-weight="600"' : '') + '>' + labelText + '</text>';
 
     if (r) {
 
       var desiredSign = outcomeDesiredSign(name);
-      var cols = ciColors(r.mean, desiredSign);
-      // Override colors for violated constraints
+      var cols = ciColors(r.mean, r.sem, desiredSign);
       if (violated) {
-        cols = { c99: '#3a1a1a', c95: '#7a2a2a', c75: '#b03030', tick: '#5a2020' };
+        cols = { c99: '#fde0ef', c95: '#de77ae', c75: '#c51b7d', tick: '#8e0152', isBad: true };
       }
 
+      // Determine interval tooltip text
+      var intervalTooltip;
+      if (cols.isBad) {
+        intervalTooltip = 'Metric regression: ' + r.mean.toFixed(2) + '% vs SQ';
+        if (violated && violatedBound !== null) {
+          var boundRel = relConstraintBounds[name];
+          if (boundRel) {
+            intervalTooltip += '\\nFalls ' + (violatedOp === 'LEQ' ? 'above' : 'below') +
+              ' constraint threshold ' + violatedBound + ' (' + boundRel.rel.toFixed(1) + '% vs SQ)';
+          }
+        }
+      } else if (cols.c75 === '#b8b8b8') {
+        intervalTooltip = 'Likely neutral: ' + r.mean.toFixed(2) + '% vs SQ';
+      } else {
+        intervalTooltip = 'Metric improvement: ' + r.mean.toFixed(2) + '% vs SQ';
+      }
+
+      // Red outline halo for constraint-violating intervals
+      if (violated) {
+        var haloX1 = bx(r.mean - CI_Z.c99 * r.sem) - 2;
+        var haloX2 = bx(r.mean + CI_Z.c99 * r.sem) + 2;
+        var haloW = Math.max(4, haloX2 - haloX1);
+        s += '<rect x="' + haloX1 + '" y="' + (cy - barH/2 - 2) +
+             '" width="' + haloW + '" height="' + (barH + 4) +
+             '" fill="none" stroke="#d32f2f" stroke-width="1.5" rx="3"/>';
+      }
+
+      // CI interval bars with tooltip
+      var escapedTip = intervalTooltip.replace(/"/g, '&quot;');
       var intervals = [
         { z: CI_Z.c99, fill: cols.c99, h: barH },
         { z: CI_Z.c95, fill: cols.c95, h: barH - 2 },
@@ -1051,23 +1168,29 @@ function showDeltoid(item) {
         var x1 = bx(r.mean - ci.z * r.sem);
         var x2 = bx(r.mean + ci.z * r.sem);
         var w = Math.max(1, x2 - x1);
-        s += '<rect x="' + x1 + '" y="' + (cy - ci.h/2) +
+        s += '<rect data-tip="' + escapedTip + '" x="' + x1 + '" y="' + (cy - ci.h/2) +
              '" width="' + w + '" height="' + ci.h +
              '" fill="' + ci.fill + '" rx="1.5"/>';
       }
 
       var xm = bx(r.mean);
-      s += '<line x1="' + xm + '" y1="' + (cy - barH/2 + 1) + '" x2="' + xm +
+      s += '<line data-tip="' + escapedTip + '" x1="' + xm + '" y1="' + (cy - barH/2 + 1) + '" x2="' + xm +
            '" y2="' + (cy + barH/2 - 1) + '" stroke="' + cols.tick + '" stroke-width="2"/>';
 
       // Constraint/threshold bound dashed line (in relative space)
       var boundInfo = relConstraintBounds[name];
       if (boundInfo && boundInfo.rel >= lo && boundInfo.rel <= hi) {
         var bxPos = bx(boundInfo.rel);
-        var boundColor = constraint ? '#c66' : '#e8b84d';
-        s += '<line x1="' + bxPos + '" y1="' + (cy - barH/2 - 3) + '" x2="' + bxPos +
+        var boundColor = violated ? '#d32f2f' : '#4d9221';
+        var opWord = boundInfo.op === 'LEQ' ? 'less' : 'greater';
+        var boundTooltip = name + ' must be ' + opWord + ' than ' + boundInfo.rel.toFixed(1) + '% vs SQ';
+        var escapedBound = boundTooltip.replace(/"/g, '&quot;');
+        s += '<line data-tip="' + escapedBound + '" x1="' + bxPos + '" y1="' + (cy - barH/2 - 3) + '" x2="' + bxPos +
              '" y2="' + (cy + barH/2 + 3) + '" stroke="' + boundColor +
              '" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.7"/>';
+        // Invisible wider hit area for easier hover
+        s += '<line data-tip="' + escapedBound + '" x1="' + bxPos + '" y1="' + (cy - barH/2 - 3) + '" x2="' + bxPos +
+             '" y2="' + (cy + barH/2 + 3) + '" stroke="transparent" stroke-width="8"/>';
       }
 
       // Value annotation
@@ -1076,7 +1199,7 @@ function showDeltoid(item) {
            '" fill="' + (violated ? '#c66' : '#777') + '" font-size="10" font-family="sans-serif">' + valStr + '</text>';
     } else {
       s += '<text x="' + (labelW + pad + barW/2) + '" y="' + (cy + 4) +
-           '" text-anchor="middle" fill="#555" font-size="10" font-style="italic" font-family="sans-serif">N/A</text>';
+           '" text-anchor="middle" fill="#999" font-size="10" font-style="italic" font-family="sans-serif">N/A</text>';
     }
     s += '</g>';
   });
@@ -1089,7 +1212,7 @@ function showDeltoid(item) {
     var pofPct = (pof * 100).toFixed(1);
     var col = pofColor(pof);
     pofHtml = '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;padding:4px 0">';
-    pofHtml += '<span style="font-size:10px;color:#555;letter-spacing:.06em;text-transform:uppercase">P(feasible)</span>';
+    pofHtml += '<span style="font-size:10px;color:#999;letter-spacing:.06em;text-transform:uppercase">P(feasible)</span>';
     pofHtml += '<span style="font-size:15px;font-weight:600;color:' + col + '">' + pofPct + '%</span>';
     pofHtml += '</div>';
   }
@@ -1125,10 +1248,9 @@ function renderSliders() {
   var label = getItemLabel(selectedItem);
 
   var html = '<div class="slider-section">';
-  // Candidates get white title to indicate they're mutable
-  var titleStyle = isCandidate ? ' style="color:#e0e0e0"' : '';
+  var itemColor = getItemColor(selectedItem);
   var badge = getItemStatusBadge(selectedItem);
-  html += '<div class="section-title"' + titleStyle + '>' + label + badge;
+  html += '<div class="section-title"><span style="color:' + itemColor + '">' + label + '</span>' + badge;
 
   html += ' <button class="clone-btn" id="btnClone">clone</button>';
   if (isCandidate) {
@@ -1148,7 +1270,7 @@ function renderSliders() {
         if (impScores[d] > maxImp) maxImp = impScores[d];
       }
     }
-    html += '<div style="font-size:10px;color:#e8b84d;margin-bottom:6px">Sorted by ' + sliderOutcome + ' importance</div>';
+    html += '<div style="font-size:10px;color:#4872f9;margin-bottom:6px">Sorted by ' + sliderOutcome + ' importance</div>';
   } else {
     // No outcome selected: geometric mean of 1/LS across all outcomes
     for (var d = 0; d < nDims; d++) {
@@ -1171,9 +1293,9 @@ function renderSliders() {
     var step = (bHi - bLo) / 200;
     var impFrac = maxImp > 0 ? impScores[j] / maxImp : 0;
     var barW = Math.round(impFrac * 96); // max 96px within 100px label
-    var barColor = sliderOutcome ? '#e8b84d' : '#7c8cc8';
+    var barColor = sliderOutcome ? '#4872f9' : '#636EFA';
     html += '<div class="param-row">';
-    var labelStyle = isEditable ? ' style="color:#bbb"' : '';
+    var labelStyle = isEditable ? ' style="color:#333"' : '';
     html += '<label' + labelStyle + '>' + paramNames[j];
     if (barW > 2) {
       html += '<span class="imp-bar" style="width:' + barW + 'px;background:' + barColor + '"></span>';
@@ -1208,7 +1330,7 @@ function renderSliders() {
             // Update slider section title in-place to show (edited)
             var titleEl = rpSliders.querySelector('.section-title');
             if (titleEl) {
-              var newLabel = getItemLabel(selectedItem) + getItemStatusBadge(selectedItem);
+              var newLabel = '<span style="color:' + getItemColor(selectedItem) + '">' + getItemLabel(selectedItem) + '</span>' + getItemStatusBadge(selectedItem);
               // Preserve buttons at the end
               var btns = titleEl.querySelectorAll('button');
               titleEl.innerHTML = newLabel;
@@ -1399,22 +1521,7 @@ selSQ.addEventListener('change', function() {
 });
 selDistMode.addEventListener('change', function() { updateOpacities(); });
 
-document.getElementById('btnResample').addEventListener('click', function() {
-  selectedItem = null;
-  hoveredItem = null;
-  sliderOutcome = null;
-  sliderDimOrder = null;
-  rpTitle.textContent = 'Hover over an arm to see all outcomes';
-  rpBars.innerHTML = '';
-  rpSliders.innerHTML = '';
-  buildFromFixture(FIXTURE_SOBOL_X, FIXTURE_SOBOL_Y, FIXTURE_EHVI_X, FIXTURE_EHVI_Y, FIXTURE_CAND_X);
-  nArms = arms.length;
-  computeAllRelData();
-  computePanelRange();
-  populateSQDropdown();
-  renderScatter();
-  updateSubtitle();
-});
+
 
 document.getElementById('btnNewCand').addEventListener('click', createNewCandidate);
 document.getElementById('btnExport').addEventListener('click', exportCandidates);
@@ -1430,7 +1537,11 @@ function updateSubtitle() {
 
 // ── Init ──
 updateSubtitle();
+// Auto-select the first arm so the RHS panel is populated on load
+selectedItem = { type: 'arm', idx: 0 };
 renderScatter();
+showDeltoid(selectedItem);
+renderSliders();
 })();
 
 </script>

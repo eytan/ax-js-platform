@@ -44,6 +44,7 @@ export interface DotInfo {
 export interface FeatureImportanceOptions {
   outcome?: string;
   interactive?: boolean;
+  backgroundColor?: string;
 }
 
 /** Options for renderCrossValidation. */
@@ -52,6 +53,7 @@ export interface CrossValidationOptions {
   width?: number;
   height?: number;
   interactive?: boolean;
+  backgroundColor?: string;
 }
 
 /** Options for renderOptimizationTrace. */
@@ -61,6 +63,7 @@ export interface OptimizationTraceOptions {
   width?: number;
   height?: number;
   interactive?: boolean;
+  backgroundColor?: string;
 }
 
 /** Options for renderSlicePlot. */
@@ -71,6 +74,7 @@ export interface SlicePlotOptions {
   width?: number;
   height?: number;
   interactive?: boolean;
+  backgroundColor?: string;
 }
 
 /** Options for renderResponseSurface. */
@@ -83,6 +87,7 @@ export interface ResponseSurfaceOptions {
   width?: number;
   height?: number;
   interactive?: boolean;
+  backgroundColor?: string;
 }
 
 /** Minimal predictor shape for dimension ranking. */

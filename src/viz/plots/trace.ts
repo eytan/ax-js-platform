@@ -90,16 +90,26 @@ function renderOptimizationTraceStatic(
 
   const svg = svgEl("svg", { width: W, height: H });
 
+  // Axis border lines (bottom + left)
+  svg.appendChild(svgEl("line", {
+    x1: margin.left, x2: margin.left + pw, y1: margin.top + ph, y2: margin.top + ph,
+    stroke: "rgba(0,0,0,0.20)", "stroke-width": 1,
+  }));
+  svg.appendChild(svgEl("line", {
+    x1: margin.left, x2: margin.left, y1: margin.top, y2: margin.top + ph,
+    stroke: "rgba(0,0,0,0.20)", "stroke-width": 1,
+  }));
+
   // Grid + Y ticks
   const nTicks = 5;
   for (let t = 0; t <= nTicks; t++) {
     const v = yMin + ((yMax - yMin) * t) / nTicks;
     svg.appendChild(svgEl("line", {
       x1: margin.left, x2: margin.left + pw, y1: sy(v), y2: sy(v),
-      stroke: "rgba(255,255,255,0.05)",
+      stroke: "rgba(0,0,0,0.06)",
     }));
     svg.appendChild(Object.assign(svgEl("text", {
-      x: margin.left - 8, y: sy(v) + 4, fill: "#555", "font-size": 10, "text-anchor": "end",
+      x: margin.left - 8, y: sy(v) + 4, fill: "#999", "font-size": 10, "text-anchor": "end",
     }), { textContent: v.toFixed(2) }));
   }
 
@@ -109,15 +119,15 @@ function renderOptimizationTraceStatic(
     bsfPath += ` H ${sx(i)} V ${sy(bestSoFar[i])}`;
   }
   svg.appendChild(Object.assign(svgEl("path", {
-    d: bsfPath, stroke: "#7c6ff7", "stroke-width": 2.5, fill: "none", opacity: "0.7",
+    d: bsfPath, stroke: "#444", "stroke-width": 2.5, fill: "none", opacity: "0.7",
   })));
 
   // Dots
   const traceDots: DotInfo[] = [];
   for (let i = 0; i < n; i++) {
     const isBest = bestSoFar[i] === yVals[i];
-    const dotFill = isBest ? "rgba(124,111,247,0.9)" : "rgba(255,255,255,0.3)";
-    const dotStroke = isBest ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.15)";
+    const dotFill = isBest ? "rgba(217,95,78,0.9)" : "rgba(0,0,0,0.12)";
+    const dotStroke = isBest ? "rgba(68,68,68,0.5)" : "rgba(0,0,0,0.06)";
     const dot = svgEl("circle", {
       cx: sx(i), cy: sy(yVals[i]), r: 4,
       fill: dotFill, stroke: dotStroke, "stroke-width": 1,
@@ -131,10 +141,10 @@ function renderOptimizationTraceStatic(
 
   // Axis labels
   svg.appendChild(Object.assign(svgEl("text", {
-    x: margin.left + pw / 2, y: H - 6, fill: "#888", "font-size": 13, "text-anchor": "middle",
+    x: margin.left + pw / 2, y: H - 6, fill: "#666", "font-size": 13, "text-anchor": "middle",
   }), { textContent: "Trial" }));
   svg.appendChild(Object.assign(svgEl("text", {
-    x: 14, y: margin.top + ph / 2, fill: "#888", "font-size": 13, "text-anchor": "middle",
+    x: 14, y: margin.top + ph / 2, fill: "#666", "font-size": 13, "text-anchor": "middle",
     transform: `rotate(-90,14,${margin.top + ph / 2})`,
   }), { textContent: `${outcome}${minimize ? " (min)" : " (max)"}` }));
 
@@ -142,7 +152,7 @@ function renderOptimizationTraceStatic(
   const xStep = Math.max(1, Math.ceil(n / 10));
   for (let i = 0; i < n; i += xStep) {
     svg.appendChild(Object.assign(svgEl("text", {
-      x: sx(i), y: margin.top + ph + 18, fill: "#555", "font-size": 10, "text-anchor": "middle",
+      x: sx(i), y: margin.top + ph + 18, fill: "#999", "font-size": 10, "text-anchor": "middle",
     }), { textContent: String(i) }));
   }
 
@@ -150,10 +160,10 @@ function renderOptimizationTraceStatic(
   svg.appendChild(svgEl("line", {
     x1: margin.left + pw - 120, x2: margin.left + pw - 100,
     y1: margin.top + 12, y2: margin.top + 12,
-    stroke: "#7c6ff7", "stroke-width": 2.5,
+    stroke: "#444", "stroke-width": 2.5,
   }));
   svg.appendChild(Object.assign(svgEl("text", {
-    x: margin.left + pw - 96, y: margin.top + 16, fill: "#888", "font-size": 11,
+    x: margin.left + pw - 96, y: margin.top + 16, fill: "#666", "font-size": 11,
   }), { textContent: "best so far" }));
 
   // Click-to-pin interactivity

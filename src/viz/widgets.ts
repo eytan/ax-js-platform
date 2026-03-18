@@ -97,7 +97,7 @@ export function createParamSliders(
       sl.style.cssText =
         "-webkit-appearance:auto;appearance:auto;cursor:pointer;" +
         "touch-action:none;pointer-events:auto;user-select:auto;" +
-        "-webkit-user-select:auto;flex:1;min-width:100px;accent-color:#7c6ff7;";
+        "-webkit-user-select:auto;flex:1;min-width:100px;accent-color:#4872f9;";
       sl.min = String(lo);
       sl.max = String(hi);
       sl.step = isInteger(p) ? "1" : String((hi - lo) / 200);
@@ -168,9 +168,9 @@ export function createTooltipDiv(containerId?: string): HTMLDivElement {
   if (containerId) tooltip.setAttribute("data-axjs-for", containerId);
   // Inline all styles — tooltip lives in body, outside any scoped CSS container
   tooltip.style.cssText =
-    "position:fixed;display:none;background:rgba(20,20,24,0.95);" +
-    "border:1px solid #444;border-radius:6px;padding:8px 12px;" +
-    "font-size:12px;color:#e0e0e0;pointer-events:none;" +
+    "position:fixed;display:none;background:rgba(255,255,255,0.97);" +
+    "border:1px solid #d0d0d0;border-radius:6px;padding:8px 12px;" +
+    "font-size:12px;color:#333;pointer-events:none;" +
     "z-index:10000;white-space:nowrap;";
   document.body.appendChild(tooltip);
   return tooltip;
@@ -198,7 +198,7 @@ export function makeSelectEl(label: string): { wrapper: HTMLDivElement; select: 
   const wrapper = document.createElement("div");
   wrapper.style.cssText = "display:flex;align-items:center;gap:4px";
   const lbl = document.createElement("span");
-  lbl.style.cssText = "color:#888;font-size:12px";
+  lbl.style.cssText = "color:#666;font-size:12px";
   lbl.textContent = label;
   const select = document.createElement("select");
   select.className = "axjs-select";

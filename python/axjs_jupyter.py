@@ -59,7 +59,7 @@ def _render(client_or_state: Any, viz_code: str,
 
     return (
         f'<div id="{cid}" style="width:{width};min-height:{height};'
-        f'position:relative;background:#0f0f11;border-radius:8px;'
+        f'position:relative;background:transparent;border-radius:8px;'
         f'overflow:visible;padding:12px;pointer-events:auto;touch-action:none"></div>'
         f'<script>(function(){{'
         f'if(!window.Ax){{{ax_js}\n{viz_js}}}'

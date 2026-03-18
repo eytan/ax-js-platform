@@ -18,7 +18,7 @@ export function drawDataDot(
   alpha: number,
   isActive: boolean,
   isHovered: boolean,
-  fillRGB: RGB = [255, 60, 60],
+  fillRGB: RGB = [217, 95, 78],
 ): void {
   if (alpha < 0.04) return;
   const outerR = isActive || isHovered ? 7.5 : 5;
@@ -26,8 +26,8 @@ export function drawDataDot(
   ctx.beginPath();
   ctx.arc(x, y, outerR, 0, 2 * Math.PI);
   ctx.strokeStyle = isActive
-    ? "rgba(255,255,255,1)"
-    : `rgba(255,255,255,${Math.max(0.15, alpha * 0.6).toFixed(3)})`;
+    ? "rgba(68,68,68,1)"
+    : `rgba(68,68,68,${Math.max(0.15, alpha * 0.6).toFixed(3)})`;
   ctx.lineWidth = isActive ? 2.5 : isHovered ? 2 : 1.5;
   ctx.stroke();
   ctx.beginPath();

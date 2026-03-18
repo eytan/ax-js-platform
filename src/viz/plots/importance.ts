@@ -65,7 +65,7 @@ function renderFeatureImportanceStatic(
     return;
   }
 
-  const barColors = ["#7c6ff7", "#6fa0f7", "#6fcff7", "#6ff7c8", "#a0f76f", "#f7e06f", "#f7a06f", "#f76f6f"];
+  const barColors = ["#4872f9", "#5478fa", "#6088fa", "#7098fb", "#85a8fb", "#9ab8fc", "#b0c8fc", "#c7d4fd"];
   const importances = ranked.map((d) => 1 / d.lengthscale);
   const maxImp = Math.max(...importances);
 
@@ -88,14 +88,14 @@ function renderFeatureImportanceStatic(
     svg.appendChild(
       Object.assign(svgEl("text", {
         x: labelW - 8, y: y + barH / 2 + 4,
-        fill: "#ccc", "font-size": 13, "text-anchor": "end",
+        fill: "#333", "font-size": 13, "text-anchor": "end",
       }), { textContent: dim.paramName }),
     );
 
     // Track
     svg.appendChild(svgEl("rect", {
       x: labelW, y, width: trackW, height: barH,
-      rx: 4, fill: "#1a1a1d",
+      rx: 4, fill: "#f0f0f0",
     }));
 
     // Fill bar
@@ -128,7 +128,7 @@ function renderFeatureImportanceStatic(
     svg.appendChild(
       Object.assign(svgEl("text", {
         x: labelW + trackW + 4, y: y + barH / 2 + 4,
-        fill: "#999", "font-size": 11, "text-anchor": "start",
+        fill: "#666", "font-size": 11, "text-anchor": "start",
         "pointer-events": "none",
       }), { textContent: `ls=${dim.lengthscale.toFixed(3)}` }),
     );

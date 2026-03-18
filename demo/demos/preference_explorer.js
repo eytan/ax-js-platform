@@ -11,32 +11,32 @@ return `<!DOCTYPE html>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #0f0f11; color: #e0e0e0;
+    background: #fff; color: #1a1a1a;
     padding: 2rem; min-height: 100vh;
   }
-  h1 { font-size: 18px; font-weight: 500; color: #f0f0f0; margin-bottom: 4px; }
-  .subtitle { font-size: 13px; color: #888; margin-bottom: 16px; }
+  h1 { font-size: 18px; font-weight: 500; color: #111; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 16px; }
   .controls { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
   button {
     font-size: 13px; padding: 6px 16px;
-    border-radius: 6px; border: 0.5px solid #444;
-    background: #1a1a1d; color: #e0e0e0; cursor: pointer; outline: none;
+    border-radius: 6px; border: 0.5px solid #d0d0d0;
+    background: #fff; color: #333; cursor: pointer; outline: none;
   }
   select {
     font-size: 13px; padding: 5px 10px;
-    border-radius: 6px; border: 0.5px solid #444;
-    background: #1a1a1d; color: #e0e0e0; cursor: pointer; outline: none;
+    border-radius: 6px; border: 0.5px solid #d0d0d0;
+    background: #fff; color: #333; cursor: pointer; outline: none;
   }
-  button:hover, select:hover { background: #252528; }
+  button:hover, select:hover { background: #f0f0f0; }
   button:disabled { opacity: 0.4; cursor: default; }
-  .status { font-size: 13px; color: #888; }
-  .status span { font-weight: 500; color: #ccc; }
+  .status { font-size: 13px; color: #666; }
+  .status span { font-weight: 500; color: #333; }
   .main-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
   .panel { display: flex; flex-direction: column; gap: 6px; }
-  .panel-title { font-size: 12px; color: #888; text-align: center; letter-spacing: 0.04em; }
+  .panel-title { font-size: 12px; color: #666; text-align: center; letter-spacing: 0.04em; }
   canvas.heatmap {
     display: block; border-radius: 6px;
-    border: 0.5px solid #333;
+    border: 0.5px solid #d0d0d0;
   }
   .cbrow { display: flex; align-items: center; gap: 6px; }
   .cblbl { font-size: 11px; color: #666; min-width: 40px; }
@@ -46,65 +46,65 @@ return `<!DOCTYPE html>
   .slice-row {
     display: flex; gap: 20px; align-items: center; margin-bottom: 14px;
     flex-wrap: wrap; padding: 8px 12px;
-    background: #141418; border-radius: 8px; border: 0.5px solid #1e1e24;
+    background: #f5f5f5; border-radius: 8px; border: 0.5px solid #e0e0e0;
   }
-  .slice-row label { font-size: 12px; color: #888; display: flex; align-items: center; gap: 6px; }
-  .slice-row input[type=range] { width: 120px; accent-color: #7c6ff7; }
-  .slice-row .slice-val { font-size: 11px; color: #aaa; min-width: 36px; }
-  .slice-row .slice-name { font-size: 10px; color: #555; margin-left: 2px; }
+  .slice-row label { font-size: 12px; color: #666; display: flex; align-items: center; gap: 6px; }
+  .slice-row input[type=range] { width: 120px; accent-color: #4872f9; }
+  .slice-row .slice-val { font-size: 11px; color: #555; min-width: 36px; }
+  .slice-row .slice-name { font-size: 10px; color: #999; margin-left: 2px; }
 
   /* Comparison panel */
   .comparison-panel {
-    background: #141418; border-radius: 10px; border: 0.5px solid #2a2a30;
-    padding: 20px; width: 400px;
+    background: #f5f5f5; border-radius: 10px; border: 0.5px solid #e0e0e0;
+    padding: 20px; width: 440px;
   }
-  .comparison-header { font-size: 14px; color: #aaa; text-align: center; margin-bottom: 12px; }
+  .comparison-header { font-size: 14px; color: #555; text-align: center; margin-bottom: 12px; }
   .comparison-options { display: flex; gap: 16px; justify-content: center; }
   .option-card {
-    cursor: pointer; border-radius: 8px; border: 2px solid #333;
+    cursor: pointer; border-radius: 8px; border: 2px solid #d0d0d0;
     padding: 8px; transition: border-color 0.15s, transform 0.1s;
     text-align: center;
   }
-  .option-card:hover { border-color: #666; transform: translateY(-2px); }
-  .option-card.selected { border-color: #6f6; }
+  .option-card:hover { border-color: #999; transform: translateY(-2px); }
+  .option-card.selected { border-color: #4d9221; }
   .option-card canvas { display: block; border-radius: 4px; }
-  .option-label { font-size: 12px; color: #888; margin-top: 6px; }
-  .option-coords { font-size: 10px; color: #555; margin-top: 2px; }
-  .waiting-msg { font-size: 13px; color: #666; text-align: center; padding: 60px 0; }
+  .option-label { font-size: 12px; color: #666; margin-top: 6px; }
+  .option-coords { font-size: 10px; color: #999; margin-top: 2px; }
+  .waiting-msg { font-size: 13px; color: #999; text-align: center; padding: 60px 0; }
 
   /* History */
   .history-panel {
-    background: #141418; border-radius: 10px; border: 0.5px solid #2a2a30;
+    background: #f5f5f5; border-radius: 10px; border: 0.5px solid #e0e0e0;
     padding: 16px; max-height: 360px; overflow-y: auto; min-width: 300px;
   }
   .history-item {
     display: flex; align-items: center; gap: 8px; padding: 4px 0;
-    font-size: 12px; color: #888; border-bottom: 0.5px solid #1e1e24;
+    font-size: 12px; color: #666; border-bottom: 0.5px solid #e0e0e0;
   }
   .history-dot {
     width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
   }
-  .history-winner { color: #6f6; font-weight: 500; }
-  .history-loser { color: #888; }
+  .history-winner { color: #4d9221; font-weight: 500; }
+  .history-loser { color: #999; }
 
   /* Convergence */
   .convergence-panel {
-    background: #141418; border-radius: 10px; border: 0.5px solid #2a2a30;
+    background: #f5f5f5; border-radius: 10px; border: 0.5px solid #e0e0e0;
     padding: 12px;
   }
 
   .bottom-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; margin-top: 16px; }
-  .info { font-size: 13px; color: #777; margin-top: 14px; line-height: 1.8; }
-  .info span { font-weight: 500; color: #ccc; }
+  .info { font-size: 13px; color: #666; margin-top: 14px; line-height: 1.8; }
+  .info span { font-weight: 500; color: #333; }
 
   #tooltip {
     position: fixed; display: none;
-    background: #1e1e22; border: 0.5px solid #555;
+    background: rgba(255,255,255,0.97); border: 0.5px solid #d0d0d0;
     border-radius: 7px; padding: 9px 13px;
-    font-size: 12px; color: #ccc;
+    font-size: 12px; color: #333;
     pointer-events: none; z-index: 100;
     line-height: 1.8; white-space: nowrap;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
   }
 </style>
 </head>
@@ -227,7 +227,7 @@ ${vizScript()}
 <script>
 var loadModel = Ax.loadModel;
 var D = 4; // Number of dimensions
-var CN = 320, GS = 40, N_EUBO_PAIRS = 200, DELAY_MS = 150;
+var CN = 320, GS = 80, N_EUBO_PAIRS = 200, DELAY_MS = 150;
 var running = false, waitingForHuman = false;
 
 // ══════════════════════════════════════════════
@@ -811,7 +811,7 @@ function drawContourLines(ctx, vals, gs, canvasN, vMin, vRange) {
   ];
   for (var li = 1; li < nLevels; li++) {
     var level = vMin + vRange * li / nLevels;
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 0.7;
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 0.7;
     ctx.beginPath();
     for (var gj = 0; gj < gs-1; gj++) {
       for (var gi = 0; gi < gs-1; gi++) {
@@ -858,8 +858,8 @@ function drawLargeDot(ctx, x, y, alpha, isActive, isHovered, fillRGB) {
   var innerR = (isActive || isHovered) ? 5 : 3.5;
   fillRGB = fillRGB || [255, 60, 60];
   ctx.beginPath(); ctx.arc(x, y, outerR, 0, 2 * Math.PI);
-  ctx.strokeStyle = isActive ? 'rgba(255,255,255,1)'
-    : 'rgba(255,255,255,' + Math.max(0.15, alpha * 0.6).toFixed(3) + ')';
+  ctx.strokeStyle = isActive ? 'rgba(68,68,68,1)'
+    : 'rgba(68,68,68,' + Math.max(0.15, alpha * 0.6).toFixed(3) + ')';
   ctx.lineWidth = isActive ? 2.5 : (isHovered ? 2 : 1.5);
   ctx.stroke();
   ctx.beginPath(); ctx.arc(x, y, innerR, 0, 2 * Math.PI);
@@ -879,7 +879,7 @@ function drawDataPoints(ctx, points, comparisons, bestIdx, sliceVals, activePinI
     if (edgeO < 0.05) continue;
     var px1 = points[wi][0]*CN, py1 = (1-points[wi][1])*CN;
     var px2 = points[li][0]*CN, py2 = (1-points[li][1])*CN;
-    ctx.strokeStyle = 'rgba(255,255,255,' + (edgeO * 0.55).toFixed(3) + ')';
+    ctx.strokeStyle = 'rgba(68,68,68,' + (edgeO * 0.55).toFixed(3) + ')';
     ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(px1, py1); ctx.lineTo(px2, py2); ctx.stroke();
   }
@@ -910,14 +910,14 @@ function drawDataPoints(ctx, points, comparisons, bestIdx, sliceVals, activePinI
     }
   }
   // Draw data points using shared drawDataDot
-  // Darkened colors (50% toward black) for contrast against heatmaps
-  // Winners: dark cyan [0,120,128], Losers: dark magenta [128,30,90], Neutral: [110,110,120]
+  // PiYG-derived dot colors for contrast against heatmaps
+  // Winners: forest green [77,146,33], Losers: deep pink [197,27,125], Neutral: grey [110,110,120]
   for (var i = 0; i < points.length; i++) {
     var px = points[i][0]*CN, py = (1-points[i][1])*CN;
     var w = wins[i] || 0, l = losses[i] || 0;
     var rgb;
-    if (w > l) rgb = [0, 120, 128];
-    else if (l > w) rgb = [128, 30, 90];
+    if (w > l) rgb = [77, 146, 33];
+    else if (l > w) rgb = [197, 27, 125];
     else rgb = [110, 110, 120];
     var isActive = (i === activePinIdx);
     var isHovered = (i === activeHoverIdx && i !== activePinIdx);
@@ -946,15 +946,15 @@ function drawDataPoints(ctx, points, comparisons, bestIdx, sliceVals, activePinI
       }
       ctx.closePath();
       ctx.fillStyle = 'rgba(255,255,0,' + (0.9*bAlpha).toFixed(2) + ')'; ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,' + (0.8*bAlpha).toFixed(2) + ')'; ctx.lineWidth = 1.2; ctx.stroke();
+      ctx.strokeStyle = 'rgba(68,68,68,' + (0.8*bAlpha).toFixed(2) + ')'; ctx.lineWidth = 1.2; ctx.stroke();
       ctx.restore();
     }
   }
-  // Axis labels
-  ctx.font = '10px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  // Axis tick labels
+  ctx.font = '11px sans-serif'; ctx.fillStyle = 'rgba(0,0,0,0.5)';
   for (var ti = 0; ti <= 4; ti++) {
-    ctx.fillText((ti/4).toFixed(2), ti*CN/4-8, CN-2);
-    ctx.fillText((1-ti/4).toFixed(2), 2, ti*CN/4+10);
+    ctx.fillText((ti/4).toFixed(1), ti*CN/4 + 2, CN - 4);
+    ctx.fillText((1-ti/4).toFixed(1), 4, ti*CN/4 + 14);
   }
 }
 
@@ -1034,7 +1034,7 @@ function renderConvergence(data) {
   var W = 320, H = 280;
   var ctx = ctxConv;
   ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#111'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
   if (data.length < 1) {
     ctx.font = '11px sans-serif'; ctx.fillStyle = '#555';
     ctx.textAlign = 'center';
@@ -1059,16 +1059,16 @@ function renderConvergence(data) {
   function syC(v) { return margin.top + ph - v * ph; }
 
   // Grid
-  ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 0.5;
+  ctx.strokeStyle = 'rgba(0,0,0,0.06)'; ctx.lineWidth = 0.5;
   for (var t = 0; t <= 4; t++) {
     var v = uMin + (uMax-uMin)*t/4;
     ctx.beginPath(); ctx.moveTo(margin.left, syU(v)); ctx.lineTo(margin.left+pw, syU(v)); ctx.stroke();
-    ctx.font = '8px sans-serif'; ctx.fillStyle = '#666';
+    ctx.font = '10px sans-serif'; ctx.fillStyle = '#666';
     ctx.fillText(v.toFixed(2), 2, syU(v)+3);
   }
 
   // Best utility line (purple)
-  ctx.strokeStyle = '#7c6ff7'; ctx.lineWidth = 2;
+  ctx.strokeStyle = '#4872f9'; ctx.lineWidth = 2;
   ctx.beginPath();
   for (var i = 0; i < utils.length; i++) {
     if (i === 0) ctx.moveTo(sx(i), syU(utils[i]));
@@ -1077,11 +1077,11 @@ function renderConvergence(data) {
   ctx.stroke();
   for (var i = 0; i < utils.length; i++) {
     ctx.beginPath(); ctx.arc(sx(i), syU(utils[i]), 2.5, 0, 2*Math.PI);
-    ctx.fillStyle = '#7c6ff7'; ctx.fill();
+    ctx.fillStyle = '#4872f9'; ctx.fill();
   }
 
   // Consistency line (green, right axis)
-  ctx.strokeStyle = 'rgba(100,255,100,0.7)'; ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(77,146,33,0.8)'; ctx.lineWidth = 1.5;
   ctx.setLineDash([4, 3]);
   ctx.beginPath();
   for (var i = 0; i < consis.length; i++) {
@@ -1092,27 +1092,27 @@ function renderConvergence(data) {
   ctx.setLineDash([]);
   for (var i = 0; i < consis.length; i++) {
     ctx.beginPath(); ctx.arc(sx(i), syC(consis[i]), 2, 0, 2*Math.PI);
-    ctx.fillStyle = 'rgba(100,255,100,0.8)'; ctx.fill();
+    ctx.fillStyle = 'rgba(77,146,33,0.85)'; ctx.fill();
   }
 
   // Right axis ticks
-  ctx.fillStyle = 'rgba(100,255,100,0.5)'; ctx.font = '8px sans-serif';
+  ctx.fillStyle = 'rgba(77,146,33,0.6)'; ctx.font = '10px sans-serif';
   for (var t = 0; t <= 4; t++) {
     ctx.fillText((t*25)+'%', W - margin.right + 4, syC(t/4)+3);
   }
 
   // Axis labels
-  ctx.font = '10px sans-serif'; ctx.fillStyle = '#888';
+  ctx.font = '11px sans-serif'; ctx.fillStyle = '#666';
   ctx.fillText('comparison #', margin.left + pw/2 - 40, H - 4);
   ctx.save(); ctx.translate(10, margin.top + ph/2 + 40); ctx.rotate(-Math.PI/2);
-  ctx.fillStyle = '#7c6ff7'; ctx.fillText('peak utility (a.u.)', 0, 0); ctx.restore();
+  ctx.fillStyle = '#4872f9'; ctx.fillText('peak utility (a.u.)', 0, 0); ctx.restore();
   ctx.save(); ctx.translate(W - 6, margin.top + ph/2 + 30); ctx.rotate(-Math.PI/2);
-  ctx.fillStyle = 'rgba(100,255,100,0.7)'; ctx.font = '9px sans-serif';
+  ctx.fillStyle = 'rgba(77,146,33,0.8)'; ctx.font = '9px sans-serif';
   ctx.fillText('user-model agreement', 0, 0); ctx.restore();
 
   var xStep = Math.max(1, Math.ceil(data.length / 8));
   for (var i = 0; i < data.length; i += xStep) {
-    ctx.fillStyle = '#555'; ctx.font = '8px sans-serif';
+    ctx.fillStyle = '#999'; ctx.font = '10px sans-serif';
     ctx.fillText(String(i+1), sx(i)-3, margin.top+ph+14);
   }
 }
@@ -1149,13 +1149,13 @@ function addHistoryItem(winPt, losePt, compIdx, modelDisagreed) {
   item.className = 'history-item';
   var fmtShort = function(pt) { return '(' + pt[0].toFixed(2) + ',' + pt[1].toFixed(2) + ',..)'; };
   var warnHtml = modelDisagreed
-    ? '<span title="Model predicted differently" style="color:#f90;font-size:13px;margin-left:4px">\\u26A0</span>'
+    ? '<span title="Model predicted differently" style="color:#d32f2f;font-size:13px;font-weight:700;margin-left:4px">\\u26A0</span>'
     : '';
   item.innerHTML =
-    '<span class="history-dot" style="background:#6f6"></span>' +
+    '<span class="history-dot" style="background:#4d9221"></span>' +
     '<span class="history-winner">' + fmtShort(winPt) + '</span>' +
-    '<span style="color:#555"> \\u25B7 </span>' +
-    '<span class="history-dot" style="background:#f66"></span>' +
+    '<span style="color:#999"> \\u25B7 </span>' +
+    '<span class="history-dot" style="background:#c51b7d"></span>' +
     '<span class="history-loser">' + fmtShort(losePt) + '</span>' +
     warnHtml;
   panel.prepend(item);
@@ -1251,7 +1251,7 @@ function prefReset() {
   rng = new Rng(42);
   lastGridMeans = null; lastGridVars = null;
 
-  ctxConv.fillStyle = '#111'; ctxConv.fillRect(0, 0, 320, 280);
+  ctxConv.fillStyle = '#fff'; ctxConv.fillRect(0, 0, 320, 280);
 
   document.getElementById('historyPanel').innerHTML =
     '<div style="font-size:12px;color:#555;text-align:center;padding:20px">No comparisons yet</div>';
@@ -1261,10 +1261,10 @@ function prefReset() {
       '<em>your</em> latent aesthetic utility function in 4D from pairwise comparisons alone. ' +
       'After ~10 choices, the heatmap should reflect your taste. ' +
       'White lines connect compared pairs. ' +
-      '<span style="color:#80dc80">Green dots</span> = winners, <span style="color:#f55">red</span> = losers. ' +
+      '<span style="color:#4d9221">Green dots</span> = winners, <span style="color:#c51b7d">pink</span> = losers. ' +
       '<span style="color:#ffd700">\\u2605</span> = predicted best. ' +
-      '<span style="color:#7c6ff7">Purple line</span> = peak predicted utility (should stabilize); ' +
-      '<span style="color:#6f6">green dashed</span> = user-model agreement (proportion of your past choices the model correctly predicts).'
+      '<span style="color:#4872f9">Purple line</span> = peak predicted utility (should stabilize); ' +
+      '<span style="color:#4d9221">green dashed</span> = user-model agreement (proportion of your past choices the model correctly predicts).'
     : '<span>Auto mode</span> uses a hidden test function (only depends on x0, x1) to auto-answer comparisons. ' +
       'The model must learn the function from pairwise preferences alone — no function values are observed. ' +
       'Watch consistency climb as the model learns which points are better.';

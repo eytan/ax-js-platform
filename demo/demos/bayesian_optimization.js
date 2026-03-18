@@ -11,55 +11,55 @@ return `<!DOCTYPE html>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #0f0f11; color: #e0e0e0;
+    background: #fff; color: #1a1a1a;
     padding: 2rem; min-height: 100vh;
   }
-  h1 { font-size: 18px; font-weight: 500; color: #f0f0f0; margin-bottom: 4px; }
-  .subtitle { font-size: 13px; color: #888; margin-bottom: 16px; }
+  h1 { font-size: 18px; font-weight: 500; color: #111; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 16px; }
   .controls { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; }
   button {
     font-size: 13px; padding: 6px 16px;
-    border-radius: 6px; border: 0.5px solid #444;
-    background: #1a1a1d; color: #e0e0e0; cursor: pointer; outline: none;
+    border-radius: 6px; border: 0.5px solid #d0d0d0;
+    background: #fff; color: #333; cursor: pointer; outline: none;
   }
   select {
     font-size: 13px; padding: 5px 10px;
-    border-radius: 6px; border: 0.5px solid #444;
-    background: #1a1a1d; color: #e0e0e0; cursor: pointer; outline: none;
+    border-radius: 6px; border: 0.5px solid #d0d0d0;
+    background: #fff; color: #333; cursor: pointer; outline: none;
   }
-  button:hover, select:hover { background: #252528; }
+  button:hover, select:hover { background: #f0f0f0; }
   button:disabled { opacity: 0.4; cursor: default; }
-  .status { font-size: 13px; color: #888; }
-  .status span { font-weight: 500; color: #ccc; }
+  .status { font-size: 13px; color: #666; }
+  .status span { font-weight: 500; color: #333; }
   .plots { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
   .plot { display: flex; flex-direction: column; gap: 6px; }
-  .plot-title { font-size: 12px; color: #888; text-align: center; letter-spacing: 0.04em; }
+  .plot-title { font-size: 12px; color: #666; text-align: center; letter-spacing: 0.04em; }
   .canvas-wrap { position: relative; display: inline-block; }
   canvas.main {
     display: block; border-radius: 6px;
-    border: 0.5px solid #333; cursor: crosshair;
+    border: 0.5px solid #d0d0d0; cursor: crosshair;
   }
   canvas.overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
   .cbrow { display: flex; align-items: center; gap: 6px; }
   .cblbl { font-size: 11px; color: #666; min-width: 40px; }
   canvas.cbar { height: 16px; flex: 1; border-radius: 4px; }
-  .info { font-size: 13px; color: #777; margin-top: 14px; line-height: 1.8; }
-  .info span { font-weight: 500; color: #ccc; }
-  .statline { font-size: 13px; color: #777; margin-top: 14px; min-height: 1.5em; }
-  .statline span { font-weight: 500; color: #ddd; }
-  .legend { display: flex; gap: 16px; margin-top: 10px; font-size: 12px; color: #777; }
+  .info { font-size: 13px; color: #666; margin-top: 14px; line-height: 1.8; }
+  .info span { font-weight: 500; color: #333; }
+  .statline { font-size: 13px; color: #666; margin-top: 14px; min-height: 1.5em; }
+  .statline span { font-weight: 500; color: #333; }
+  .legend { display: flex; gap: 16px; margin-top: 10px; font-size: 12px; color: #666; }
   .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
   #tooltip {
     position: fixed; display: none;
-    background: #1e1e22; border: 0.5px solid #555;
+    background: rgba(255,255,255,0.97); border: 0.5px solid #d0d0d0;
     border-radius: 7px; padding: 9px 13px;
-    font-size: 12px; color: #ccc;
+    font-size: 12px; color: #333;
     pointer-events: none; z-index: 100;
     line-height: 1.8; white-space: nowrap;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
   }
   #tooltip .tt-title {
-    font-size: 11px; color: #888; letter-spacing: 0.05em;
+    font-size: 11px; color: #999; letter-spacing: 0.05em;
     text-transform: uppercase; margin-bottom: 4px;
   }
   #tooltip .tt-val { color: #ff6b6b; font-weight: 500; }
@@ -125,16 +125,16 @@ return `<!DOCTYPE html>
   </div>
   <div class="plot">
     <div class="plot-title">optimization trace</div>
-    <div id="traceContainer" style="width:320px;height:320px;background:#111;border-radius:6px;border:0.5px solid #333;position:relative;overflow:hidden;"></div>
+    <div id="traceContainer" style="width:320px;height:320px;background:#fff;border-radius:6px;border:0.5px solid #d0d0d0;position:relative;overflow:hidden;"></div>
   </div>
 </div>
 
 <div id="tooltip"><div class="tt-title" id="tt-title"></div><div id="tt-body"></div></div>
 
 <div class="legend">
-  <span><span class="legend-dot" style="background:#fff"></span>initial points</span>
-  <span><span class="legend-dot" style="background:#6f6"></span>BO points</span>
-  <span><span class="legend-dot" style="background:#f44"></span>latest</span>
+  <span><span class="legend-dot" style="background:#888"></span>initial points</span>
+  <span><span class="legend-dot" style="background:#4872f9"></span>BO points</span>
+  <span><span class="legend-dot" style="background:#d95f4e"></span>latest</span>
   <span><span class="legend-dot" style="background:#ff0; border:1px solid #aa0"></span>global minima</span>
 </div>
 <div class="statline" id="statline">hover over posterior maps to inspect</div>
@@ -498,14 +498,14 @@ function drawTrueOverlay(X, nInit, latest) {
   for (var i=0;i<X.length;i++) {
     var px=X[i][0]*CN, py=(1-X[i][1])*CN;
     ctxT.beginPath(); ctxT.arc(px,py, i===latest?5:3.5, 0, 2*Math.PI);
-    if (i<nInit) ctxT.fillStyle='rgba(255,255,255,0.9)';
-    else if (i===latest) ctxT.fillStyle='#ff4444';
-    else ctxT.fillStyle='rgba(100,255,100,0.85)';
+    if (i<nInit) ctxT.fillStyle='rgba(128,128,128,0.9)';
+    else if (i===latest) ctxT.fillStyle='#d95f4e';
+    else ctxT.fillStyle='rgba(72,114,249,0.85)';
     ctxT.fill();
     ctxT.strokeStyle='rgba(0,0,0,0.6)'; ctxT.lineWidth=1; ctxT.stroke();
   }
   // Axis labels
-  ctxT.font='10px sans-serif'; ctxT.fillStyle='rgba(255,255,255,0.4)';
+  ctxT.font='10px sans-serif'; ctxT.fillStyle='rgba(0,0,0,0.4)';
   for (var ti=0;ti<=4;ti++) {
     ctxT.fillText((ti/4).toFixed(2), ti*CN/4-8, CN-2);
     ctxT.fillText((1-ti/4).toFixed(2), 2, ti*CN/4+10);
@@ -530,7 +530,7 @@ function drawContourLines(ctx, vals, gs, canvasN, vMin, vRange) {
   ];
   for (var li = 1; li < nLevels; li++) {
     var level = vMin + vRange * li / nLevels;
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 0.8;
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 0.8;
     ctx.beginPath();
     for (var gj = 0; gj < gs-1; gj++) {
       for (var gi = 0; gi < gs-1; gi++) {
@@ -627,14 +627,14 @@ function drawOverlays(hx, hy, hoveredIdx, neighborActiveIdx) {
     if (hx !== undefined) {
       ctx.beginPath(); ctx.moveTo(hx, 0); ctx.lineTo(hx, CN);
       ctx.moveTo(0, hy); ctx.lineTo(CN, hy);
-      ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 0.5; ctx.stroke();
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 0.5; ctx.stroke();
     }
     // Axis labels
-    ctx.font = '12px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = '12px sans-serif'; ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillText('x0 ->', CN - 50, CN - 8);
     ctx.save(); ctx.translate(14, 60); ctx.rotate(-Math.PI / 2);
     ctx.fillText('x1 ->', 0, 0); ctx.restore();
-    ctx.font = '10px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '10px sans-serif'; ctx.fillStyle = 'rgba(0,0,0,0.4)';
     for (var ti = 0; ti <= 4; ti++) {
       ctx.fillText((ti/4).toFixed(2), ti*CN/4 - 8, CN - 2);
       ctx.fillText((1-ti/4).toFixed(2), 2, ti*CN/4 + 10);
@@ -664,11 +664,11 @@ function drawOverlays(hx, hy, hoveredIdx, neighborActiveIdx) {
       var outerR = (isActive || isHovered) ? 7.5 : 5;
       var innerR = (isActive || isHovered) ? 4 : 2.5;
       ctx.beginPath(); ctx.arc(ppx, ppy, outerR, 0, 2*Math.PI);
-      ctx.strokeStyle = isActive ? 'rgba(255,255,255,1)'
-        : 'rgba(255,255,255,' + Math.max(0.15, fillAlpha*0.6).toFixed(3) + ')';
+      ctx.strokeStyle = isActive ? 'rgba(68,68,68,1)'
+        : 'rgba(68,68,68,' + Math.max(0.15, fillAlpha*0.6).toFixed(3) + ')';
       ctx.lineWidth = isActive ? 2.5 : (isHovered ? 2 : 1.5); ctx.stroke();
       ctx.beginPath(); ctx.arc(ppx, ppy, innerR, 0, 2*Math.PI);
-      var bc = i < N_INIT ? [255,255,255] : (i === lastX.length-1 ? [255,68,68] : [100,255,100]);
+      var bc = i < N_INIT ? [128,128,128] : (i === lastX.length-1 ? [217,95,78] : [72,114,249]);
       ctx.fillStyle = (isActive || isHovered)
         ? 'rgba(' + bc.join(',') + ',1)'
         : 'rgba(' + bc.join(',') + ',' + fillAlpha.toFixed(3) + ')';
@@ -779,14 +779,14 @@ function renderLOO() {
   var margin = 32, pw = CN - 2*margin;
   // Clear and draw
   ctxLOO.clearRect(0,0,CN,CN);
-  ctxLOO.fillStyle = '#111'; ctxLOO.fillRect(0,0,CN,CN);
+  ctxLOO.fillStyle = '#fff'; ctxLOO.fillRect(0,0,CN,CN);
   // Diagonal line (perfect prediction)
-  ctxLOO.strokeStyle = 'rgba(255,255,255,0.15)'; ctxLOO.lineWidth = 1;
+  ctxLOO.strokeStyle = 'rgba(0,0,0,0.15)'; ctxLOO.lineWidth = 1;
   ctxLOO.beginPath();
   ctxLOO.moveTo(margin, margin); ctxLOO.lineTo(margin+pw, margin+pw);
   ctxLOO.stroke();
   // Axis labels
-  ctxLOO.font = '10px sans-serif'; ctxLOO.fillStyle = 'rgba(255,255,255,0.3)';
+  ctxLOO.font = '10px sans-serif'; ctxLOO.fillStyle = 'rgba(0,0,0,0.4)';
   ctxLOO.fillText('observed', margin + pw/2 - 20, CN - 4);
   ctxLOO.save(); ctxLOO.translate(10, margin + pw/2 + 16); ctxLOO.rotate(-Math.PI/2);
   ctxLOO.fillText('predicted', 0, 0); ctxLOO.restore();
@@ -794,7 +794,7 @@ function renderLOO() {
   for (var t=0;t<=4;t++) {
     var val = lo + t*range/4;
     var px = margin + t*pw/4, py = margin + t*pw/4;
-    ctxLOO.fillStyle = 'rgba(255,255,255,0.25)';
+    ctxLOO.fillStyle = 'rgba(0,0,0,0.35)';
     ctxLOO.fillText(val.toFixed(1), px - 8, CN - margin + 14);
     ctxLOO.fillText(val.toFixed(1), 2, py + 3);
   }
@@ -803,11 +803,11 @@ function renderLOO() {
     var px = margin + (obs[i]-lo)/range*pw;
     var py = margin + pw - (pmean[i]-lo)/range*pw;
     var errH = 2*Math.sqrt(pvar[i])/range*pw;
-    ctxLOO.strokeStyle = 'rgba(100,180,255,0.3)'; ctxLOO.lineWidth = 1.5;
+    ctxLOO.strokeStyle = 'rgba(217,95,78,0.3)'; ctxLOO.lineWidth = 1.5;
     ctxLOO.beginPath(); ctxLOO.moveTo(px,py-errH); ctxLOO.lineTo(px,py+errH); ctxLOO.stroke();
     ctxLOO.beginPath(); ctxLOO.arc(px,py,3,0,2*Math.PI);
-    ctxLOO.fillStyle = 'rgba(100,180,255,0.85)'; ctxLOO.fill();
-    ctxLOO.strokeStyle = 'rgba(255,255,255,0.4)'; ctxLOO.lineWidth = 0.5; ctxLOO.stroke();
+    ctxLOO.fillStyle = 'rgba(217,95,78,0.85)'; ctxLOO.fill();
+    ctxLOO.strokeStyle = 'rgba(68,68,68,0.35)'; ctxLOO.lineWidth = 0.5; ctxLOO.stroke();
   }
   // Compute R^2
   var mObs = 0; for (var i=0;i<n;i++) mObs += obs[i]; mObs /= n;
@@ -855,11 +855,11 @@ function renderTrace() {
     var gl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     gl.setAttribute('x1', margin.left); gl.setAttribute('x2', margin.left + pw);
     gl.setAttribute('y1', sy(v)); gl.setAttribute('y2', sy(v));
-    gl.setAttribute('stroke', 'rgba(255,255,255,0.05)');
+    gl.setAttribute('stroke', 'rgba(0,0,0,0.06)');
     svg.appendChild(gl);
     var yt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     yt.setAttribute('x', margin.left - 4); yt.setAttribute('y', sy(v) + 3);
-    yt.setAttribute('fill', '#555'); yt.setAttribute('font-size', '8');
+    yt.setAttribute('fill', '#999'); yt.setAttribute('font-size', '8');
     yt.setAttribute('text-anchor', 'end'); yt.textContent = v.toFixed(1);
     svg.appendChild(yt);
   }
@@ -871,7 +871,7 @@ function renderTrace() {
   }
   var bsfLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   bsfLine.setAttribute('d', bsfPath);
-  bsfLine.setAttribute('stroke', '#7c6ff7'); bsfLine.setAttribute('stroke-width', '2');
+  bsfLine.setAttribute('stroke', '#444'); bsfLine.setAttribute('stroke-width', '2');
   bsfLine.setAttribute('fill', 'none'); bsfLine.setAttribute('opacity', '0.7');
   svg.appendChild(bsfLine);
 
@@ -884,9 +884,9 @@ function renderTrace() {
     var cx = sx(i), cy = sy(rawY[i]);
     dot.setAttribute('cx', cx); dot.setAttribute('cy', cy);
     dot.setAttribute('r', isLatest ? '4' : '3');
-    var baseColor = isLatest ? '255,68,68' : (isInit ? '255,255,255' : '100,255,100');
+    var baseColor = isLatest ? '217,95,78' : (isInit ? '128,128,128' : '72,114,249');
     dot.setAttribute('fill', 'rgba(' + baseColor + ',' + (isBest ? '0.95' : '0.5') + ')');
-    dot.setAttribute('stroke', isBest ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.15)');
+    dot.setAttribute('stroke', isBest ? 'rgba(68,68,68,0.5)' : 'rgba(0,0,0,0.06)');
     dot.setAttribute('stroke-width', '1');
     svg.appendChild(dot);
     traceDots.push({ el: dot, idx: i, value: rawY[i], best: bestSoFar[i],
@@ -897,7 +897,7 @@ function renderTrace() {
   // Axis labels
   var xl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
   xl.setAttribute('x', margin.left + pw/2); xl.setAttribute('y', H - 4);
-  xl.setAttribute('fill', '#888'); xl.setAttribute('font-size', '10');
+  xl.setAttribute('fill', '#666'); xl.setAttribute('font-size', '10');
   xl.setAttribute('text-anchor', 'middle'); xl.textContent = 'trial';
   svg.appendChild(xl);
 
@@ -906,7 +906,7 @@ function renderTrace() {
   for (var i = 0; i < n; i += xStep) {
     var xt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     xt.setAttribute('x', sx(i)); xt.setAttribute('y', margin.top + ph + 14);
-    xt.setAttribute('fill', '#555'); xt.setAttribute('font-size', '8');
+    xt.setAttribute('fill', '#999'); xt.setAttribute('font-size', '8');
     xt.setAttribute('text-anchor', 'middle'); xt.textContent = String(i);
     svg.appendChild(xt);
   }
@@ -916,11 +916,11 @@ function renderTrace() {
   var lr = document.createElementNS('http://www.w3.org/2000/svg', 'line');
   lr.setAttribute('x1', margin.left + pw - 90); lr.setAttribute('x2', margin.left + pw - 76);
   lr.setAttribute('y1', margin.top + 10); lr.setAttribute('y2', margin.top + 10);
-  lr.setAttribute('stroke', '#7c6ff7'); lr.setAttribute('stroke-width', '2');
+  lr.setAttribute('stroke', '#444'); lr.setAttribute('stroke-width', '2');
   leg.appendChild(lr);
   var lt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
   lt.setAttribute('x', margin.left + pw - 73); lt.setAttribute('y', margin.top + 13);
-  lt.setAttribute('fill', '#888'); lt.setAttribute('font-size', '9');
+  lt.setAttribute('fill', '#666'); lt.setAttribute('font-size', '9');
   lt.textContent = 'best so far';
   leg.appendChild(lt);
   svg.appendChild(leg);
@@ -1006,19 +1006,19 @@ function highlightTraceDots(activeIdx) {
     var d = traceDots[i];
     if (activePt) {
       if (i === activeIdx) {
-        d.el.setAttribute('fill', 'rgba(255,80,80,0.95)');
-        d.el.setAttribute('stroke', 'rgba(255,255,255,1)');
+        d.el.setAttribute('fill', 'rgba(217,95,78,0.95)');
+        d.el.setAttribute('stroke', 'rgba(68,68,68,1)');
         d.el.setAttribute('stroke-width', '2'); d.el.setAttribute('r', '5');
       } else {
         var relNorm = maxRel > 0 ? rels[i] / maxRel : 0;
         var fa = Math.max(0.08, Math.min(0.90, Math.sqrt(relNorm)));
         d.el.setAttribute('fill', 'rgba(' + d.baseColor + ',' + fa.toFixed(3) + ')');
-        d.el.setAttribute('stroke', 'rgba(255,255,255,' + Math.max(0.15, fa * 0.6).toFixed(3) + ')');
+        d.el.setAttribute('stroke', 'rgba(68,68,68,' + Math.max(0.15, fa * 0.6).toFixed(3) + ')');
         d.el.setAttribute('stroke-width', '1'); d.el.setAttribute('r', d.isLatest ? '4' : '3');
       }
     } else {
       d.el.setAttribute('fill', 'rgba(' + d.baseColor + ',' + (d.isBest ? '0.95' : '0.5') + ')');
-      d.el.setAttribute('stroke', d.isBest ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.15)');
+      d.el.setAttribute('stroke', d.isBest ? 'rgba(68,68,68,0.5)' : 'rgba(0,0,0,0.06)');
       d.el.setAttribute('stroke-width', '1'); d.el.setAttribute('r', d.isLatest ? '4' : '3');
     }
   }

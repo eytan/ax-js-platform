@@ -30,19 +30,19 @@ export function applyDotHighlight(
   for (let i = 0; i < dots.length; i++) {
     const d = dots[i];
     if (i === activeIdx) {
-      d.el.setAttribute("fill", "rgba(255,80,80,0.95)");
-      d.el.setAttribute("stroke", "rgba(255,255,255,1)");
+      d.el.setAttribute("fill", "rgba(217,95,78,0.95)");
+      d.el.setAttribute("stroke", "rgba(68,68,68,1)");
       d.el.setAttribute("stroke-width", "2");
       d.el.setAttribute("r", String(d.defaultR + 2));
-      if (d.whisker) d.whisker.setAttribute("stroke", "rgba(255,80,80,0.5)");
+      if (d.whisker) d.whisker.setAttribute("stroke", "rgba(217,95,78,0.5)");
     } else {
       const relNorm = rels.max > 0 ? rels.raw[i] / rels.max : 0;
       const fa = Math.max(0.08, Math.min(0.90, Math.sqrt(relNorm)));
-      d.el.setAttribute("fill", `rgba(255,80,80,${fa.toFixed(3)})`);
-      d.el.setAttribute("stroke", `rgba(255,255,255,${Math.max(0.15, fa * 0.6).toFixed(3)})`);
+      d.el.setAttribute("fill", `rgba(217,95,78,${fa.toFixed(3)})`);
+      d.el.setAttribute("stroke", `rgba(68,68,68,${Math.max(0.15, fa * 0.6).toFixed(3)})`);
       d.el.setAttribute("stroke-width", "1");
       d.el.setAttribute("r", String(d.defaultR));
-      if (d.whisker) d.whisker.setAttribute("stroke", `rgba(255,80,80,${(fa * 0.35).toFixed(3)})`);
+      if (d.whisker) d.whisker.setAttribute("stroke", `rgba(217,95,78,${(fa * 0.35).toFixed(3)})`);
     }
   }
 }
@@ -54,7 +54,7 @@ export function clearDotHighlight(dots: DotInfo[]): void {
     d.el.setAttribute("stroke", d.defaultStroke);
     d.el.setAttribute("stroke-width", "1");
     d.el.setAttribute("r", String(d.defaultR));
-    if (d.whisker) d.whisker.setAttribute("stroke", "rgba(124,154,255,0.3)");
+    if (d.whisker) d.whisker.setAttribute("stroke", "rgba(217,95,78,0.3)");
   }
 }
 
@@ -82,14 +82,14 @@ export function buildPointTooltipHtml(
     const td = predictor.getTrainingData(name);
     if (idx >= td.Y.length) continue;
     const isSel = name === selectedOutcome;
-    const color = isSel ? "#7c9aff" : "#888";
+    const color = isSel ? "#4872f9" : "#666";
     html += `${isSel ? "<b>" : ""}${name} = <span style="color:${color}">${td.Y[idx].toFixed(4)}</span>${isSel ? "</b>" : ""}<br>`;
   }
-  html += '<hr style="border-color:#333;margin:4px 0">';
+  html += '<hr style="border-color:#e8e8e8;margin:4px 0">';
   const td0 = predictor.getTrainingData(predictor.outcomeNames[0]);
   if (idx < td0.X.length) {
     for (let j = 0; j < predictor.paramNames.length; j++) {
-      html += `<span style="color:#888">${predictor.paramNames[j]}</span> = ${td0.X[idx][j].toFixed(4)}<br>`;
+      html += `<span style="color:#666">${predictor.paramNames[j]}</span> = ${td0.X[idx][j].toFixed(4)}<br>`;
     }
   }
   return html;

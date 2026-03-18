@@ -20,7 +20,7 @@ export const AXJS_STYLES = `
   -webkit-user-select: auto;
   flex: 1;
   min-width: 100px;
-  accent-color: #7c6ff7;
+  accent-color: #4872f9;
 }
 :scope .axjs-slider::-webkit-slider-thumb {
   -webkit-appearance: auto;
@@ -36,9 +36,9 @@ export const AXJS_STYLES = `
 :scope .axjs-select {
   pointer-events: auto;
   cursor: pointer;
-  background: #1a1a1d;
-  color: #e0e0e0;
-  border: 1px solid #333;
+  background: #fff;
+  color: #333;
+  border: 1px solid #d0d0d0;
   border-radius: 4px;
   padding: 3px 8px;
   font-size: 12px;
@@ -47,12 +47,12 @@ export const AXJS_STYLES = `
 :scope .axjs-tooltip {
   position: fixed;
   display: none;
-  background: rgba(20,20,24,0.95);
-  border: 1px solid #444;
+  background: rgba(255,255,255,0.97);
+  border: 1px solid #d0d0d0;
   border-radius: 6px;
   padding: 8px 12px;
   font-size: 12px;
-  color: #e0e0e0;
+  color: #333;
   pointer-events: none;
   z-index: 10000;
   white-space: nowrap;
@@ -69,7 +69,7 @@ export const AXJS_STYLES = `
 }
 :scope .axjs-slider-label {
   font-size: 13px;
-  color: #888;
+  color: #666;
   min-width: 140px;
   text-align: right;
   overflow: hidden;
@@ -79,7 +79,7 @@ export const AXJS_STYLES = `
 :scope .axjs-slider-value {
   font-size: 13px;
   font-weight: 500;
-  color: #ccc;
+  color: #333;
   min-width: 70px;
   text-align: right;
 }
