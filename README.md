@@ -57,13 +57,6 @@ The viz module provides self-contained, embeddable plot functions with transpare
 </script>
 ```
 
-All plots accept a container element, a `Predictor` instance, and an options object. They render directly into the container with transparent backgrounds, so they inherit the host page's styling.
-
-The **[Ax Cockpit](docs/cockpit.md)** is an integrated multi-objective exploration tool built on these components — see the [cockpit docs](docs/cockpit.md) for details.
-
-![Slice plot showing posterior mean with confidence bands](docs/img/slice-plot.png)
-
-![Cockpit showing multi-objective tradeoff scatter plot with deltoid panel](docs/img/cockpit.png)
 
 ## Installation
 
