@@ -1,7 +1,7 @@
 # ax-js — Observations & Future Work
 
 Notes on performance opportunities, BoTorch/Ax behavior quirks, and unimplemented features.
-For architecture and implementation details, see [docs/developer-guide.md](docs/developer-guide.md).
+For architecture and implementation details, see [developer-guide.md](../developer-guide.md).
 
 ## Performance Optimizations (Deferred)
 

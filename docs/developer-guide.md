@@ -304,5 +304,9 @@ is the only file that needs updating.
 | Python export API | `python/axjs_export.py` |
 | Fixture generator | `python/generate_fixtures.py` |
 | Data model schema | `docs/data-model.md` |
-| Data model comparison | `docs/ax-js_vs_ax.md` |
 | Testing guide | `docs/testing.md` |
+| Cockpit (MOO tool) | `docs/cockpit.md` |
+| Internal: observations | `docs/internal/observations.md` |
+| Internal: numerics | `docs/internal/numerics.md` |
+| Internal: serialization | `docs/internal/serialization-contract.md` |
+| Internal: data model comparison | `docs/internal/ax-js-vs-ax.md` |

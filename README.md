@@ -1,6 +1,6 @@
 # `ax-js-platform`</sup></sub>
 
-[![Version](https://img.shields.io/badge/version-0.0.1-blue.svg)](https://github.com/eytan/ax-js-platform)
+[![Version](https://img.shields.io/badge/version-0.0.2-blue.svg)](https://github.com/eytan/ax-js-platform)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4+-blue.svg)](https://www.typescriptlang.org/)
 
@@ -9,36 +9,6 @@ Client-side Gaussian process predictions mirroring [Ax](https://ax.dev) and [BoT
 ax-js replicates BoTorch GP posterior predictions entirely in TypeScript. A Python export step serializes a fitted model to JSON; the TypeScript side deserializes and predicts with numerical parity at Float64 precision. **No Python backend required at prediction time.**
 
 ## Quick Start
-
-### Install
-
-```bash
-npm install ax-js-platform
-```
-
-### Export a model from Python
-
-```bash
-pip install ax-platform  # requires ax-platform >= 1.2, botorch >= 0.17
-```
-
-```python
-import sys
-sys.path.insert(0, "path/to/ax-js/python")  # or copy python/ to your project
-
-from ax.api import Client
-from axjs_export import export_client
-import json
-
-# After running your Ax experiment...
-state = export_client(client)
-
-with open("experiment.json", "w") as f:
-    json.dump(state, f)
-```
-
-> **Note:** `axjs_export.py` and `_extraction.py` live in the `python/` directory of this repo.
-> Copy them to your project or add `python/` to your `PYTHONPATH`.
 
 ### Predict in TypeScript
 
@@ -66,6 +36,94 @@ const { X, Y } = predictor.getTrainingData("accuracy");
 </script>
 ```
 
+## Embeddable Visualization Components
+
+The viz module provides self-contained, embeddable plot functions with transparent backgrounds — designed to work in Jupyter notebooks, documentation sites, or any HTML page.
+
+| Function | Description |
+|----------|-------------|
+| `renderSlicePlot` | 1D posterior mean +/- 2 sigma along each parameter, with training dots |
+| `renderResponseSurface` | 2D heatmap of posterior mean and std with axis selectors and sliders |
+| `renderCrossValidation` | Leave-one-out predicted vs. observed with CI whiskers and R^2 |
+| `renderFeatureImportance` | Dimension importance bars derived from kernel lengthscales |
+| `renderOptimizationTrace` | Trial progression with running best-so-far overlay |
+
+```html
+<script src="dist/ax.js"></script>
+<script src="dist/ax-viz.js"></script>
+<script>
+  const predictor = new Ax.Predictor(experimentState);
+  Ax.viz.renderSlicePlot(container, predictor, { interactive: true });
+</script>
+```
+
+All plots accept a container element, a `Predictor` instance, and an options object. They render directly into the container with transparent backgrounds, so they inherit the host page's styling.
+
+The **[Ax Cockpit](docs/cockpit.md)** is an integrated multi-objective exploration tool built on these components — see the [cockpit docs](docs/cockpit.md) for details.
+
+![Slice plot showing posterior mean with confidence bands](docs/img/slice-plot.png)
+
+![Cockpit showing multi-objective tradeoff scatter plot with deltoid panel](docs/img/cockpit.png)
+
+## Installation
+
+### JavaScript
+
+```bash
+npm install ax-js-platform
+```
+
+### Python (for model export)
+
+```bash
+pip install ax-platform  # requires ax-platform >= 1.2, botorch >= 0.17
+```
+
+The export scripts (`axjs_export.py` and `_extraction.py`) live in the `python/` directory of this repo. Either copy them to your project or add `python/` to your `PYTHONPATH`:
+
+```bash
+export PYTHONPATH="path/to/ax-js/python:$PYTHONPATH"
+```
+
+### From source
+
+```bash
+git clone https://github.com/eytan/ax-js.git
+cd ax-js
+npm install
+npm run build
+```
+
+### Export a model from Python
+
+```python
+from ax.api import Client
+from axjs_export import export_client
+import json
+
+# After running your Ax experiment...
+state = export_client(client)
+
+with open("experiment.json", "w") as f:
+    json.dump(state, f)
+```
+
+## Jupyter
+
+ax-js integrates with Jupyter notebooks via `axjs_jupyter.py`. Each function takes the Ax `Client` directly:
+
+```python
+from axjs_jupyter import slice_plot, response_surface, cross_validation
+
+slice_plot(client)
+response_surface(client, outcome="accuracy")
+cross_validation(client)
+```
+
+Requires IPython and `ax-platform` installed in the notebook kernel.
+
+See [demo/ax-js-e2e.ipynb](demo/ax-js-e2e.ipynb) for a full end-to-end workflow (set up experiment, run BO, export, visualize), and [demo/jupyter-demo.ipynb](demo/jupyter-demo.ipynb) for a pre-built demo with all visualizations rendered.
+
 ## Demos
 
 Interactive demos are in the [demo/](demo/) directory. Clone the repo, run `npm run build`, and open the HTML files directly — no server required.
@@ -74,7 +132,7 @@ Interactive demos are in the [demo/](demo/) directory. Clone the repo, run `npm 
 
 **Model Diagnostics** — Leave-one-out cross-validation, feature importance (lengthscale-based), and optimization trace with best-so-far tracking.
 
-**Multi-Objective** — Radar chart for constrained MOO and a Ax Cockpit for exploring many-objective tradeoffs with candidate editing.
+**Multi-Objective** — Radar chart for constrained MOO and the [Ax Cockpit](docs/cockpit.md) for exploring many-objective tradeoffs with candidate editing.
 
 **Bayesian Optimization Loop** — Live BO with Thompson sampling on test functions, and preferential BO (BOPE) with pairwise comparison learning.
 
@@ -82,13 +140,13 @@ Interactive demos are in the [demo/](demo/) directory. Clone the repo, run `npm 
 
 | Model | BoTorch Class | Description |
 |-------|--------------|-------------|
-| SingleTaskGP | `SingleTaskGP` | Standard GP with Matérn/RBF kernels, ARD, fixed/heteroscedastic noise |
+| SingleTaskGP | `SingleTaskGP` | Standard GP with Matern/RBF kernels, ARD, fixed/heteroscedastic noise |
 | ModelListGP | `ModelListGP` | Multi-output — independent GP per outcome |
 | MultiTaskGP | `MultiTaskGP` | ICM kernel with per-task means |
 | PairwiseGP | `PairwiseGP` | Preference learning via Laplace approximation |
 | EnsembleGP | SAAS/MAP | Fully Bayesian (NUTS) or multi-restart MAP |
 
-**Kernels**: Matérn (ν=0.5, 1.5, 2.5), RBF, Scale, Categorical, Additive, Product — with recursive nesting and `active_dims`.
+**Kernels**: Matern (nu=0.5, 1.5, 2.5), RBF, Scale, Categorical, Additive, Product — with recursive nesting and `active_dims`.
 
 **Transforms**: Normalize, Warp (Kumaraswamy), Standardize, Log, Bilog, Power, plus Ax adapter transforms (LogY, BilogY, PowerTransformY, StandardizeY).
 
@@ -104,8 +162,6 @@ Interactive demos are in the [demo/](demo/) directory. Clone the repo, run `npm 
 
 When using script tags, load `ax.js` first — the other scripts extend the `Ax` namespace.
 
-The viz module (`ax-js-platform/viz`) provides reusable building blocks for embedding GP visualizations: colormaps (viridis, plasma), data-point rendering, colorbar drawing, fixture normalization, and search-space parameter utilities. See [docs/developer-guide.md](docs/developer-guide.md) for API details.
-
 ## Development
 
 ```bash
@@ -115,21 +171,6 @@ npm run build        # Build library + demos
 npm run build:notebook  # Build Jupyter demo notebook + HTML export
 npm test             # Run all tests — generates test-report.txt
 npm run typecheck    # Type-check
-```
-
-### Jupyter notebooks
-
-**End-to-end demo** (`demo/ax-js-e2e.ipynb`): Full workflow — set up Ax experiment, run BO, export model, render interactive visualizations. Execute all cells in Jupyter.
-
-**Pre-built demo** (`demo/jupyter-demo.ipynb`): All diagnostic visualizations with pre-populated outputs — no execution required. Also exported as standalone HTML (`demo/jupyter-demo.html`).
-
-```python
-# In your own notebook — each function takes the Ax Client directly:
-from axjs_jupyter import slice_plot, response_surface, cross_validation
-
-slice_plot(client)
-response_surface(client, outcome="accuracy")
-cross_validation(client)
 ```
 
 ### Regenerate fixtures
@@ -147,8 +188,11 @@ npm test
 - [Data Model](docs/data-model.md) — ExperimentState schema and serialization format
 - [Testing Guide](docs/testing.md) — Fixture system and adding new tests
 - [Developer Guide](docs/developer-guide.md) — Architecture, transforms, and contributing
+- [Cockpit](docs/cockpit.md) — Multi-objective tradeoff exploration tool
 - [Experimental](docs/experimental.md) — Acquisition functions (beta)
-- [Observations](OBSERVATIONS.md) — BoTorch behavioral notes and future work
+
+Internal docs for contributors working on numerical details and BoTorch integration:
+[docs/internal/](docs/internal/) (observations, numerics, serialization contract, data model comparison).
 
 ## License
 
