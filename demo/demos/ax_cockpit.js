@@ -110,12 +110,12 @@ button:hover { background: #f0f0f0; }
 <body>
 
 <h1>${axHomeLink}Ax Cockpit</h1>
+<p class="subtitle" id="subtitle"></p>
 
 <div class="controls">
   <label style="cursor:pointer"><input type="file" id="fileInput" accept=".json" style="display:none">
     <span style="font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid #d0d0d0;background:#fff;color:#333;cursor:pointer">import</span></label>
   <button id="btnExport">export</button>
-  <span class="subtitle" id="subtitle" style="margin:0;flex:1"></span>
   <label>X <select id="selX"></select></label>
   <label>Y <select id="selY"></select></label>
   <label>SQ <select id="selSQ"></select></label>
