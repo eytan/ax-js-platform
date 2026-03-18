@@ -300,7 +300,11 @@ export class Predictor {
     const sub = getSubModel(ms, this.outcomeNames, name);
     const ls = findLengthscales(sub.kernel ?? (sub as any).data_kernel);
     const inputTf = (sub as GPModelState).input_transform;
+    const warp = (sub as GPModelState).input_warp;
+    const warpIndicesSet = warp?.indices ? new Set(warp.indices) : null;
     const params = this.paramSpecs;
+    const eps = 1e-7;
+    const warpRange = 1 - 2 * eps;
 
     let d2 = 0;
     for (let j = 0; j < point.length; j++) {
@@ -308,10 +312,24 @@ export class Predictor {
         if (point[j] !== refPoint[j]) d2 += 4.0;
         continue;
       }
-      const diff = point[j] - refPoint[j];
+      const offset = inputTf?.offset?.[j] ?? 0;
       const coeff = inputTf?.coefficient?.[j] ?? 1;
+      let v1 = (point[j] - offset) / coeff;
+      let v2 = (refPoint[j] - offset) / coeff;
+      // Apply Kumaraswamy warp if present for this dimension
+      if (warp && (warpIndicesSet === null || warpIndicesSet.has(j))) {
+        const wIdx = warp.indices ? warp.indices.indexOf(j) : j;
+        if (wIdx >= 0 && wIdx < warp.concentration0.length) {
+          const a = warp.concentration1[wIdx];
+          const b = warp.concentration0[wIdx];
+          const xn1 = Math.max(eps, Math.min(1 - eps, v1 * warpRange + eps));
+          const xn2 = Math.max(eps, Math.min(1 - eps, v2 * warpRange + eps));
+          v1 = 1 - Math.pow(1 - Math.pow(xn1, a), b);
+          v2 = 1 - Math.pow(1 - Math.pow(xn2, a), b);
+        }
+      }
       const lsj = ls && j < ls.length ? ls[j] : 1;
-      const scaled = diff / coeff / lsj;
+      const scaled = (v1 - v2) / lsj;
       d2 += scaled * scaled;
     }
     return Math.exp(-0.5 * d2);

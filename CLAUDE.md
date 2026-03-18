@@ -43,7 +43,14 @@ npm run build               # Build library + demos
 - `src/io/` — Deserialization from BoTorch export format
 - `src/predictor.ts` — High-level `Predictor` class (accepts `ExperimentState`, applies adapter untransforms)
 - `src/acquisition/` — UCB, EI, LogEI, Thompson, EUBO, optimizeAcqf
-- `src/viz/` — Colormaps, data-point rendering, search-space helpers
+- `src/viz/` — Colormaps, data-point rendering, search-space helpers, embeddable plot functions
+  - `types.ts` — Shared interfaces (RGB, ParamSpec, RenderPredictor, DotInfo, option types)
+  - `styles.ts` — CSS injection for slider/tooltip styling (fixes nbconvert pseudo-element issues)
+  - `colormaps.ts` — viridis, plasma, drawColorbar, renderHeatmap
+  - `params.ts` — isChoice, isInteger, normalizeFixture, computeDimOrder, pointRelevance
+  - `widgets.ts` — createOutcomeSelector, createParamSliders, tooltip helpers
+  - `dots.ts` — Training dot interactivity (highlight, pin, kernel-distance)
+  - `plots/` — Embeddable render functions (importance, cv, trace, slice, surface)
 - `python/_extraction.py` — Shared extraction logic (kernels, transforms, models). Requires BoTorch >= 0.17
 - `python/axjs_export.py` — User-facing export (imports from _extraction.py), returns `ExperimentState`
 - `python/generate_fixtures.py` — Benchmark fixture generation (imports from _extraction.py)
@@ -91,6 +98,10 @@ To get original-space Y values, you must undo both transforms in reverse order.
 
 **RULE: Any Predictor method that returns Y-space values MUST call `untransformTrainY()` —
 never read `train_Y` directly.**
+
+## Git Rules
+
+- **NEVER push to remote** without explicit user confirmation.
 
 ## Build & Package
 

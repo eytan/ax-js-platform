@@ -1,0 +1,523 @@
+import type { RenderPredictor, SlicePlotOptions, DotInfo, DimensionRanker, ParamSpec } from "../types";
+import { svgEl } from "./_svg";
+import { isChoice, isInteger, formatParamValue, computeDimOrder } from "../params";
+import { createOutcomeSelector, createParamSliders, createTooltipDiv, positionTooltip, removeTooltip, makeSelectEl } from "../widgets";
+import { attachDotInteractivity, applyDotHighlight, clearDotHighlight, computeKernelRels } from "../dots";
+import { injectScopedStyles } from "../styles";
+
+const CTRL_CSS = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
+
+/** Extract ParamSpec array from predictor, falling back to range-only specs. */
+function getParamSpecs(predictor: RenderPredictor): ParamSpec[] {
+  if (predictor.paramSpecs) return predictor.paramSpecs;
+  return predictor.paramBounds.map(([lo, hi]) => ({
+    type: "range" as const,
+    bounds: [lo, hi] as [number, number],
+  }));
+}
+
+/** Pre-compute stable y-axis range by sampling across the design space. */
+function precomputeYRange(
+  predictor: RenderPredictor,
+  params: ParamSpec[],
+): Record<string, { min: number; max: number }> {
+  const result: Record<string, { min: number; max: number }> = {};
+  const nSample = 200;
+  const bounds = predictor.paramBounds;
+  const pts: number[][] = [];
+  for (let i = 0; i < nSample; i++) {
+    pts.push(params.map((p, j) => {
+      if (isChoice(p)) {
+        const vals = p.values!.map(Number);
+        return vals[Math.floor(Math.random() * vals.length)];
+      }
+      if (isInteger(p)) return Math.round(bounds[j][0] + Math.random() * (bounds[j][1] - bounds[j][0]));
+      return bounds[j][0] + Math.random() * (bounds[j][1] - bounds[j][0]);
+    }));
+  }
+  for (const name of predictor.outcomeNames) {
+    const preds = predictor.predict(pts);
+    const pred = preds[name];
+    let lo = Infinity, hi = -Infinity;
+    for (let j = 0; j < nSample; j++) {
+      const s = Math.sqrt(pred.variance[j]);
+      const lower = pred.mean[j] - 2 * s;
+      const upper = pred.mean[j] + 2 * s;
+      if (lower < lo) lo = lower;
+      if (upper > hi) hi = upper;
+    }
+    const td = predictor.getTrainingData(name);
+    if (td.Y) {
+      for (const yv of td.Y) {
+        if (yv < lo) lo = yv;
+        if (yv > hi) hi = yv;
+      }
+    }
+    const pad = 0.05 * (hi - lo);
+    result[name] = { min: lo - pad, max: hi + pad };
+  }
+  return result;
+}
+
+/**
+ * Render 1D posterior slice plots for each parameter dimension.
+ *
+ * For each dimension, sweeps that dimension while holding others
+ * at fixed values, and plots mean +/- 2 sigma. Supports choice
+ * parameters (discrete dots with error bars), stable y-axis,
+ * hover line/dot on mean curve, and click-to-pin with slider snapping.
+ */
+export function renderSlicePlot(
+  container: HTMLElement,
+  predictor: RenderPredictor,
+  options?: SlicePlotOptions,
+): void {
+  const interactive = options?.interactive !== false;
+
+  if (!interactive) {
+    renderSlicePlotStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0], options);
+    return;
+  }
+
+  if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+  removeTooltip(container.id);
+  container.innerHTML = "";
+  injectScopedStyles(container);
+  let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
+  const params = getParamSpecs(predictor);
+  const td0 = predictor.getTrainingData();
+  const fixedValues: (number | string | boolean)[] =
+    options?.fixedValues?.slice() ??
+    (td0.X.length > 0 ? td0.X[0].slice() : params.map((p, j) => {
+      if (isChoice(p)) return p.values![0];
+      return (predictor.paramBounds[j][0] + predictor.paramBounds[j][1]) / 2;
+    }));
+  const tooltip = createTooltipDiv(container.id);
+
+  // Pre-compute stable y-axis
+  const globalYRange = precomputeYRange(predictor, params);
+
+  // Shared pinned state — persists across re-renders
+  let slicePinnedIdx = -1;
+
+  const controlsDiv = document.createElement("div");
+  controlsDiv.style.cssText = CTRL_CSS + "padding:8px 16px;";
+  const slidersDiv = document.createElement("div");
+  slidersDiv.style.cssText = "margin-bottom:8px;padding:0 16px;";
+  const plotsDiv = document.createElement("div");
+  plotsDiv.style.cssText = "padding:4px 8px 12px;";
+  container.appendChild(controlsDiv);
+  container.appendChild(plotsDiv);
+  container.appendChild(slidersDiv);
+
+  if (predictor.outcomeNames.length > 1) {
+    const { wrapper, select } = makeSelectEl("Outcome:");
+    createOutcomeSelector(predictor, select, (name) => {
+      selectedOutcome = name;
+      redraw();
+    });
+    controlsDiv.appendChild(wrapper);
+  }
+
+  function rebuildSliders() {
+    const dimOrd = computeDimOrder(predictor as DimensionRanker, predictor.paramNames.length, selectedOutcome);
+    createParamSliders(predictor, params, slidersDiv, fixedValues, () => { redrawPlots(); },
+      { dimOrder: dimOrd });
+  }
+
+  function redrawPlots() {
+    plotsDiv.innerHTML = "";
+    renderSlicePlotStatic(plotsDiv, predictor, selectedOutcome, options, fixedValues as number[],
+      tooltip, globalYRange, params,
+      () => slicePinnedIdx,
+      (v: number) => { slicePinnedIdx = v; },
+      (pt: number[]) => {
+        // Click-to-pin: snap sliders to clicked point's coordinates
+        for (let j = 0; j < fixedValues.length; j++) fixedValues[j] = pt[j];
+        // Update slider values visually without rebuilding DOM
+        rebuildSliders();
+        redrawPlots();
+      });
+  }
+
+  // Full redraw: rebuild sliders (order may change) + plots
+  function redraw() {
+    rebuildSliders();
+    redrawPlots();
+  }
+  redraw();
+}
+
+function renderSlicePlotStatic(
+  target: HTMLElement,
+  predictor: RenderPredictor,
+  outcome: string,
+  options?: SlicePlotOptions,
+  fixedValuesOverride?: number[],
+  tooltip?: HTMLDivElement,
+  globalYRange?: Record<string, { min: number; max: number }>,
+  paramSpecs?: ParamSpec[],
+  getPinnedIdx?: () => number,
+  setPinnedIdx?: (v: number) => void,
+  onSnapToPoint?: (pt: number[]) => void,
+): void {
+  const numPoints = options?.numPoints ?? 80;
+  const W = options?.width ?? 340;
+  const H = options?.height ?? 220;
+  const bounds = predictor.paramBounds;
+  const names = predictor.paramNames;
+  const nDim = names.length;
+  const params = paramSpecs ?? getParamSpecs(predictor);
+  const fixedValues =
+    fixedValuesOverride?.slice() ??
+    options?.fixedValues?.slice() ??
+    bounds.map(([lo, hi]) => (lo + hi) / 2);
+
+  target.style.display = "flex";
+  target.style.flexWrap = "wrap";
+  target.style.gap = "8px";
+
+  const margin = { top: 24, right: 16, bottom: 32, left: 50 };
+  const pw = W - margin.left - margin.right;
+  const ph = H - margin.top - margin.bottom;
+
+  // Cross-subplot dot arrays for coordinated highlighting
+  const allSubplotDots: DotInfo[][] = [];
+  // Use external pinned state if provided, else local
+  let localPinnedIdx = -1;
+  const _getPinned = getPinnedIdx ?? (() => localPinnedIdx);
+  const _setPinned = setPinnedIdx ?? ((v: number) => { localPinnedIdx = v; });
+
+  // Sort dimensions by importance
+  const dimOrder = computeDimOrder(predictor as DimensionRanker, nDim, outcome);
+
+  for (const dim of dimOrder) {
+    const p = params[dim];
+    const dimIsChoice = isChoice(p);
+    const dimIsInt = isInteger(p);
+
+    let xs: number[];
+    let xLo: number, xHi: number;
+    if (dimIsChoice) {
+      xs = p.values!.map(Number);
+      xLo = 0;
+      xHi = xs.length - 1;
+    } else if (dimIsInt) {
+      xLo = bounds[dim][0];
+      xHi = bounds[dim][1];
+      xs = [];
+      for (let iv = Math.ceil(xLo); iv <= Math.floor(xHi); iv++) xs.push(iv);
+    } else {
+      [xLo, xHi] = bounds[dim];
+      if (xLo === xHi) continue;
+      xs = [];
+      for (let i = 0; i < numPoints; i++) xs.push(xLo + ((xHi - xLo) * i) / (numPoints - 1));
+    }
+    if (xs.length === 0) continue;
+
+    const testPoints = xs.map((v) => {
+      const pt = fixedValues.slice();
+      pt[dim] = v;
+      return pt;
+    });
+
+    const pred = predictor.predict(testPoints)[outcome];
+    if (!pred) continue;
+
+    const means = Array.from(pred.mean);
+    const stds = means.map((_, i) => Math.sqrt(pred.variance[i]));
+    const upper = means.map((m, i) => m + 2 * stds[i]);
+    const lower = means.map((m, i) => m - 2 * stds[i]);
+
+    // Y-axis range: use precomputed stable range if available, else per-subplot
+    let yMin: number, yMax: number;
+    if (globalYRange && globalYRange[outcome]) {
+      yMin = globalYRange[outcome].min;
+      yMax = globalYRange[outcome].max;
+    } else {
+      const td = predictor.getTrainingData(outcome);
+      yMin = Math.min(...lower);
+      yMax = Math.max(...upper);
+      if (td.Y.length > 0) {
+        yMin = Math.min(yMin, ...td.Y);
+        yMax = Math.max(yMax, ...td.Y);
+      }
+      const yPad = 0.08 * (yMax - yMin || 1);
+      yMin -= yPad;
+      yMax += yPad;
+    }
+    const yRange = yMax - yMin || 1;
+
+    // X-axis scaling: choice uses index-based, continuous uses value-based
+    const sx = dimIsChoice
+      ? (ci: number) => margin.left + (ci + 0.5) / xs.length * pw
+      : (v: number) => margin.left + ((v - xLo) / ((xHi - xLo) || 1)) * pw;
+    const sy = (v: number) => margin.top + (1 - (v - yMin) / yRange) * ph;
+
+    const svg = svgEl("svg", { width: W, height: H });
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+
+    // Title
+    svg.appendChild(Object.assign(
+      svgEl("text", { x: margin.left + pw / 2, y: 16, fill: "#999", "font-size": 12, "text-anchor": "middle" }),
+      { textContent: names[dim] },
+    ));
+
+    if (dimIsChoice) {
+      // Discrete: vertical error bars + mean dots
+      for (let ci = 0; ci < xs.length; ci++) {
+        const cx = sx(ci), cyMu = sy(means[ci]);
+        const cyUp = sy(upper[ci]), cyLo = sy(lower[ci]);
+        // Error bar
+        svg.appendChild(svgEl("line", { x1: cx, y1: cyUp, x2: cx, y2: cyLo, stroke: "rgba(100,120,230,0.5)", "stroke-width": 2 }));
+        // Caps
+        for (const capY of [cyUp, cyLo]) {
+          svg.appendChild(svgEl("line", { x1: cx - 4, y1: capY, x2: cx + 4, y2: capY, stroke: "rgba(100,120,230,0.5)", "stroke-width": 1.5 }));
+        }
+        // Mean dot
+        svg.appendChild(svgEl("circle", { cx, cy: cyMu, r: 5, fill: "rgba(130,155,255,0.9)", stroke: "white", "stroke-width": 1.5 }));
+      }
+    } else {
+      // Continuous: CI band + mean line
+      let bandD = `M ${sx(xs[0])} ${sy(upper[0])}`;
+      for (let i = 1; i < xs.length; i++) bandD += ` L ${sx(xs[i])} ${sy(upper[i])}`;
+      for (let i = xs.length - 1; i >= 0; i--) bandD += ` L ${sx(xs[i])} ${sy(lower[i])}`;
+      bandD += " Z";
+      svg.appendChild(svgEl("path", { d: bandD, fill: "rgba(100,120,230,0.18)" }));
+
+      let lineD = `M ${sx(xs[0])} ${sy(means[0])}`;
+      for (let i = 1; i < xs.length; i++) lineD += ` L ${sx(xs[i])} ${sy(means[i])}`;
+      svg.appendChild(svgEl("path", { d: lineD, stroke: "rgba(130,155,255,0.9)", "stroke-width": 2, fill: "none" }));
+    }
+
+    // Training data dots
+    const td = predictor.getTrainingData(outcome);
+    const sliceDots: DotInfo[] = [];
+    if (td.X.length > 0) {
+      for (let i = 0; i < td.X.length; i++) {
+        let ptScreenX: number;
+        if (dimIsChoice) {
+          let ci = xs.indexOf(td.X[i][dim]);
+          if (ci < 0) {
+            ci = 0;
+            let bestD = Infinity;
+            for (let cj = 0; cj < xs.length; cj++) {
+              const cd = Math.abs(xs[cj] - td.X[i][dim]);
+              if (cd < bestD) { bestD = cd; ci = cj; }
+            }
+          }
+          ptScreenX = sx(ci);
+        } else {
+          ptScreenX = sx(td.X[i][dim]);
+        }
+        const ptScreenY = sy(td.Y[i]);
+        if (ptScreenY >= margin.top && ptScreenY <= H - margin.bottom) {
+          const dot = svgEl("circle", {
+            cx: ptScreenX, cy: ptScreenY, r: 3,
+            fill: "rgba(255,80,80,0.85)", stroke: "rgba(255,255,255,0.5)", "stroke-width": 1,
+          });
+          svg.appendChild(dot);
+          sliceDots.push({
+            cx: ptScreenX, cy: ptScreenY, idx: i, pt: td.X[i], el: dot,
+            defaultFill: "rgba(255,80,80,0.85)", defaultStroke: "rgba(255,255,255,0.5)", defaultR: 3,
+          });
+        }
+      }
+    }
+    allSubplotDots.push(sliceDots);
+
+    // Y-axis ticks + grid
+    const nYTicks = 4;
+    for (let t = 0; t <= nYTicks; t++) {
+      const v = yMin + (yRange * t) / nYTicks;
+      const yp = sy(v);
+      svg.appendChild(svgEl("line", { x1: margin.left, x2: margin.left + pw, y1: yp, y2: yp, stroke: "rgba(255,255,255,0.06)" }));
+      svg.appendChild(Object.assign(
+        svgEl("text", { x: margin.left - 6, y: yp + 4, fill: "#666", "font-size": 10, "text-anchor": "end" }),
+        { textContent: v.toFixed(2) },
+      ));
+    }
+
+    // X-axis ticks
+    if (dimIsChoice) {
+      for (let ci = 0; ci < xs.length; ci++) {
+        svg.appendChild(Object.assign(
+          svgEl("text", { x: sx(ci), y: H - margin.bottom + 16, fill: "#666", "font-size": 10, "text-anchor": "middle" }),
+          { textContent: String(p.values![ci]) },
+        ));
+      }
+    } else {
+      const nXTicks = dimIsInt ? Math.min(xs.length - 1, 4) : 4;
+      for (let t = 0; t <= nXTicks; t++) {
+        let xv = xLo + (xHi - xLo) * t / nXTicks;
+        if (dimIsInt) xv = Math.round(xv);
+        svg.appendChild(Object.assign(
+          svgEl("text", { x: sx(xv), y: H - margin.bottom + 16, fill: "#666", "font-size": 10, "text-anchor": "middle" }),
+          { textContent: dimIsInt ? String(xv) : xv.toFixed(2) },
+        ));
+      }
+    }
+
+    // X-axis label
+    svg.appendChild(Object.assign(
+      svgEl("text", { x: margin.left + pw / 2, y: H - 4, fill: "#666", "font-size": 11, "text-anchor": "middle" }),
+      { textContent: names[dim] },
+    ));
+
+    // Hover line + dot on mean curve (hidden by default)
+    const hoverLine = svgEl("line", { y1: margin.top, y2: margin.top + ph, stroke: "rgba(255,255,255,0.3)", "stroke-width": 1 });
+    (hoverLine as unknown as HTMLElement).style.display = "none";
+    svg.appendChild(hoverLine);
+    const hoverDot = svgEl("circle", { r: 4, fill: "rgba(130,155,255,0.9)", stroke: "white", "stroke-width": 1.5 });
+    (hoverDot as unknown as HTMLElement).style.display = "none";
+    svg.appendChild(hoverDot);
+
+    // Restore highlight after re-render if a point was pinned
+    if (_getPinned() >= 0) {
+      const pvIdx = sliceDots.findIndex((d) => d.idx === _getPinned());
+      if (pvIdx >= 0) {
+        applyDotHighlight(sliceDots, pvIdx, computeKernelRels(predictor, sliceDots, pvIdx, outcome));
+      }
+    }
+
+    // Interactivity
+    if (tooltip) {
+      const HOVER_R = 10;
+
+      function findHit(px: number, py: number): number {
+        for (let pi = 0; pi < sliceDots.length; pi++) {
+          const dx = px - sliceDots[pi].cx, dy = py - sliceDots[pi].cy;
+          if (dx * dx + dy * dy < HOVER_R * HOVER_R) return pi;
+        }
+        return -1;
+      }
+
+      let hoverHighlight = false;
+
+      svg.addEventListener("mousemove", (e: MouseEvent) => {
+        const rect = svg.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+        if (px < margin.left || px > margin.left + pw) {
+          (hoverLine as unknown as HTMLElement).style.display = "none";
+          (hoverDot as unknown as HTMLElement).style.display = "none";
+          tooltip!.style.display = "none";
+          return;
+        }
+
+        const hitVpIdx = findHit(px, py);
+
+        if (hitVpIdx >= 0) {
+          const hitPt = sliceDots[hitVpIdx];
+          (hoverLine as unknown as HTMLElement).style.display = "none";
+          (hoverDot as unknown as HTMLElement).style.display = "none";
+          svg.style.cursor = "pointer";
+
+          if (_getPinned() < 0) {
+            applyDotHighlight(sliceDots, hitVpIdx, computeKernelRels(predictor, sliceDots, hitVpIdx, outcome));
+            hoverHighlight = true;
+          }
+
+          // Build tooltip for training point
+          let html = `<div style="font-size:11px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">training point #${hitPt.idx + 1}</div>`;
+          html += `<span style="color:#ff6b6b;font-weight:500">y = ${td.Y[hitPt.idx].toFixed(4)}</span><br>`;
+          html += names.map((n, j) => `<span style="color:#a0c4ff">${n}</span> = ${formatParamValue(td.X[hitPt.idx][j], params[j])}`).join("<br>");
+          tooltip!.innerHTML = html;
+          tooltip!.style.display = "block";
+          positionTooltip(tooltip!, e.clientX, e.clientY);
+        } else {
+          svg.style.cursor = "crosshair";
+          if (_getPinned() < 0 && hoverHighlight) {
+            clearDotHighlight(sliceDots);
+            hoverHighlight = false;
+          }
+
+          // Hover line + dot on mean curve
+          const frac = (px - margin.left) / pw;
+          let idx: number;
+          if (dimIsChoice) {
+            idx = Math.floor(frac * xs.length);
+            idx = Math.max(0, Math.min(xs.length - 1, idx));
+          } else {
+            idx = Math.round(frac * (xs.length - 1));
+            idx = Math.max(0, Math.min(xs.length - 1, idx));
+          }
+          const mu = means[idx], s = stds[idx];
+          const screenX = dimIsChoice ? sx(idx) : sx(xs[idx]);
+
+          hoverLine.setAttribute("x1", String(screenX));
+          hoverLine.setAttribute("x2", String(screenX));
+          (hoverLine as unknown as HTMLElement).style.display = "";
+          hoverDot.setAttribute("cx", String(screenX));
+          hoverDot.setAttribute("cy", String(sy(mu)));
+          (hoverDot as unknown as HTMLElement).style.display = "";
+
+          const xLabel = dimIsChoice ? String(p.values![idx]) : formatParamValue(xs[idx], p);
+          let html = `<div style="font-size:11px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">${names[dim]}</div>`;
+          html += `<span style="color:#a0c4ff">${names[dim]}</span> = ${xLabel}<br>`;
+          html += `\u03BC = <span style="color:#ff6b6b;font-weight:500">${mu.toFixed(4)}</span><br>`;
+          html += `\u03C3 = ${s.toFixed(4)}<br>`;
+          html += `95% CI: [${(mu - 2 * s).toFixed(4)}, ${(mu + 2 * s).toFixed(4)}]`;
+          tooltip!.innerHTML = html;
+          tooltip!.style.display = "block";
+          positionTooltip(tooltip!, e.clientX, e.clientY);
+        }
+      });
+
+      svg.addEventListener("click", (e: MouseEvent) => {
+        const rect = svg.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+        const hitVpIdx = findHit(px, py);
+
+        if (hitVpIdx >= 0) {
+          const hitTrainIdx = sliceDots[hitVpIdx].idx;
+          if (_getPinned() === hitTrainIdx) {
+            _setPinned(-1);
+            clearDotHighlight(sliceDots);
+          } else {
+            _setPinned(hitTrainIdx);
+            // Snap sliders to clicked point's coordinates and re-render
+            if (onSnapToPoint) {
+              onSnapToPoint(sliceDots[hitVpIdx].pt);
+              return; // onSnapToPoint triggers full redraw
+            }
+            applyDotHighlight(sliceDots, hitVpIdx, computeKernelRels(predictor, sliceDots, hitVpIdx, outcome));
+          }
+        } else {
+          if (_getPinned() >= 0) {
+            _setPinned(-1);
+            clearDotHighlight(sliceDots);
+          }
+        }
+        hoverHighlight = false;
+        // Cross-subplot coordination
+        for (const subDots of allSubplotDots) {
+          if (_getPinned() < 0) {
+            clearDotHighlight(subDots);
+          } else {
+            const subActiveIdx = subDots.findIndex((d) => d.idx === _getPinned());
+            if (subActiveIdx >= 0) {
+              applyDotHighlight(subDots, subActiveIdx, computeKernelRels(predictor, subDots, subActiveIdx, outcome));
+            } else {
+              clearDotHighlight(subDots);
+            }
+          }
+        }
+      });
+
+      svg.addEventListener("mouseleave", () => {
+        (hoverLine as unknown as HTMLElement).style.display = "none";
+        (hoverDot as unknown as HTMLElement).style.display = "none";
+        svg.style.cursor = "crosshair";
+        tooltip!.style.display = "none";
+        if (_getPinned() < 0 && hoverHighlight) {
+          clearDotHighlight(sliceDots);
+          hoverHighlight = false;
+        }
+      });
+    }
+
+    target.appendChild(svg);
+  }
+}

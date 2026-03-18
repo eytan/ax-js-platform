@@ -15,28 +15,17 @@
   select, button, input[type=file] { font-size: 13px; padding: 5px 10px;
     border-radius: 6px; border: 0.5px solid #444; background: #1a1a1d; color: #e0e0e0; cursor: pointer; outline: none; }
   button:hover { background: #252528; }
-  #plotArea { display: flex; gap: 12px; flex-wrap: wrap; }
-  .cv-tile { background: #141418; border: 0.5px solid #222;
-    border-radius: 8px; overflow: hidden; position: relative; }
-  .cv-title { font-size: 13px; font-weight: 500; color: #ccc; text-align: center; padding: 6px 0 0; }
   .hint { font-size: 11px; color: #555; margin-top: 8px; }
-  #tooltip { position: fixed; background: rgba(20,20,24,0.95); border: 0.5px solid #444;
-    border-radius: 6px; padding: 8px 12px; font-size: 12px; pointer-events: none;
-    display: none; z-index: 100; max-width: 300px; }
-  .tt-title { font-weight: 600; color: #aaa; margin-bottom: 4px; }
-  .tt-val { color: #7c9aff; }
 </style>
 </head>
 <body>
 <h1><a href="index.html" style="text-decoration:none"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="29" height="29" style="vertical-align:-4px;margin-right:8px;opacity:0.7"><path fill="#fff" d="M761.76,600h0l200-346.16H550.12l-400,692.32H961.76ZM573.41,274H926.82L750.12,579.85ZM550.12,926H185.06L555.94,284.07,738.47,600Zm23.29,0L750.12,620.15,926.82,926Z"/></svg></a>Leave-One-Out Cross-Validation</h1>
 <div class="subtitle" id="subtitle">Observed vs predicted — load a fixture to begin</div>
 <div class="controls">
-  <label>Outcome: <select id="outcomeSelect"></select></label>
   <label>File: <input type="file" id="fileInput" accept=".json"></label>
 </div>
 <div id="plotArea"></div>
 <div class="hint">Click a point to see kernel-distance neighbors. Click empty space to clear.</div>
-<div id="tooltip"></div>
 <script>
 "use strict";
 var Ax = (() => {
@@ -1889,17 +1878,34 @@ var Ax = (() => {
       const sub = getSubModel(ms, this.outcomeNames, name);
       const ls = findLengthscales(sub.kernel ?? sub.data_kernel);
       const inputTf = sub.input_transform;
+      const warp = sub.input_warp;
+      const warpIndicesSet = warp?.indices ? new Set(warp.indices) : null;
       const params = this.paramSpecs;
+      const eps = 1e-7;
+      const warpRange = 1 - 2 * eps;
       let d2 = 0;
       for (let j = 0; j < point.length; j++) {
         if (params[j] && params[j].type === "choice") {
           if (point[j] !== refPoint[j]) d2 += 4;
           continue;
         }
-        const diff = point[j] - refPoint[j];
+        const offset = inputTf?.offset?.[j] ?? 0;
         const coeff = inputTf?.coefficient?.[j] ?? 1;
+        let v1 = (point[j] - offset) / coeff;
+        let v2 = (refPoint[j] - offset) / coeff;
+        if (warp && (warpIndicesSet === null || warpIndicesSet.has(j))) {
+          const wIdx = warp.indices ? warp.indices.indexOf(j) : j;
+          if (wIdx >= 0 && wIdx < warp.concentration0.length) {
+            const a = warp.concentration1[wIdx];
+            const b = warp.concentration0[wIdx];
+            const xn1 = Math.max(eps, Math.min(1 - eps, v1 * warpRange + eps));
+            const xn2 = Math.max(eps, Math.min(1 - eps, v2 * warpRange + eps));
+            v1 = 1 - Math.pow(1 - Math.pow(xn1, a), b);
+            v2 = 1 - Math.pow(1 - Math.pow(xn2, a), b);
+          }
+        }
         const lsj = ls && j < ls.length ? ls[j] : 1;
-        const scaled = diff / coeff / lsj;
+        const scaled = (v1 - v2) / lsj;
         d2 += scaled * scaled;
       }
       return Math.exp(-0.5 * d2);
@@ -4803,19 +4809,28 @@ var Ax;
   // src/viz/index.ts
   var viz_exports = {};
   __export(viz_exports, {
+    applyDotHighlight: () => applyDotHighlight,
+    attachDotInteractivity: () => attachDotInteractivity,
+    buildPointTooltipHtml: () => buildPointTooltipHtml,
+    clearDotHighlight: () => clearDotHighlight,
     computeDimOrder: () => computeDimOrder,
+    computeKernelRels: () => computeKernelRels,
     createOutcomeSelector: () => createOutcomeSelector,
     createParamSliders: () => createParamSliders,
     defaultParamValue: () => defaultParamValue,
     drawColorbar: () => drawColorbar,
     drawDataDot: () => drawDataDot,
+    findNearestDot: () => findNearestDot,
     formatParamValue: () => formatParamValue,
     hideTooltip: () => hideTooltip,
+    injectScopedStyles: () => injectScopedStyles,
+    injectStyles: () => injectStyles,
     isChoice: () => isChoice,
     isInteger: () => isInteger,
     normalizeFixture: () => normalizeFixture,
     plasma: () => plasma,
     pointRelevance: () => pointRelevance,
+    removeTooltip: () => removeTooltip,
     renderCrossValidation: () => renderCrossValidation,
     renderFeatureImportance: () => renderFeatureImportance,
     renderHeatmap: () => renderHeatmap,
@@ -4826,6 +4841,106 @@ var Ax;
     showTooltip: () => showTooltip,
     viridis: () => viridis
   });
+
+  // src/viz/styles.ts
+  var AXJS_STYLES = `
+:scope .axjs-slider {
+  -webkit-appearance: auto;
+  appearance: auto;
+  cursor: pointer;
+  touch-action: none;
+  pointer-events: auto;
+  user-select: auto;
+  -webkit-user-select: auto;
+  flex: 1;
+  min-width: 100px;
+  accent-color: #7c6ff7;
+}
+:scope .axjs-slider::-webkit-slider-thumb {
+  -webkit-appearance: auto;
+  cursor: grab;
+  pointer-events: auto;
+}
+:scope .axjs-slider:active::-webkit-slider-thumb {
+  cursor: grabbing;
+}
+:scope .axjs-slider::-webkit-slider-runnable-track {
+  pointer-events: auto;
+}
+:scope .axjs-select {
+  pointer-events: auto;
+  cursor: pointer;
+  background: #1a1a1d;
+  color: #e0e0e0;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  -webkit-user-drag: none;
+}
+:scope .axjs-tooltip {
+  position: fixed;
+  display: none;
+  background: rgba(20,20,24,0.95);
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #e0e0e0;
+  pointer-events: none;
+  z-index: 10000;
+  white-space: nowrap;
+}
+:scope .axjs-ctrl-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 6px;
+  max-width: 600px;
+  pointer-events: auto;
+  user-select: auto;
+  -webkit-user-select: auto;
+}
+:scope .axjs-slider-label {
+  font-size: 13px;
+  color: #888;
+  min-width: 140px;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:scope .axjs-slider-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: #ccc;
+  min-width: 70px;
+  text-align: right;
+}
+:scope .axjs-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  pointer-events: auto;
+}
+`;
+  function injectScopedStyles(container) {
+    if (typeof document === "undefined") return;
+    if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    if (container.querySelector("style[data-axjs]")) return;
+    const s = document.createElement("style");
+    s.setAttribute("data-axjs", "");
+    s.textContent = AXJS_STYLES.replace(/:scope/g, `#${container.id}`);
+    container.prepend(s);
+  }
+  function injectStyles() {
+    if (typeof document === "undefined") return;
+    injectScopedStyles(document.body);
+  }
+
+  // src/viz/colormaps.ts
   var VIRIDIS_STOPS = [
     [68, 1, 84],
     [72, 32, 111],
@@ -4882,6 +4997,34 @@ var Ax;
       ctx.fillRect(i, 0, 1, h);
     }
   }
+  function renderHeatmap(ctx, values, gridW, gridH, canvasW, canvasH, colorFn, minVal, maxVal) {
+    const img = ctx.createImageData(canvasW, canvasH);
+    const range = maxVal - minVal || 1;
+    const cellW = canvasW / gridW;
+    const cellH = canvasH / gridH;
+    for (let k = 0; k < values.length; k++) {
+      const gi = k % gridW;
+      const gj = Math.floor(k / gridW);
+      const t = Math.max(0, Math.min(1, (values[k] - minVal) / range));
+      const rgb = colorFn(t);
+      const x0 = Math.round(gi * cellW);
+      const y0 = Math.round(gj * cellH);
+      const x1 = Math.round((gi + 1) * cellW);
+      const y1 = Math.round((gj + 1) * cellH);
+      for (let py = y0; py < y1; py++) {
+        for (let px = x0; px < x1; px++) {
+          const idx = (py * canvasW + px) * 4;
+          img.data[idx] = rgb[0];
+          img.data[idx + 1] = rgb[1];
+          img.data[idx + 2] = rgb[2];
+          img.data[idx + 3] = 255;
+        }
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  // src/viz/drawDataDot.ts
   function drawDataDot(ctx, x, y, alpha, isActive, isHovered, fillRGB = [255, 60, 60]) {
     if (alpha < 0.04) return;
     const outerR = isActive || isHovered ? 7.5 : 5;
@@ -4896,6 +5039,8 @@ var Ax;
     ctx.fillStyle = isActive || isHovered ? `rgba(${fillRGB[0]},${fillRGB[1]},${fillRGB[2]},1)` : `rgba(${fillRGB[0]},${fillRGB[1]},${fillRGB[2]},${alpha.toFixed(3)})`;
     ctx.fill();
   }
+
+  // src/viz/params.ts
   function isChoice(p) {
     return p.type === "choice";
   }
@@ -4911,22 +5056,6 @@ var Ax;
     if (isChoice(p)) return String(val);
     if (isInteger(p)) return String(Math.round(val));
     return val.toFixed(3);
-  }
-  function pointRelevance(pt, fixedValues, plottedDims, ls, inputTf, params) {
-    let d2 = 0;
-    for (let j = 0; j < fixedValues.length; j++) {
-      if (plottedDims.indexOf(j) >= 0) continue;
-      if (params && params[j] && isChoice(params[j])) {
-        if (pt[j] !== fixedValues[j]) d2 += 4;
-        continue;
-      }
-      const diff = pt[j] - fixedValues[j];
-      const coeff = inputTf?.coefficient?.[j] ?? 1;
-      const lsj = ls && j < ls.length ? ls[j] : 1;
-      const scaled = diff / coeff / lsj;
-      d2 += scaled * scaled;
-    }
-    return Math.exp(-0.5 * d2);
   }
   function normalizeFixture(data) {
     if (data.experiment) {
@@ -4970,15 +5099,40 @@ var Ax;
     }
     return order;
   }
-  function showTooltip(el, html, screenX, screenY) {
-    el.innerHTML = html;
-    el.style.display = "block";
-    el.style.left = screenX + 16 + "px";
-    el.style.top = screenY - 10 + "px";
+  function pointRelevance(pt, fixedValues, plottedDims, ls, inputTf, params, inputWarp) {
+    const warpIndicesSet = inputWarp?.indices ? new Set(inputWarp.indices) : null;
+    const eps = 1e-7;
+    const warpRange = 1 - 2 * eps;
+    let d2 = 0;
+    for (let j = 0; j < fixedValues.length; j++) {
+      if (plottedDims.indexOf(j) >= 0) continue;
+      if (params && params[j] && isChoice(params[j])) {
+        if (pt[j] !== fixedValues[j]) d2 += 4;
+        continue;
+      }
+      const offset = inputTf?.offset?.[j] ?? 0;
+      const coeff = inputTf?.coefficient?.[j] ?? 1;
+      let v1 = (pt[j] - offset) / coeff;
+      let v2 = (fixedValues[j] - offset) / coeff;
+      if (inputWarp && (warpIndicesSet === null || warpIndicesSet.has(j))) {
+        const wIdx = inputWarp.indices ? inputWarp.indices.indexOf(j) : j;
+        if (wIdx >= 0 && wIdx < inputWarp.concentration0.length) {
+          const a = inputWarp.concentration1[wIdx];
+          const b = inputWarp.concentration0[wIdx];
+          const xn1 = Math.max(eps, Math.min(1 - eps, v1 * warpRange + eps));
+          const xn2 = Math.max(eps, Math.min(1 - eps, v2 * warpRange + eps));
+          v1 = 1 - Math.pow(1 - Math.pow(xn1, a), b);
+          v2 = 1 - Math.pow(1 - Math.pow(xn2, a), b);
+        }
+      }
+      const lsj = ls && j < ls.length ? ls[j] : 1;
+      const scaled = (v1 - v2) / lsj;
+      d2 += scaled * scaled;
+    }
+    return Math.exp(-0.5 * d2);
   }
-  function hideTooltip(el) {
-    el.style.display = "none";
-  }
+
+  // src/viz/widgets.ts
   function createOutcomeSelector(predictor, selectEl, onChange) {
     selectEl.innerHTML = "";
     predictor.outcomeNames.forEach((name) => {
@@ -4991,6 +5145,8 @@ var Ax;
   }
   function createParamSliders(predictor, params, container, currentValues, onChange, options) {
     container.innerHTML = "";
+    const styleTarget = container.closest("[id]") ?? container;
+    injectScopedStyles(styleTarget);
     const excludeDims = options?.excludeDims ?? /* @__PURE__ */ new Set();
     const order = options?.dimOrder ?? Array.from({ length: predictor.paramNames.length }, (_, i) => i);
     order.forEach((i) => {
@@ -4998,17 +5154,18 @@ var Ax;
       const name = predictor.paramNames[i];
       const p = params[i];
       const row = document.createElement("div");
-      row.style.cssText = "display:flex;gap:10px;align-items:center;margin-bottom:6px;max-width:600px;pointer-events:auto;user-select:auto";
+      row.className = "axjs-ctrl-row";
+      row.style.cssText = "display:flex;gap:10px;align-items:center;margin-bottom:6px;max-width:600px;pointer-events:auto;user-select:auto;-webkit-user-select:auto;";
       const lbl = document.createElement("span");
-      lbl.style.cssText = "font-size:13px;color:#888;min-width:140px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+      lbl.className = "axjs-slider-label";
       lbl.textContent = name;
       lbl.title = name;
       const val = document.createElement("span");
-      val.style.cssText = "font-size:13px;font-weight:500;color:#ccc;min-width:70px;text-align:right";
+      val.className = "axjs-slider-value";
       val.textContent = formatParamValue(currentValues[i], p);
       if (isChoice(p)) {
         const sel = document.createElement("select");
-        sel.className = "slselect";
+        sel.className = "axjs-select";
         p.values.forEach((v) => {
           const o = document.createElement("option");
           o.value = String(v);
@@ -5030,11 +5187,15 @@ var Ax;
         const hi = predictor.paramBounds[i][1];
         const sl = document.createElement("input");
         sl.type = "range";
-        sl.style.cssText = "flex:1;min-width:100px;accent-color:#7c6ff7;cursor:pointer;pointer-events:auto;user-select:auto;touch-action:none;-webkit-user-drag:none";
+        sl.className = "axjs-slider";
+        sl.style.cssText = "-webkit-appearance:auto;appearance:auto;cursor:pointer;touch-action:none;pointer-events:auto;user-select:auto;-webkit-user-select:auto;flex:1;min-width:100px;accent-color:#7c6ff7;";
         sl.min = String(lo);
         sl.max = String(hi);
         sl.step = isInteger(p) ? "1" : String((hi - lo) / 200);
         sl.value = String(currentValues[i]);
+        sl.addEventListener("pointerdown", (e) => {
+          e.stopPropagation();
+        });
         sl.addEventListener("mousedown", (e) => {
           e.stopPropagation();
         });
@@ -5063,19 +5224,31 @@ var Ax;
       file.text().then((text) => callback(JSON.parse(text)));
     });
   }
-  var CTRL_CSS = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
-  var SELECT_CSS = "background:#1a1a1d;color:#e0e0e0;border:1px solid #333;border-radius:4px;padding:3px 8px;font-size:12px;pointer-events:auto;cursor:pointer;-webkit-user-drag:none";
-  function createTooltipDiv(container) {
+  function showTooltip(el, html, screenX, screenY) {
+    el.innerHTML = html;
+    el.style.display = "block";
+    el.style.left = screenX + 16 + "px";
+    el.style.top = screenY - 10 + "px";
+  }
+  function hideTooltip(el) {
+    el.style.display = "none";
+  }
+  function createTooltipDiv(containerId) {
+    if (containerId) removeTooltip(containerId);
     const tooltip = document.createElement("div");
-    tooltip.style.cssText = "position:absolute;display:none;background:rgba(20,20,24,0.95);border:1px solid #444;border-radius:6px;padding:8px 12px;font-size:12px;color:#e0e0e0;pointer-events:none;z-index:100;white-space:nowrap";
-    container.style.position = "relative";
-    container.appendChild(tooltip);
+    tooltip.className = "axjs-tooltip";
+    if (containerId) tooltip.setAttribute("data-axjs-for", containerId);
+    tooltip.style.cssText = "position:fixed;display:none;background:rgba(20,20,24,0.95);border:1px solid #444;border-radius:6px;padding:8px 12px;font-size:12px;color:#e0e0e0;pointer-events:none;z-index:10000;white-space:nowrap;";
+    document.body.appendChild(tooltip);
     return tooltip;
   }
-  function positionTooltip(tooltip, container, clientX, clientY) {
-    const rect = container.getBoundingClientRect();
-    tooltip.style.left = clientX - rect.left + 16 + "px";
-    tooltip.style.top = clientY - rect.top - 10 + "px";
+  function positionTooltip(tooltip, clientX, clientY) {
+    tooltip.style.left = clientX + 16 + "px";
+    tooltip.style.top = clientY - 10 + "px";
+  }
+  function removeTooltip(containerId) {
+    const stale = document.body.querySelector(`div[data-axjs-for="${containerId}"]`);
+    if (stale) stale.remove();
   }
   function makeSelectEl(label) {
     const wrapper = document.createElement("div");
@@ -5084,45 +5257,13 @@ var Ax;
     lbl.style.cssText = "color:#888;font-size:12px";
     lbl.textContent = label;
     const select = document.createElement("select");
-    select.style.cssText = SELECT_CSS;
+    select.className = "axjs-select";
     wrapper.appendChild(lbl);
     wrapper.appendChild(select);
     return { wrapper, select };
   }
-  var SVG_NS = "http://www.w3.org/2000/svg";
-  function svgEl(tag, attrs) {
-    const el = document.createElementNS(SVG_NS, tag);
-    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
-    return el;
-  }
-  function renderFeatureImportance(container, predictor, options) {
-    const interactive = options?.interactive !== false;
-    if (!interactive) {
-      renderFeatureImportanceStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0]);
-      return;
-    }
-    container.innerHTML = "";
-    let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
-    const tooltip = createTooltipDiv(container);
-    const controlsDiv = document.createElement("div");
-    controlsDiv.style.cssText = CTRL_CSS;
-    const plotsDiv = document.createElement("div");
-    container.appendChild(controlsDiv);
-    container.appendChild(plotsDiv);
-    if (predictor.outcomeNames.length > 1) {
-      const { wrapper, select } = makeSelectEl("Outcome:");
-      createOutcomeSelector(predictor, select, (name) => {
-        selectedOutcome = name;
-        redraw();
-      });
-      controlsDiv.appendChild(wrapper);
-    }
-    function redraw() {
-      plotsDiv.innerHTML = "";
-      renderFeatureImportanceStatic(plotsDiv, predictor, selectedOutcome, tooltip, container);
-    }
-    redraw();
-  }
+
+  // src/viz/dots.ts
   function computeKernelRels(predictor, dots, activeIdx, outcome) {
     const rawRels = [];
     let maxRel = 0;
@@ -5219,7 +5360,7 @@ var Ax;
         const html = buildPointTooltipHtml(predictor, dots[hitIdx].idx, outcome);
         tooltip.innerHTML = html;
         tooltip.style.display = "block";
-        positionTooltip(tooltip, tooltipContainer, e.clientX, e.clientY);
+        positionTooltip(tooltip, e.clientX, e.clientY);
       } else {
         svg.style.cursor = "crosshair";
         if (getPinnedIdx() < 0 && hoverHighlight) {
@@ -5266,95 +5407,29 @@ var Ax;
     });
     return { getPinnedIdx };
   }
-  function renderFeatureImportanceStatic(target, predictor, outcome, tooltip, tooltipContainer) {
-    const ranked = predictor.rankDimensionsByImportance(outcome);
-    if (!ranked || ranked.length === 0) {
-      target.textContent = "No lengthscale data";
-      return;
-    }
-    const barColors = ["#7c6ff7", "#6fa0f7", "#6fcff7", "#6ff7c8", "#a0f76f", "#f7e06f", "#f7a06f", "#f76f6f"];
-    const importances = ranked.map((d) => 1 / d.lengthscale);
-    const maxImp = Math.max(...importances);
-    const W = Math.min((tooltipContainer ?? target).clientWidth || 500, 500);
-    const labelW = 130;
-    const barH = 24;
-    const rowGap = 6;
-    const H = ranked.length * (barH + rowGap) + 8;
-    const svg = svgEl("svg", { width: W, height: H });
-    ranked.forEach((dim, i) => {
-      const y = i * (barH + rowGap) + 4;
-      const pct = importances[i] / maxImp;
-      const barW = pct * (W - labelW - 80);
-      svg.appendChild(
-        Object.assign(svgEl("text", {
-          x: labelW - 8,
-          y: y + barH / 2 + 4,
-          fill: "#ccc",
-          "font-size": 13,
-          "text-anchor": "end"
-        }), { textContent: dim.paramName })
-      );
-      svg.appendChild(svgEl("rect", {
-        x: labelW,
-        y,
-        width: W - labelW - 10,
-        height: barH,
-        rx: 4,
-        fill: "#1a1a1d"
-      }));
-      const fillBar = svgEl("rect", {
-        x: labelW,
-        y,
-        width: Math.max(2, barW),
-        height: barH,
-        rx: 4,
-        fill: barColors[dim.dimIndex % barColors.length]
-      });
-      svg.appendChild(fillBar);
-      if (tooltip && tooltipContainer) {
-        const hoverRect = svgEl("rect", {
-          x: labelW,
-          y,
-          width: W - labelW - 10,
-          height: barH,
-          fill: "transparent",
-          cursor: "pointer"
-        });
-        hoverRect.addEventListener("mouseenter", (e) => {
-          tooltip.innerHTML = `<b>${dim.paramName}</b><br>Lengthscale: ${dim.lengthscale.toFixed(4)}<br>Importance: ${(pct * 100).toFixed(1)}%`;
-          tooltip.style.display = "block";
-          positionTooltip(tooltip, tooltipContainer, e.clientX, e.clientY);
-        });
-        hoverRect.addEventListener("mousemove", (e) => {
-          positionTooltip(tooltip, tooltipContainer, e.clientX, e.clientY);
-        });
-        hoverRect.addEventListener("mouseleave", () => {
-          tooltip.style.display = "none";
-        });
-        svg.appendChild(hoverRect);
-      }
-      svg.appendChild(
-        Object.assign(svgEl("text", {
-          x: W - 16,
-          y: y + barH / 2 + 4,
-          fill: "#999",
-          "font-size": 11,
-          "text-anchor": "end",
-          "pointer-events": "none"
-        }), { textContent: `ls=${dim.lengthscale.toFixed(3)}` })
-      );
-    });
-    target.appendChild(svg);
+
+  // src/viz/plots/_svg.ts
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  function svgEl(tag, attrs) {
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+    return el;
   }
-  function renderCrossValidation(container, predictor, options) {
+
+  // src/viz/plots/importance.ts
+  var CTRL_CSS = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
+  function renderFeatureImportance(container, predictor, options) {
     const interactive = options?.interactive !== false;
     if (!interactive) {
-      renderCrossValidationStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0], options);
+      renderFeatureImportanceStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0]);
       return;
     }
+    if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    removeTooltip(container.id);
     container.innerHTML = "";
+    injectScopedStyles(container);
     let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
-    const tooltip = createTooltipDiv(container);
+    const tooltip = createTooltipDiv(container.id);
     const controlsDiv = document.createElement("div");
     controlsDiv.style.cssText = CTRL_CSS;
     const plotsDiv = document.createElement("div");
@@ -5370,13 +5445,199 @@ var Ax;
     }
     function redraw() {
       plotsDiv.innerHTML = "";
-      renderCrossValidationStatic(plotsDiv, predictor, selectedOutcome, options, tooltip, container);
+      renderFeatureImportanceStatic(plotsDiv, predictor, selectedOutcome, tooltip, container);
     }
     redraw();
   }
-  function renderCrossValidationStatic(target, predictor, outcome, options, tooltip, tooltipContainer) {
-    const W = options?.width ?? 440;
-    const H = options?.height ?? 440;
+  function renderFeatureImportanceStatic(target, predictor, outcome, tooltip, tooltipContainer) {
+    const ranked = predictor.rankDimensionsByImportance(outcome);
+    if (!ranked || ranked.length === 0) {
+      target.textContent = "No lengthscale data";
+      return;
+    }
+    const barColors = ["#7c6ff7", "#6fa0f7", "#6fcff7", "#6ff7c8", "#a0f76f", "#f7e06f", "#f7a06f", "#f76f6f"];
+    const importances = ranked.map((d) => 1 / d.lengthscale);
+    const maxImp = Math.max(...importances);
+    const W = Math.min((tooltipContainer ?? target).clientWidth || 500, 500);
+    const labelW = 130;
+    const valueW = 70;
+    const barH = 24;
+    const rowGap = 6;
+    const H = ranked.length * (barH + rowGap) + 8;
+    const trackW = W - labelW - valueW;
+    const svg = svgEl("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+    ranked.forEach((dim, i) => {
+      const y = i * (barH + rowGap) + 4;
+      const pct = importances[i] / maxImp;
+      const barW = Math.max(2, pct * trackW);
+      svg.appendChild(
+        Object.assign(svgEl("text", {
+          x: labelW - 8,
+          y: y + barH / 2 + 4,
+          fill: "#ccc",
+          "font-size": 13,
+          "text-anchor": "end"
+        }), { textContent: dim.paramName })
+      );
+      svg.appendChild(svgEl("rect", {
+        x: labelW,
+        y,
+        width: trackW,
+        height: barH,
+        rx: 4,
+        fill: "#1a1a1d"
+      }));
+      svg.appendChild(svgEl("rect", {
+        x: labelW,
+        y,
+        width: barW,
+        height: barH,
+        rx: 4,
+        fill: barColors[dim.dimIndex % barColors.length]
+      }));
+      if (tooltip) {
+        const hoverRect = svgEl("rect", {
+          x: labelW,
+          y,
+          width: trackW,
+          height: barH,
+          fill: "transparent",
+          cursor: "pointer"
+        });
+        hoverRect.addEventListener("mouseenter", (e) => {
+          tooltip.innerHTML = `<b>${dim.paramName}</b><br>Lengthscale: ${dim.lengthscale.toFixed(4)}<br>Importance: ${(pct * 100).toFixed(1)}%`;
+          tooltip.style.display = "block";
+          positionTooltip(tooltip, e.clientX, e.clientY);
+        });
+        hoverRect.addEventListener("mousemove", (e) => {
+          positionTooltip(tooltip, e.clientX, e.clientY);
+        });
+        hoverRect.addEventListener("mouseleave", () => {
+          tooltip.style.display = "none";
+        });
+        svg.appendChild(hoverRect);
+      }
+      svg.appendChild(
+        Object.assign(svgEl("text", {
+          x: labelW + trackW + 4,
+          y: y + barH / 2 + 4,
+          fill: "#999",
+          "font-size": 11,
+          "text-anchor": "start",
+          "pointer-events": "none"
+        }), { textContent: `ls=${dim.lengthscale.toFixed(3)}` })
+      );
+    });
+    target.appendChild(svg);
+  }
+
+  // src/viz/plots/cv.ts
+  var CTRL_CSS2 = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
+  function renderCrossValidation(container, predictor, options) {
+    const interactive = options?.interactive !== false;
+    if (!interactive) {
+      renderCrossValidationStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0], options);
+      return;
+    }
+    if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    removeTooltip(container.id);
+    container.innerHTML = "";
+    injectScopedStyles(container);
+    const hasMulti = predictor.outcomeNames.length > 1;
+    let selectedOutcome = options?.outcome ?? (hasMulti ? "__all__" : predictor.outcomeNames[0]);
+    const tooltip = createTooltipDiv(container.id);
+    const controlsDiv = document.createElement("div");
+    controlsDiv.style.cssText = CTRL_CSS2;
+    const plotsDiv = document.createElement("div");
+    plotsDiv.style.cssText = "display:flex;gap:12px;flex-wrap:wrap";
+    container.appendChild(controlsDiv);
+    container.appendChild(plotsDiv);
+    if (hasMulti) {
+      const { wrapper, select } = makeSelectEl("Outcome:");
+      const allOpt = document.createElement("option");
+      allOpt.value = "__all__";
+      allOpt.textContent = "All outcomes";
+      select.appendChild(allOpt);
+      predictor.outcomeNames.forEach((name) => {
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+      });
+      select.value = selectedOutcome;
+      select.onchange = () => {
+        selectedOutcome = select.value;
+        redraw();
+      };
+      controlsDiv.appendChild(wrapper);
+    }
+    let pinnedIdx = -1;
+    let panels = [];
+    function broadcastHighlight(idx, rels) {
+      panels.forEach((p) => p.highlight(idx, rels));
+    }
+    function broadcastClear() {
+      panels.forEach((p) => p.clear());
+      pinnedIdx = -1;
+    }
+    function redraw() {
+      plotsDiv.innerHTML = "";
+      pinnedIdx = -1;
+      panels = [];
+      if (selectedOutcome === "__all__") {
+        const tileW = 280, tileH = 280;
+        for (const name of predictor.outcomeNames) {
+          const tile = document.createElement("div");
+          tile.style.cssText = `background:#141418;border:0.5px solid #222;border-radius:8px;overflow:hidden;width:${tileW}px;height:${tileH + 28}px`;
+          const title = document.createElement("div");
+          title.style.cssText = "font-size:13px;font-weight:500;color:#ccc;text-align:center;padding:6px 0 0";
+          title.textContent = name;
+          tile.appendChild(title);
+          renderCVPanel(
+            tile,
+            predictor,
+            name,
+            tileW,
+            tileH,
+            true,
+            tooltip,
+            panels,
+            () => pinnedIdx,
+            (v) => {
+              pinnedIdx = v;
+            },
+            broadcastHighlight,
+            broadcastClear
+          );
+          plotsDiv.appendChild(tile);
+        }
+      } else {
+        const W = options?.width ?? 440;
+        const H = options?.height ?? 440;
+        const cvTile = document.createElement("div");
+        cvTile.style.cssText = `background:#141418;border:0.5px solid #222;border-radius:8px;overflow:hidden;width:${W}px;height:${H}px`;
+        renderCVPanel(
+          cvTile,
+          predictor,
+          selectedOutcome,
+          W,
+          H,
+          false,
+          tooltip,
+          panels,
+          () => pinnedIdx,
+          (v) => {
+            pinnedIdx = v;
+          },
+          broadcastHighlight,
+          broadcastClear
+        );
+        plotsDiv.appendChild(cvTile);
+      }
+    }
+    redraw();
+  }
+  function renderCVPanel(target, predictor, outcome, W, H, isSmall, tooltip, panels, getPinnedIdx, setPinnedIdx, broadcastHighlight, broadcastClear) {
     const loo = predictor.loocv(outcome);
     if (loo.observed.length === 0) {
       target.textContent = "No data";
@@ -5398,7 +5659,7 @@ var Ax;
     const pad = 0.08 * (hi - lo);
     lo -= pad;
     hi += pad;
-    const margin = { top: 30, right: 20, bottom: 40, left: 55 };
+    const margin = isSmall ? { top: 24, right: 12, bottom: 30, left: 42 } : { top: 30, right: 20, bottom: 40, left: 55 };
     const pw = W - margin.left - margin.right;
     const ph = H - margin.top - margin.bottom;
     const sx = (v) => margin.left + (v - lo) / (hi - lo) * pw;
@@ -5413,7 +5674,8 @@ var Ax;
       "stroke-width": 1,
       "stroke-dasharray": "4,4"
     }));
-    const nTicks = 5;
+    const nTicks = isSmall ? 3 : 5;
+    const tickFontSize = isSmall ? "8" : "10";
     for (let t = 0; t <= nTicks; t++) {
       const v = lo + (hi - lo) * t / nTicks;
       svg.appendChild(svgEl("line", {
@@ -5425,20 +5687,21 @@ var Ax;
       }));
       svg.appendChild(Object.assign(svgEl("text", {
         x: sx(v),
-        y: margin.top + ph + 16,
+        y: margin.top + ph + (isSmall ? 12 : 16),
         fill: "#555",
-        "font-size": 10,
+        "font-size": tickFontSize,
         "text-anchor": "middle"
-      }), { textContent: v.toFixed(2) }));
+      }), { textContent: v.toFixed(isSmall ? 0 : 2) }));
       svg.appendChild(Object.assign(svgEl("text", {
         x: margin.left - 4,
         y: sy(v) + 3,
         fill: "#555",
-        "font-size": 10,
+        "font-size": tickFontSize,
         "text-anchor": "end"
-      }), { textContent: v.toFixed(2) }));
+      }), { textContent: v.toFixed(isSmall ? 0 : 2) }));
     }
     const td = predictor.getTrainingData(outcome);
+    const dotR = isSmall ? 3 : 4;
     const cvDots = [];
     const defaultFill = "rgba(124,154,255,0.85)";
     const defaultStroke = "rgba(255,255,255,0.5)";
@@ -5450,13 +5713,13 @@ var Ax;
         y1: sy(predicted[i] + 2 * predStd[i]),
         y2: sy(predicted[i] - 2 * predStd[i]),
         stroke: "rgba(124,154,255,0.3)",
-        "stroke-width": 1.5
+        "stroke-width": isSmall ? 1 : 1.5
       });
       svg.appendChild(whisker);
       const dot = svgEl("circle", {
         cx,
         cy,
-        r: 4,
+        r: dotR,
         fill: defaultFill,
         stroke: defaultStroke,
         "stroke-width": 1
@@ -5471,58 +5734,127 @@ var Ax;
         whisker,
         defaultFill,
         defaultStroke,
-        defaultR: 4
+        defaultR: dotR
       });
     }
-    svg.appendChild(Object.assign(svgEl("text", {
-      x: margin.left + pw / 2,
-      y: H - 6,
-      fill: "#888",
-      "font-size": 13,
-      "text-anchor": "middle"
-    }), { textContent: "Observed" }));
-    svg.appendChild(Object.assign(svgEl("text", {
-      x: 14,
-      y: margin.top + ph / 2,
-      fill: "#888",
-      "font-size": 13,
-      "text-anchor": "middle",
-      transform: `rotate(-90,14,${margin.top + ph / 2})`
-    }), { textContent: "LOO Predicted" }));
+    if (!isSmall) {
+      svg.appendChild(Object.assign(svgEl("text", {
+        x: margin.left + pw / 2,
+        y: H - 6,
+        fill: "#888",
+        "font-size": 13,
+        "text-anchor": "middle"
+      }), { textContent: "Observed" }));
+      svg.appendChild(Object.assign(svgEl("text", {
+        x: 14,
+        y: margin.top + ph / 2,
+        fill: "#888",
+        "font-size": 13,
+        "text-anchor": "middle",
+        transform: `rotate(-90,14,${margin.top + ph / 2})`
+      }), { textContent: "LOO Predicted" }));
+    }
     svg.appendChild(Object.assign(svgEl("text", {
       x: margin.left + 6,
-      y: margin.top + 18,
+      y: margin.top + (isSmall ? 14 : 18),
       fill: "#7c9aff",
-      "font-size": 14,
+      "font-size": isSmall ? 11 : 14,
       "font-weight": "600"
     }), { textContent: `R\xB2 = ${r2.toFixed(4)}` }));
-    if (tooltip && tooltipContainer) {
-      attachDotInteractivity(svg, cvDots, predictor, outcome, tooltip, tooltipContainer, {
-        fallbackMouseMove: (e) => {
-          const svgRect = svg.getBoundingClientRect();
-          const mx = e.clientX - svgRect.left;
-          const my = e.clientY - svgRect.top;
-          if (mx < margin.left || mx > margin.left + pw || my < margin.top || my > margin.top + ph) {
-            tooltip.style.display = "none";
-            return;
-          }
-          tooltip.style.display = "none";
-        }
-      });
-    }
     target.appendChild(svg);
+    function highlightDots(activeIdx, rels) {
+      applyDotHighlight(cvDots, activeIdx, rels);
+    }
+    function clearDots() {
+      clearDotHighlight(cvDots);
+    }
+    panels.push({ highlight: highlightDots, clear: clearDots });
+    const HOVER_R = isSmall ? 8 : 12;
+    svg.addEventListener("mousemove", (e) => {
+      const rect = svg.getBoundingClientRect();
+      const px = e.clientX - rect.left, py = e.clientY - rect.top;
+      const best = findNearestDot(cvDots, px, py, HOVER_R);
+      if (best >= 0) {
+        const d = cvDots[best];
+        let html = `<div style="font-weight:600;color:#aaa;margin-bottom:4px">${outcome} \u2014 trial ${d.idx}</div>`;
+        html += `observed = <span style="color:#7c9aff">${observed[d.idx].toFixed(4)}</span><br>`;
+        html += `LOO predicted = <span style="color:#7c9aff">${predicted[d.idx].toFixed(4)}</span><br>`;
+        html += `\xB1 2\u03C3 = [${(predicted[d.idx] - 2 * predStd[d.idx]).toFixed(4)}, ${(predicted[d.idx] + 2 * predStd[d.idx]).toFixed(4)}]<br>`;
+        html += buildPointTooltipHtml(predictor, d.idx, outcome);
+        tooltip.innerHTML = html;
+        tooltip.style.display = "block";
+        positionTooltip(tooltip, e.clientX, e.clientY);
+        if (getPinnedIdx() < 0) {
+          broadcastHighlight(best, computeKernelRels(predictor, cvDots, best, outcome));
+        }
+      } else {
+        tooltip.style.display = "none";
+        if (getPinnedIdx() < 0) broadcastClear();
+      }
+    });
+    svg.addEventListener("click", (e) => {
+      const rect = svg.getBoundingClientRect();
+      const px = e.clientX - rect.left, py = e.clientY - rect.top;
+      const best = findNearestDot(cvDots, px, py, HOVER_R);
+      if (best >= 0) {
+        setPinnedIdx(best);
+        broadcastHighlight(best, computeKernelRels(predictor, cvDots, best, outcome));
+      } else {
+        broadcastClear();
+      }
+    });
+    svg.addEventListener("mouseleave", () => {
+      tooltip.style.display = "none";
+      if (getPinnedIdx() < 0) broadcastClear();
+    });
   }
+  function renderCrossValidationStatic(target, predictor, outcome, options) {
+    const W = options?.width ?? 440;
+    const H = options?.height ?? 440;
+    const panels = [];
+    let pinnedIdx = -1;
+    if (!target.id) target.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    injectScopedStyles(target);
+    const tooltip = createTooltipDiv(target.id);
+    renderCVPanel(
+      target,
+      predictor,
+      outcome,
+      W,
+      H,
+      false,
+      tooltip,
+      panels,
+      () => pinnedIdx,
+      (v) => {
+        pinnedIdx = v;
+      },
+      (idx, rels) => {
+        panels.forEach((p) => p.highlight(idx, rels));
+      },
+      () => {
+        panels.forEach((p) => p.clear());
+        pinnedIdx = -1;
+      }
+    );
+  }
+
+  // src/viz/plots/trace.ts
+  var CTRL_CSS3 = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
   function renderOptimizationTrace(container, predictor, options) {
     const interactive = options?.interactive !== false;
     if (!interactive) {
       renderOptimizationTraceStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0], options);
       return;
     }
+    if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    removeTooltip(container.id);
     container.innerHTML = "";
+    injectScopedStyles(container);
     let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
-    const tooltip = createTooltipDiv(container);
+    const tooltip = createTooltipDiv(container.id);
     const controlsDiv = document.createElement("div");
-    controlsDiv.style.cssText = CTRL_CSS;
+    controlsDiv.style.cssText = CTRL_CSS3;
     const plotsDiv = document.createElement("div");
     container.appendChild(controlsDiv);
     container.appendChild(plotsDiv);
@@ -5669,31 +6001,53 @@ var Ax;
     }
     target.appendChild(svg);
   }
-  function renderHeatmap(ctx, values, gridW, gridH, canvasW, canvasH, colorFn, minVal, maxVal) {
-    const img = ctx.createImageData(canvasW, canvasH);
-    const range = maxVal - minVal || 1;
-    const cellW = canvasW / gridW;
-    const cellH = canvasH / gridH;
-    for (let k = 0; k < values.length; k++) {
-      const gi = k % gridW;
-      const gj = Math.floor(k / gridW);
-      const t = Math.max(0, Math.min(1, (values[k] - minVal) / range));
-      const rgb = colorFn(t);
-      const x0 = Math.round(gi * cellW);
-      const y0 = Math.round(gj * cellH);
-      const x1 = Math.round((gi + 1) * cellW);
-      const y1 = Math.round((gj + 1) * cellH);
-      for (let py = y0; py < y1; py++) {
-        for (let px = x0; px < x1; px++) {
-          const idx = (py * canvasW + px) * 4;
-          img.data[idx] = rgb[0];
-          img.data[idx + 1] = rgb[1];
-          img.data[idx + 2] = rgb[2];
-          img.data[idx + 3] = 255;
+
+  // src/viz/plots/slice.ts
+  var CTRL_CSS4 = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
+  function getParamSpecs(predictor) {
+    if (predictor.paramSpecs) return predictor.paramSpecs;
+    return predictor.paramBounds.map(([lo, hi]) => ({
+      type: "range",
+      bounds: [lo, hi]
+    }));
+  }
+  function precomputeYRange(predictor, params) {
+    const result = {};
+    const nSample = 200;
+    const bounds = predictor.paramBounds;
+    const pts = [];
+    for (let i = 0; i < nSample; i++) {
+      pts.push(params.map((p, j) => {
+        if (isChoice(p)) {
+          const vals = p.values.map(Number);
+          return vals[Math.floor(Math.random() * vals.length)];
+        }
+        if (isInteger(p)) return Math.round(bounds[j][0] + Math.random() * (bounds[j][1] - bounds[j][0]));
+        return bounds[j][0] + Math.random() * (bounds[j][1] - bounds[j][0]);
+      }));
+    }
+    for (const name of predictor.outcomeNames) {
+      const preds = predictor.predict(pts);
+      const pred = preds[name];
+      let lo = Infinity, hi = -Infinity;
+      for (let j = 0; j < nSample; j++) {
+        const s = Math.sqrt(pred.variance[j]);
+        const lower = pred.mean[j] - 2 * s;
+        const upper = pred.mean[j] + 2 * s;
+        if (lower < lo) lo = lower;
+        if (upper > hi) hi = upper;
+      }
+      const td = predictor.getTrainingData(name);
+      if (td.Y) {
+        for (const yv of td.Y) {
+          if (yv < lo) lo = yv;
+          if (yv > hi) hi = yv;
         }
       }
+      const pad = 0.05 * (hi - lo);
+      result[name] = { min: lo - pad, max: hi + pad };
     }
-    ctx.putImageData(img, 0, 0);
+    return result;
   }
   function renderSlicePlot(container, predictor, options) {
     const interactive = options?.interactive !== false;
@@ -5701,24 +6055,29 @@ var Ax;
       renderSlicePlotStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0], options);
       return;
     }
+    if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    removeTooltip(container.id);
     container.innerHTML = "";
+    injectScopedStyles(container);
     let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
-    const bounds = predictor.paramBounds;
-    const fixedValues = options?.fixedValues?.slice() ?? bounds.map(([lo, hi]) => (lo + hi) / 2);
-    const params = bounds.map(([lo, hi]) => ({
-      type: "range",
-      bounds: [lo, hi]
+    const params = getParamSpecs(predictor);
+    const td0 = predictor.getTrainingData();
+    const fixedValues = options?.fixedValues?.slice() ?? (td0.X.length > 0 ? td0.X[0].slice() : params.map((p, j) => {
+      if (isChoice(p)) return p.values[0];
+      return (predictor.paramBounds[j][0] + predictor.paramBounds[j][1]) / 2;
     }));
-    const tooltip = createTooltipDiv(container);
+    const tooltip = createTooltipDiv(container.id);
+    const globalYRange = precomputeYRange(predictor, params);
+    let slicePinnedIdx = -1;
     const controlsDiv = document.createElement("div");
-    controlsDiv.style.cssText = CTRL_CSS + "padding:8px 16px;";
+    controlsDiv.style.cssText = CTRL_CSS4 + "padding:8px 16px;";
     const slidersDiv = document.createElement("div");
     slidersDiv.style.cssText = "margin-bottom:8px;padding:0 16px;";
     const plotsDiv = document.createElement("div");
     plotsDiv.style.cssText = "padding:4px 8px 12px;";
     container.appendChild(controlsDiv);
-    container.appendChild(slidersDiv);
     container.appendChild(plotsDiv);
+    container.appendChild(slidersDiv);
     if (predictor.outcomeNames.length > 1) {
       const { wrapper, select } = makeSelectEl("Outcome:");
       createOutcomeSelector(predictor, select, (name) => {
@@ -5735,43 +6094,83 @@ var Ax;
         slidersDiv,
         fixedValues,
         () => {
-          redraw();
+          redrawPlots();
         },
         { dimOrder: dimOrd }
       );
     }
-    rebuildSliders();
-    function redraw() {
+    function redrawPlots() {
       plotsDiv.innerHTML = "";
+      renderSlicePlotStatic(
+        plotsDiv,
+        predictor,
+        selectedOutcome,
+        options,
+        fixedValues,
+        tooltip,
+        globalYRange,
+        params,
+        () => slicePinnedIdx,
+        (v) => {
+          slicePinnedIdx = v;
+        },
+        (pt) => {
+          for (let j = 0; j < fixedValues.length; j++) fixedValues[j] = pt[j];
+          rebuildSliders();
+          redrawPlots();
+        }
+      );
+    }
+    function redraw() {
       rebuildSliders();
-      renderSlicePlotStatic(plotsDiv, predictor, selectedOutcome, options, fixedValues, tooltip, container);
+      redrawPlots();
     }
     redraw();
   }
-  function renderSlicePlotStatic(target, predictor, outcome, options, fixedValuesOverride, tooltip, tooltipContainer) {
-    const numPoints = options?.numPoints ?? 50;
-    const W = options?.width ?? 350;
+  function renderSlicePlotStatic(target, predictor, outcome, options, fixedValuesOverride, tooltip, globalYRange, paramSpecs, getPinnedIdx, setPinnedIdx, onSnapToPoint) {
+    const numPoints = options?.numPoints ?? 80;
+    const W = options?.width ?? 340;
     const H = options?.height ?? 220;
     const bounds = predictor.paramBounds;
     const names = predictor.paramNames;
     const nDim = names.length;
+    const params = paramSpecs ?? getParamSpecs(predictor);
     const fixedValues = fixedValuesOverride?.slice() ?? options?.fixedValues?.slice() ?? bounds.map(([lo, hi]) => (lo + hi) / 2);
     target.style.display = "flex";
     target.style.flexWrap = "wrap";
-    target.style.gap = "16px";
-    const margin = { top: 28, right: 18, bottom: 40, left: 68 };
+    target.style.gap = "8px";
+    const margin = { top: 24, right: 16, bottom: 32, left: 50 };
     const pw = W - margin.left - margin.right;
     const ph = H - margin.top - margin.bottom;
-    let slicePinnedIdx = -1;
     const allSubplotDots = [];
+    let localPinnedIdx = -1;
+    const _getPinned = getPinnedIdx ?? (() => localPinnedIdx);
+    const _setPinned = setPinnedIdx ?? ((v) => {
+      localPinnedIdx = v;
+    });
     const dimOrder = computeDimOrder(predictor, nDim, outcome);
     for (const dim of dimOrder) {
-      const [lo, hi] = bounds[dim];
-      if (lo === hi) continue;
-      const xs = [];
-      for (let i = 0; i < numPoints; i++) {
-        xs.push(lo + (hi - lo) * i / (numPoints - 1));
+      const p = params[dim];
+      const dimIsChoice = isChoice(p);
+      const dimIsInt = isInteger(p);
+      let xs;
+      let xLo, xHi;
+      if (dimIsChoice) {
+        xs = p.values.map(Number);
+        xLo = 0;
+        xHi = xs.length - 1;
+      } else if (dimIsInt) {
+        xLo = bounds[dim][0];
+        xHi = bounds[dim][1];
+        xs = [];
+        for (let iv = Math.ceil(xLo); iv <= Math.floor(xHi); iv++) xs.push(iv);
+      } else {
+        [xLo, xHi] = bounds[dim];
+        if (xLo === xHi) continue;
+        xs = [];
+        for (let i = 0; i < numPoints; i++) xs.push(xLo + (xHi - xLo) * i / (numPoints - 1));
       }
+      if (xs.length === 0) continue;
       const testPoints = xs.map((v) => {
         const pt = fixedValues.slice();
         pt[dim] = v;
@@ -5783,174 +6182,268 @@ var Ax;
       const stds = means.map((_, i) => Math.sqrt(pred.variance[i]));
       const upper = means.map((m, i) => m + 2 * stds[i]);
       const lower = means.map((m, i) => m - 2 * stds[i]);
-      const td = predictor.getTrainingData(outcome);
-      let yMin = Math.min(...lower);
-      let yMax = Math.max(...upper);
-      if (td.Y.length > 0) {
-        yMin = Math.min(yMin, ...td.Y);
-        yMax = Math.max(yMax, ...td.Y);
+      let yMin, yMax;
+      if (globalYRange && globalYRange[outcome]) {
+        yMin = globalYRange[outcome].min;
+        yMax = globalYRange[outcome].max;
+      } else {
+        const td2 = predictor.getTrainingData(outcome);
+        yMin = Math.min(...lower);
+        yMax = Math.max(...upper);
+        if (td2.Y.length > 0) {
+          yMin = Math.min(yMin, ...td2.Y);
+          yMax = Math.max(yMax, ...td2.Y);
+        }
+        const yPad = 0.08 * (yMax - yMin || 1);
+        yMin -= yPad;
+        yMax += yPad;
       }
-      const yPad = 0.08 * (yMax - yMin || 1);
-      yMin -= yPad;
-      yMax += yPad;
-      const sx = (v) => margin.left + (v - lo) / (hi - lo || 1) * pw;
-      const sy = (v) => margin.top + ph - (v - yMin) / (yMax - yMin || 1) * ph;
+      const yRange = yMax - yMin || 1;
+      const sx = dimIsChoice ? (ci) => margin.left + (ci + 0.5) / xs.length * pw : (v) => margin.left + (v - xLo) / (xHi - xLo || 1) * pw;
+      const sy = (v) => margin.top + (1 - (v - yMin) / yRange) * ph;
       const svg = svgEl("svg", { width: W, height: H });
-      svg.appendChild(
-        Object.assign(
-          svgEl("text", {
-            x: margin.left + pw / 2,
-            y: 15,
-            fill: "#999",
-            "font-size": 13,
-            "text-anchor": "middle"
-          }),
-          { textContent: names[dim] }
-        )
-      );
-      let bandD = `M ${sx(xs[0])} ${sy(upper[0])}`;
-      for (let i = 1; i < xs.length; i++) bandD += ` L ${sx(xs[i])} ${sy(upper[i])}`;
-      for (let i = xs.length - 1; i >= 0; i--) bandD += ` L ${sx(xs[i])} ${sy(lower[i])}`;
-      bandD += " Z";
-      svg.appendChild(svgEl("path", { d: bandD, fill: "rgba(124,154,255,0.15)" }));
-      let lineD = `M ${sx(xs[0])} ${sy(means[0])}`;
-      for (let i = 1; i < xs.length; i++) lineD += ` L ${sx(xs[i])} ${sy(means[i])}`;
-      svg.appendChild(
-        svgEl("path", { d: lineD, stroke: "#7c9aff", "stroke-width": 2, fill: "none" })
-      );
-      const nYTicks = 4;
-      for (let t = 0; t <= nYTicks; t++) {
-        const v = yMin + (yMax - yMin) * t / nYTicks;
-        svg.appendChild(
-          svgEl("line", {
-            x1: margin.left,
-            x2: margin.left + pw,
-            y1: sy(v),
-            y2: sy(v),
-            stroke: "rgba(255,255,255,0.06)"
-          })
-        );
-        svg.appendChild(
-          Object.assign(
-            svgEl("text", {
-              x: margin.left - 5,
-              y: sy(v) + 3,
-              fill: "#555",
-              "font-size": 10,
-              "text-anchor": "end"
-            }),
-            { textContent: v.toFixed(2) }
-          )
-        );
+      svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      svg.appendChild(Object.assign(
+        svgEl("text", { x: margin.left + pw / 2, y: 16, fill: "#999", "font-size": 12, "text-anchor": "middle" }),
+        { textContent: names[dim] }
+      ));
+      if (dimIsChoice) {
+        for (let ci = 0; ci < xs.length; ci++) {
+          const cx = sx(ci), cyMu = sy(means[ci]);
+          const cyUp = sy(upper[ci]), cyLo = sy(lower[ci]);
+          svg.appendChild(svgEl("line", { x1: cx, y1: cyUp, x2: cx, y2: cyLo, stroke: "rgba(100,120,230,0.5)", "stroke-width": 2 }));
+          for (const capY of [cyUp, cyLo]) {
+            svg.appendChild(svgEl("line", { x1: cx - 4, y1: capY, x2: cx + 4, y2: capY, stroke: "rgba(100,120,230,0.5)", "stroke-width": 1.5 }));
+          }
+          svg.appendChild(svgEl("circle", { cx, cy: cyMu, r: 5, fill: "rgba(130,155,255,0.9)", stroke: "white", "stroke-width": 1.5 }));
+        }
+      } else {
+        let bandD = `M ${sx(xs[0])} ${sy(upper[0])}`;
+        for (let i = 1; i < xs.length; i++) bandD += ` L ${sx(xs[i])} ${sy(upper[i])}`;
+        for (let i = xs.length - 1; i >= 0; i--) bandD += ` L ${sx(xs[i])} ${sy(lower[i])}`;
+        bandD += " Z";
+        svg.appendChild(svgEl("path", { d: bandD, fill: "rgba(100,120,230,0.18)" }));
+        let lineD = `M ${sx(xs[0])} ${sy(means[0])}`;
+        for (let i = 1; i < xs.length; i++) lineD += ` L ${sx(xs[i])} ${sy(means[i])}`;
+        svg.appendChild(svgEl("path", { d: lineD, stroke: "rgba(130,155,255,0.9)", "stroke-width": 2, fill: "none" }));
       }
-      const nXTicks = 4;
-      for (let t = 0; t <= nXTicks; t++) {
-        const v = lo + (hi - lo) * t / nXTicks;
-        svg.appendChild(
-          Object.assign(
-            svgEl("text", {
-              x: sx(v),
-              y: margin.top + ph + 14,
-              fill: "#555",
-              "font-size": 10,
-              "text-anchor": "middle"
-            }),
-            { textContent: v.toFixed(2) }
-          )
-        );
-      }
-      svg.appendChild(
-        Object.assign(
-          svgEl("text", {
-            x: margin.left + pw / 2,
-            y: H - 6,
-            fill: "#888",
-            "font-size": 11,
-            "text-anchor": "middle"
-          }),
-          { textContent: names[dim] }
-        )
-      );
+      const td = predictor.getTrainingData(outcome);
       const sliceDots = [];
-      const sliceDotFill = "rgba(255,60,60,0.85)";
-      const sliceDotStroke = "rgba(255,255,255,0.6)";
       if (td.X.length > 0) {
         for (let i = 0; i < td.X.length; i++) {
-          const ptX = td.X[i][dim];
-          if (ptX < lo || ptX > hi) continue;
-          const ptY = td.Y[i];
-          if (ptY < yMin || ptY > yMax) continue;
-          const dot = svgEl("circle", {
-            cx: sx(ptX),
-            cy: sy(ptY),
-            r: 3.5,
-            fill: sliceDotFill,
-            stroke: sliceDotStroke,
-            "stroke-width": 1.2
-          });
-          svg.appendChild(dot);
-          sliceDots.push({
-            cx: sx(ptX),
-            cy: sy(ptY),
-            idx: i,
-            pt: td.X[i],
-            el: dot,
-            defaultFill: sliceDotFill,
-            defaultStroke: sliceDotStroke,
-            defaultR: 3.5
-          });
-        }
-      }
-      allSubplotDots.push(sliceDots);
-      if (tooltip && tooltipContainer) {
-        const dimXs = xs;
-        const dimMeans = means;
-        const dimStds = stds;
-        attachDotInteractivity(svg, sliceDots, predictor, outcome, tooltip, tooltipContainer, {
-          getPinnedIdx: () => slicePinnedIdx,
-          setPinnedIdx: (v) => {
-            slicePinnedIdx = v;
-          },
-          fallbackMouseMove: (e) => {
-            const svgRect = svg.getBoundingClientRect();
-            const mx = e.clientX - svgRect.left;
-            const paramVal = lo + (mx - margin.left) / pw * (hi - lo);
-            if (paramVal < lo || paramVal > hi) {
-              tooltip.style.display = "none";
-              return;
-            }
-            let bestIdx = 0;
-            let bestDist = Math.abs(dimXs[0] - paramVal);
-            for (let j = 1; j < dimXs.length; j++) {
-              const d = Math.abs(dimXs[j] - paramVal);
-              if (d < bestDist) {
-                bestDist = d;
-                bestIdx = j;
-              }
-            }
-            tooltip.innerHTML = `<b>${names[dim]}</b>: ${dimXs[bestIdx].toFixed(4)}<br>Mean: ${dimMeans[bestIdx].toFixed(4)}<br>Std: ${dimStds[bestIdx].toFixed(4)}`;
-            tooltip.style.display = "block";
-            positionTooltip(tooltip, tooltipContainer, e.clientX, e.clientY);
-          },
-          onPinChange: (pinnedIdx) => {
-            for (const subDots of allSubplotDots) {
-              if (pinnedIdx < 0) {
-                clearDotHighlight(subDots);
-              } else {
-                const subActiveIdx = subDots.findIndex((d) => d.idx === pinnedIdx);
-                if (subActiveIdx >= 0) {
-                  applyDotHighlight(subDots, subActiveIdx, computeKernelRels(predictor, subDots, subActiveIdx, outcome));
-                } else {
-                  clearDotHighlight(subDots);
+          let ptScreenX;
+          if (dimIsChoice) {
+            let ci = xs.indexOf(td.X[i][dim]);
+            if (ci < 0) {
+              ci = 0;
+              let bestD = Infinity;
+              for (let cj = 0; cj < xs.length; cj++) {
+                const cd = Math.abs(xs[cj] - td.X[i][dim]);
+                if (cd < bestD) {
+                  bestD = cd;
+                  ci = cj;
                 }
               }
             }
+            ptScreenX = sx(ci);
+          } else {
+            ptScreenX = sx(td.X[i][dim]);
+          }
+          const ptScreenY = sy(td.Y[i]);
+          if (ptScreenY >= margin.top && ptScreenY <= H - margin.bottom) {
+            const dot = svgEl("circle", {
+              cx: ptScreenX,
+              cy: ptScreenY,
+              r: 3,
+              fill: "rgba(255,80,80,0.85)",
+              stroke: "rgba(255,255,255,0.5)",
+              "stroke-width": 1
+            });
+            svg.appendChild(dot);
+            sliceDots.push({
+              cx: ptScreenX,
+              cy: ptScreenY,
+              idx: i,
+              pt: td.X[i],
+              el: dot,
+              defaultFill: "rgba(255,80,80,0.85)",
+              defaultStroke: "rgba(255,255,255,0.5)",
+              defaultR: 3
+            });
+          }
+        }
+      }
+      allSubplotDots.push(sliceDots);
+      const nYTicks = 4;
+      for (let t = 0; t <= nYTicks; t++) {
+        const v = yMin + yRange * t / nYTicks;
+        const yp = sy(v);
+        svg.appendChild(svgEl("line", { x1: margin.left, x2: margin.left + pw, y1: yp, y2: yp, stroke: "rgba(255,255,255,0.06)" }));
+        svg.appendChild(Object.assign(
+          svgEl("text", { x: margin.left - 6, y: yp + 4, fill: "#666", "font-size": 10, "text-anchor": "end" }),
+          { textContent: v.toFixed(2) }
+        ));
+      }
+      if (dimIsChoice) {
+        for (let ci = 0; ci < xs.length; ci++) {
+          svg.appendChild(Object.assign(
+            svgEl("text", { x: sx(ci), y: H - margin.bottom + 16, fill: "#666", "font-size": 10, "text-anchor": "middle" }),
+            { textContent: String(p.values[ci]) }
+          ));
+        }
+      } else {
+        const nXTicks = dimIsInt ? Math.min(xs.length - 1, 4) : 4;
+        for (let t = 0; t <= nXTicks; t++) {
+          let xv = xLo + (xHi - xLo) * t / nXTicks;
+          if (dimIsInt) xv = Math.round(xv);
+          svg.appendChild(Object.assign(
+            svgEl("text", { x: sx(xv), y: H - margin.bottom + 16, fill: "#666", "font-size": 10, "text-anchor": "middle" }),
+            { textContent: dimIsInt ? String(xv) : xv.toFixed(2) }
+          ));
+        }
+      }
+      svg.appendChild(Object.assign(
+        svgEl("text", { x: margin.left + pw / 2, y: H - 4, fill: "#666", "font-size": 11, "text-anchor": "middle" }),
+        { textContent: names[dim] }
+      ));
+      const hoverLine = svgEl("line", { y1: margin.top, y2: margin.top + ph, stroke: "rgba(255,255,255,0.3)", "stroke-width": 1 });
+      hoverLine.style.display = "none";
+      svg.appendChild(hoverLine);
+      const hoverDot = svgEl("circle", { r: 4, fill: "rgba(130,155,255,0.9)", stroke: "white", "stroke-width": 1.5 });
+      hoverDot.style.display = "none";
+      svg.appendChild(hoverDot);
+      if (_getPinned() >= 0) {
+        const pvIdx = sliceDots.findIndex((d) => d.idx === _getPinned());
+        if (pvIdx >= 0) {
+          applyDotHighlight(sliceDots, pvIdx, computeKernelRels(predictor, sliceDots, pvIdx, outcome));
+        }
+      }
+      if (tooltip) {
+        let findHit2 = function(px, py) {
+          for (let pi = 0; pi < sliceDots.length; pi++) {
+            const dx = px - sliceDots[pi].cx, dy = py - sliceDots[pi].cy;
+            if (dx * dx + dy * dy < HOVER_R * HOVER_R) return pi;
+          }
+          return -1;
+        };
+        var findHit = findHit2;
+        const HOVER_R = 10;
+        let hoverHighlight = false;
+        svg.addEventListener("mousemove", (e) => {
+          const rect = svg.getBoundingClientRect();
+          const px = e.clientX - rect.left;
+          const py = e.clientY - rect.top;
+          if (px < margin.left || px > margin.left + pw) {
+            hoverLine.style.display = "none";
+            hoverDot.style.display = "none";
+            tooltip.style.display = "none";
+            return;
+          }
+          const hitVpIdx = findHit2(px, py);
+          if (hitVpIdx >= 0) {
+            const hitPt = sliceDots[hitVpIdx];
+            hoverLine.style.display = "none";
+            hoverDot.style.display = "none";
+            svg.style.cursor = "pointer";
+            if (_getPinned() < 0) {
+              applyDotHighlight(sliceDots, hitVpIdx, computeKernelRels(predictor, sliceDots, hitVpIdx, outcome));
+              hoverHighlight = true;
+            }
+            let html = `<div style="font-size:11px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">training point #${hitPt.idx + 1}</div>`;
+            html += `<span style="color:#ff6b6b;font-weight:500">y = ${td.Y[hitPt.idx].toFixed(4)}</span><br>`;
+            html += names.map((n, j) => `<span style="color:#a0c4ff">${n}</span> = ${formatParamValue(td.X[hitPt.idx][j], params[j])}`).join("<br>");
+            tooltip.innerHTML = html;
+            tooltip.style.display = "block";
+            positionTooltip(tooltip, e.clientX, e.clientY);
+          } else {
+            svg.style.cursor = "crosshair";
+            if (_getPinned() < 0 && hoverHighlight) {
+              clearDotHighlight(sliceDots);
+              hoverHighlight = false;
+            }
+            const frac = (px - margin.left) / pw;
+            let idx;
+            if (dimIsChoice) {
+              idx = Math.floor(frac * xs.length);
+              idx = Math.max(0, Math.min(xs.length - 1, idx));
+            } else {
+              idx = Math.round(frac * (xs.length - 1));
+              idx = Math.max(0, Math.min(xs.length - 1, idx));
+            }
+            const mu = means[idx], s = stds[idx];
+            const screenX = dimIsChoice ? sx(idx) : sx(xs[idx]);
+            hoverLine.setAttribute("x1", String(screenX));
+            hoverLine.setAttribute("x2", String(screenX));
+            hoverLine.style.display = "";
+            hoverDot.setAttribute("cx", String(screenX));
+            hoverDot.setAttribute("cy", String(sy(mu)));
+            hoverDot.style.display = "";
+            const xLabel = dimIsChoice ? String(p.values[idx]) : formatParamValue(xs[idx], p);
+            let html = `<div style="font-size:11px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">${names[dim]}</div>`;
+            html += `<span style="color:#a0c4ff">${names[dim]}</span> = ${xLabel}<br>`;
+            html += `\u03BC = <span style="color:#ff6b6b;font-weight:500">${mu.toFixed(4)}</span><br>`;
+            html += `\u03C3 = ${s.toFixed(4)}<br>`;
+            html += `95% CI: [${(mu - 2 * s).toFixed(4)}, ${(mu + 2 * s).toFixed(4)}]`;
+            tooltip.innerHTML = html;
+            tooltip.style.display = "block";
+            positionTooltip(tooltip, e.clientX, e.clientY);
+          }
+        });
+        svg.addEventListener("click", (e) => {
+          const rect = svg.getBoundingClientRect();
+          const px = e.clientX - rect.left;
+          const py = e.clientY - rect.top;
+          const hitVpIdx = findHit2(px, py);
+          if (hitVpIdx >= 0) {
+            const hitTrainIdx = sliceDots[hitVpIdx].idx;
+            if (_getPinned() === hitTrainIdx) {
+              _setPinned(-1);
+              clearDotHighlight(sliceDots);
+            } else {
+              _setPinned(hitTrainIdx);
+              if (onSnapToPoint) {
+                onSnapToPoint(sliceDots[hitVpIdx].pt);
+                return;
+              }
+              applyDotHighlight(sliceDots, hitVpIdx, computeKernelRels(predictor, sliceDots, hitVpIdx, outcome));
+            }
+          } else {
+            if (_getPinned() >= 0) {
+              _setPinned(-1);
+              clearDotHighlight(sliceDots);
+            }
+          }
+          hoverHighlight = false;
+          for (const subDots of allSubplotDots) {
+            if (_getPinned() < 0) {
+              clearDotHighlight(subDots);
+            } else {
+              const subActiveIdx = subDots.findIndex((d) => d.idx === _getPinned());
+              if (subActiveIdx >= 0) {
+                applyDotHighlight(subDots, subActiveIdx, computeKernelRels(predictor, subDots, subActiveIdx, outcome));
+              } else {
+                clearDotHighlight(subDots);
+              }
+            }
+          }
+        });
+        svg.addEventListener("mouseleave", () => {
+          hoverLine.style.display = "none";
+          hoverDot.style.display = "none";
+          svg.style.cursor = "crosshair";
+          tooltip.style.display = "none";
+          if (_getPinned() < 0 && hoverHighlight) {
+            clearDotHighlight(sliceDots);
+            hoverHighlight = false;
           }
         });
       }
       target.appendChild(svg);
     }
   }
+
+  // src/viz/plots/surface.ts
+  var CTRL_CSS5 = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
   function renderResponseSurface(container, predictor, options) {
     const interactive = options?.interactive !== false;
     if (!interactive) {
@@ -5964,7 +6457,10 @@ var Ax;
       );
       return;
     }
+    if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    removeTooltip(container.id);
     container.innerHTML = "";
+    injectScopedStyles(container);
     let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
     const initOrder = computeDimOrder(predictor, predictor.paramNames.length, selectedOutcome);
     let selDimX = options?.dimX ?? initOrder[0];
@@ -5975,16 +6471,19 @@ var Ax;
       type: "range",
       bounds: [lo, hi]
     }));
-    const tooltip = createTooltipDiv(container);
+    const tooltip = createTooltipDiv(container.id);
     const controlsDiv = document.createElement("div");
-    controlsDiv.style.cssText = CTRL_CSS + "padding:8px 16px;";
-    const slidersDiv = document.createElement("div");
-    slidersDiv.style.cssText = "margin-bottom:8px;padding:0 16px;";
+    controlsDiv.style.cssText = CTRL_CSS5 + "padding:8px 16px;";
     const plotsDiv = document.createElement("div");
     plotsDiv.style.cssText = "padding:4px 8px 12px;";
+    const axisDiv = document.createElement("div");
+    axisDiv.style.cssText = CTRL_CSS5 + "padding:4px 16px 0;";
+    const slidersDiv = document.createElement("div");
+    slidersDiv.style.cssText = "margin-bottom:8px;padding:0 16px;";
     container.appendChild(controlsDiv);
-    container.appendChild(slidersDiv);
     container.appendChild(plotsDiv);
+    container.appendChild(axisDiv);
+    container.appendChild(slidersDiv);
     if (predictor.outcomeNames.length > 1) {
       const { wrapper, select } = makeSelectEl("Outcome:");
       createOutcomeSelector(predictor, select, (name) => {
@@ -5993,6 +6492,8 @@ var Ax;
       });
       controlsDiv.appendChild(wrapper);
     }
+    let selXEl;
+    let selYEl;
     function makeDimSelect(label, initial, onChange) {
       const { wrapper, select } = makeSelectEl(label);
       predictor.paramNames.forEach((name, i) => {
@@ -6006,17 +6507,26 @@ var Ax;
         onChange(+select.value);
         redraw();
       };
-      controlsDiv.appendChild(wrapper);
+      axisDiv.appendChild(wrapper);
       return select;
     }
-    makeDimSelect("X axis:", selDimX, (v) => {
+    selXEl = makeDimSelect("X axis:", selDimX, (v) => {
       selDimX = v;
+      if (selDimX === selDimY) {
+        selDimY = (selDimX + 1) % predictor.paramNames.length;
+        selYEl.value = String(selDimY);
+      }
       rebuildSliders();
     });
-    makeDimSelect("Y axis:", selDimY, (v) => {
+    selYEl = makeDimSelect("Y axis:", selDimY, (v) => {
       selDimY = v;
+      if (selDimX === selDimY) {
+        selDimX = (selDimY + 1) % predictor.paramNames.length;
+        selXEl.value = String(selDimX);
+      }
       rebuildSliders();
     });
+    let rsPinnedIdx = -1;
     function rebuildSliders() {
       const dimOrd = computeDimOrder(predictor, predictor.paramNames.length, selectedOutcome);
       createParamSliders(
@@ -6042,27 +6552,109 @@ var Ax;
         options,
         fixedValues,
         tooltip,
-        container
+        container,
+        (pt) => {
+          for (let j = 0; j < fixedValues.length; j++) fixedValues[j] = pt[j];
+          rebuildSliders();
+          redraw();
+        },
+        () => rsPinnedIdx,
+        (v) => {
+          rsPinnedIdx = v;
+        }
       );
     }
     redraw();
   }
-  function renderResponseSurfaceStatic(target, predictor, outcome, dimX, dimY, options, fixedValuesOverride, tooltip, tooltipContainer) {
-    const gridSize = options?.gridSize ?? 30;
+  function drawVerticalColorbar(ctx, x, y, w, h, vMin, vMax, colorFn) {
+    for (let i = 0; i < h; i++) {
+      const t = 1 - i / h;
+      const rgb = colorFn(t);
+      ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+      ctx.fillRect(x, y + i, w, 1);
+    }
+    ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.textAlign = "left";
+    ctx.fillText(vMax.toFixed(2), x + w + 3, y + 8);
+    ctx.fillText(vMin.toFixed(2), x + w + 3, y + h);
+  }
+  function drawAxes(ctx, ML, MT, N, xlo, xhi, ylo, yhi, xName, yName, showYAxis) {
+    ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.strokeStyle = "rgba(255,255,255,0.2)";
+    ctx.lineWidth = 1;
+    const nTicks = 4;
+    ctx.textAlign = "center";
+    for (let ti = 0; ti <= nTicks; ti++) {
+      const v = xlo + (xhi - xlo) * ti / nTicks;
+      const tx = ML + ti * N / nTicks;
+      ctx.beginPath();
+      ctx.moveTo(tx, MT + N);
+      ctx.lineTo(tx, MT + N + 4);
+      ctx.stroke();
+      ctx.fillText(v.toFixed(2), tx, MT + N + 15);
+    }
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.fillText(xName, ML + N / 2, MT + N + 30);
+    if (!showYAxis) return;
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.textAlign = "right";
+    for (let ti = 0; ti <= nTicks; ti++) {
+      const v = ylo + (yhi - ylo) * ti / nTicks;
+      const ty = MT + (1 - ti / nTicks) * N;
+      ctx.beginPath();
+      ctx.moveTo(ML - 4, ty);
+      ctx.lineTo(ML, ty);
+      ctx.stroke();
+      ctx.fillText(v.toFixed(2), ML - 6, ty + 3);
+    }
+    ctx.save();
+    ctx.translate(12, MT + N / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.fillText(yName, 0, 0);
+    ctx.restore();
+  }
+  function drawDots(ctx, dots, pinnedIdx) {
+    for (const d of dots) {
+      const isActive = d.idx === pinnedIdx;
+      const outerR = isActive ? 6 : 4;
+      const innerR = isActive ? 3.5 : 2.5;
+      ctx.beginPath();
+      ctx.arc(d.px, d.py, outerR, 0, 2 * Math.PI);
+      ctx.strokeStyle = isActive ? "rgba(255,255,255,1)" : `rgba(255,255,255,${Math.max(0.15, d.alpha * 0.7).toFixed(3)})`;
+      ctx.lineWidth = isActive ? 2.5 : 1.5;
+      ctx.stroke();
+      if (d.alpha >= 0.04) {
+        ctx.beginPath();
+        ctx.arc(d.px, d.py, innerR, 0, 2 * Math.PI);
+        ctx.fillStyle = isActive ? "rgba(255,60,60,1)" : `rgba(255,60,60,${d.alpha.toFixed(3)})`;
+        ctx.fill();
+      }
+    }
+  }
+  function renderResponseSurfaceStatic(target, predictor, outcome, dimX, dimY, options, fixedValuesOverride, tooltip, tooltipContainer, onSnapToPoint, getPinnedIdx, setPinnedIdx) {
+    const gridSize = options?.gridSize ?? 80;
     const bounds = predictor.paramBounds;
     const names = predictor.paramNames;
     const fixedValues = fixedValuesOverride?.slice() ?? options?.fixedValues?.slice() ?? bounds.map(([lo, hi]) => (lo + hi) / 2);
     const ML = 48;
-    const MT = 10;
+    const MT = 18;
     const MB = 38;
-    const MR = 10;
-    const defaultW = options?.width ?? 420;
+    const CB_W = 14;
+    const CB_GAP = 4;
+    const CB_LBL = 36;
+    const MR = CB_GAP + CB_W + CB_LBL;
+    const totalW = options?.width ?? 420;
+    const panelW = Math.floor((totalW - 12) / 2);
     const defaultH = options?.height ?? 420;
-    const containerW = (tooltipContainer ?? target).clientWidth || parseInt((tooltipContainer ?? target).style.width) || defaultW;
-    const containerH = (tooltipContainer ?? target).clientHeight || parseInt((tooltipContainer ?? target).style.height) || defaultH;
-    const totalW = Math.min(containerW, defaultW);
-    const totalH = Math.min(containerH, defaultH);
-    const N = Math.min(totalW - ML - MR, totalH - MT - MB);
+    const ML2 = 10;
+    const N = Math.min(panelW - ML - MR, defaultH - MT - MB);
     const CW = N + ML + MR;
     const CH = N + MT + MB;
     const [xlo, xhi] = bounds[dimX];
@@ -6084,254 +6676,227 @@ var Ax;
       return;
     }
     const means = Array.from(pred.mean);
+    const stds = means.map((_, i) => Math.sqrt(pred.variance[i]));
     const meanMin = Math.min(...means);
     const meanMax = Math.max(...means);
-    const canvas = document.createElement("canvas");
-    canvas.width = CW;
-    canvas.height = CH;
-    canvas.style.display = "block";
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const heatImg = ctx.createImageData(N, N);
-    const range = meanMax - meanMin || 1;
-    const cellW = N / gridSize;
-    const cellH = N / gridSize;
-    for (let k = 0; k < means.length; k++) {
-      const gi = k % gridSize;
-      const gj = Math.floor(k / gridSize);
-      const t = Math.max(0, Math.min(1, (means[k] - meanMin) / range));
-      const rgb = viridis(t);
-      const x0 = Math.round(gi * cellW);
-      const y0 = Math.round(gj * cellH);
-      const x1 = Math.round((gi + 1) * cellW);
-      const y1 = Math.round((gj + 1) * cellH);
-      for (let py = y0; py < y1; py++) {
-        for (let px = x0; px < x1; px++) {
-          const idx = (py * N + px) * 4;
-          heatImg.data[idx] = rgb[0];
-          heatImg.data[idx + 1] = rgb[1];
-          heatImg.data[idx + 2] = rgb[2];
-          heatImg.data[idx + 3] = 255;
-        }
-      }
-    }
-    ctx.putImageData(heatImg, ML, MT);
-    ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
-    ctx.strokeStyle = "rgba(255,255,255,0.2)";
-    ctx.lineWidth = 1;
-    const nTicks = 4;
-    ctx.textAlign = "center";
-    for (let ti = 0; ti <= nTicks; ti++) {
-      const v = xlo + (xhi - xlo) * ti / nTicks;
-      const tx = ML + ti * N / nTicks;
-      ctx.beginPath();
-      ctx.moveTo(tx, MT + N);
-      ctx.lineTo(tx, MT + N + 4);
-      ctx.stroke();
-      ctx.fillText(v.toFixed(2), tx, MT + N + 15);
-    }
-    ctx.fillStyle = "rgba(255,255,255,0.6)";
-    ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.fillText(names[dimX], ML + N / 2, MT + N + 30);
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
-    ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.textAlign = "right";
-    for (let ti = 0; ti <= nTicks; ti++) {
-      const v = ylo + (yhi - ylo) * ti / nTicks;
-      const ty = MT + (1 - ti / nTicks) * N;
-      ctx.beginPath();
-      ctx.moveTo(ML - 4, ty);
-      ctx.lineTo(ML, ty);
-      ctx.stroke();
-      ctx.fillText(v.toFixed(2), ML - 6, ty + 3);
-    }
-    ctx.save();
-    ctx.translate(12, MT + N / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.textAlign = "center";
-    ctx.fillStyle = "rgba(255,255,255,0.6)";
-    ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.fillText(names[dimY], 0, 0);
-    ctx.restore();
+    const stdMin = 0;
+    const stdMax = Math.max(...stds);
     const td = predictor.getTrainingData(outcome);
-    const canvasDots = [];
     const xRange = xhi - xlo || 1;
     const yRange = yhi - ylo || 1;
+    const dotData = [];
     if (td.X.length > 0) {
       for (let i = 0; i < td.X.length; i++) {
-        const px = ML + (td.X[i][dimX] - xlo) / xRange * N;
-        const py = MT + (1 - (td.X[i][dimY] - ylo) / yRange) * N;
-        canvasDots.push({ px, py, idx: i, pt: td.X[i], alpha: 0.85 });
+        dotData.push({
+          normX: (td.X[i][dimX] - xlo) / xRange,
+          normY: 1 - (td.X[i][dimY] - ylo) / yRange,
+          idx: i,
+          pt: td.X[i],
+          alpha: 0.85
+        });
       }
     }
-    let rsPinnedIdx = -1;
-    function redrawDots() {
-      ctx.putImageData(heatImg, ML, MT);
-      for (const d of canvasDots) {
-        const isActive = d.idx === rsPinnedIdx;
-        const outerR = isActive ? 6 : 4;
-        const innerR = isActive ? 3.5 : 2.5;
-        ctx.beginPath();
-        ctx.arc(d.px, d.py, outerR, 0, 2 * Math.PI);
-        ctx.strokeStyle = isActive ? "rgba(255,255,255,1)" : `rgba(255,255,255,${Math.max(0.15, d.alpha * 0.7).toFixed(3)})`;
-        ctx.lineWidth = isActive ? 2.5 : 1.5;
-        ctx.stroke();
-        if (d.alpha >= 0.04) {
-          ctx.beginPath();
-          ctx.arc(d.px, d.py, innerR, 0, 2 * Math.PI);
-          ctx.fillStyle = isActive ? "rgba(255,60,60,1)" : `rgba(255,60,60,${d.alpha.toFixed(3)})`;
-          ctx.fill();
+    let localPinnedIdx = -1;
+    const _getPinned = getPinnedIdx ?? (() => localPinnedIdx);
+    const _setPinned = setPinnedIdx ?? ((v) => {
+      localPinnedIdx = v;
+    });
+    function buildHeatmap(values, vMin, vMax, colorFn) {
+      const img = new ImageData(N, N);
+      const range = vMax - vMin || 1;
+      const cellW = N / gridSize;
+      const cellH = N / gridSize;
+      for (let k = 0; k < values.length; k++) {
+        const gi = k % gridSize;
+        const gj = Math.floor(k / gridSize);
+        const t = Math.max(0, Math.min(1, (values[k] - vMin) / range));
+        const rgb = colorFn(t);
+        const x0 = Math.round(gi * cellW);
+        const y0 = Math.round(gj * cellH);
+        const x1 = Math.round((gi + 1) * cellW);
+        const y1 = Math.round((gj + 1) * cellH);
+        for (let py = y0; py < y1; py++) {
+          for (let px = x0; px < x1; px++) {
+            const idx = (py * N + px) * 4;
+            img.data[idx] = rgb[0];
+            img.data[idx + 1] = rgb[1];
+            img.data[idx + 2] = rgb[2];
+            img.data[idx + 3] = 255;
+          }
         }
       }
+      return img;
     }
-    function findNearestCanvasDot(mx, my) {
-      let best = -1;
-      let bestD = 144;
-      for (let i = 0; i < canvasDots.length; i++) {
-        const dx = mx - canvasDots[i].px;
-        const dy = my - canvasDots[i].py;
-        const d2 = dx * dx + dy * dy;
-        if (d2 < bestD) {
-          bestD = d2;
-          best = i;
-        }
+    const meanImg = buildHeatmap(means, meanMin, meanMax, viridis);
+    const stdImg = buildHeatmap(stds, stdMin, stdMax, plasma);
+    const panels = [
+      { title: "posterior mean", img: meanImg, colorFn: viridis, vMin: meanMin, vMax: meanMax, values: means },
+      { title: "predictive std", img: stdImg, colorFn: plasma, vMin: stdMin, vMax: stdMax, values: stds }
+    ];
+    const panelWrap = document.createElement("div");
+    panelWrap.style.cssText = "display:flex;gap:12px";
+    const canvasRefs = [];
+    for (let pi = 0; pi < panels.length; pi++) {
+      const panel = panels[pi];
+      const isFirst = pi === 0;
+      const pML = isFirst ? ML : ML2;
+      const pCW = N + pML + MR;
+      const canvas = document.createElement("canvas");
+      canvas.width = pCW;
+      canvas.height = CH;
+      canvas.style.display = "block";
+      canvas.style.cursor = "crosshair";
+      const ctx = canvas.getContext("2d");
+      if (!ctx) continue;
+      ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.4)";
+      ctx.textAlign = "center";
+      ctx.fillText(panel.title, pML + N / 2, 12);
+      ctx.putImageData(panel.img, pML, MT);
+      drawVerticalColorbar(ctx, pML + N + CB_GAP, MT, CB_W, N, panel.vMin, panel.vMax, panel.colorFn);
+      drawAxes(ctx, pML, MT, N, xlo, xhi, ylo, yhi, names[dimX], names[dimY], isFirst);
+      canvasRefs.push({ canvas, ctx, img: panel.img, ml: pML });
+      const col = document.createElement("div");
+      col.appendChild(canvas);
+      panelWrap.appendChild(col);
+    }
+    function redrawAllDots() {
+      for (const ref of canvasRefs) {
+        ref.ctx.putImageData(ref.img, ref.ml, MT);
+        const panelDots = dotData.map((d) => ({
+          px: ref.ml + d.normX * N,
+          py: MT + d.normY * N,
+          idx: d.idx,
+          pt: d.pt,
+          alpha: d.alpha
+        }));
+        drawDots(ref.ctx, panelDots, _getPinned());
       }
-      return best;
     }
     function applyCanvasHighlight(activeIdx) {
       const rels = { raw: [], max: 0 };
-      for (let i = 0; i < canvasDots.length; i++) {
+      for (let i = 0; i < dotData.length; i++) {
         if (i === activeIdx) {
           rels.raw.push(1);
           continue;
         }
-        const r = predictor.kernelCorrelation(canvasDots[i].pt, canvasDots[activeIdx].pt, outcome);
+        const r = predictor.kernelCorrelation(dotData[i].pt, dotData[activeIdx].pt, outcome);
         rels.raw.push(r);
         if (r > rels.max) rels.max = r;
       }
-      for (let i = 0; i < canvasDots.length; i++) {
+      for (let i = 0; i < dotData.length; i++) {
         if (i === activeIdx) {
-          canvasDots[i].alpha = 1;
+          dotData[i].alpha = 1;
           continue;
         }
         const relNorm = rels.max > 0 ? rels.raw[i] / rels.max : 0;
-        canvasDots[i].alpha = Math.max(0.08, Math.sqrt(relNorm));
+        dotData[i].alpha = Math.max(0.08, Math.sqrt(relNorm));
       }
     }
     function clearCanvasHighlight() {
-      for (const d of canvasDots) d.alpha = 0.85;
+      for (const d of dotData) d.alpha = 0.85;
     }
-    redrawDots();
+    if (_getPinned() >= 0) {
+      const pvIdx = dotData.findIndex((d) => d.idx === _getPinned());
+      if (pvIdx >= 0) applyCanvasHighlight(pvIdx);
+    }
+    redrawAllDots();
     if (tooltip && tooltipContainer) {
       let hoverHighlight = false;
-      canvas.addEventListener("mousemove", (e) => {
-        const cRect = canvas.getBoundingClientRect();
-        const mx = e.clientX - cRect.left;
-        const my = e.clientY - cRect.top;
-        if (mx < ML || mx > ML + N || my < MT || my > MT + N) {
-          tooltip.style.display = "none";
-          return;
-        }
-        const hitIdx = findNearestCanvasDot(mx, my);
-        if (hitIdx >= 0) {
-          canvas.style.cursor = "pointer";
-          if (rsPinnedIdx < 0) {
-            applyCanvasHighlight(hitIdx);
-            redrawDots();
-            hoverHighlight = true;
+      for (const ref of canvasRefs) {
+        let findHit2 = function(mx, my) {
+          let best = -1, bestD = 144;
+          for (let i = 0; i < dotData.length; i++) {
+            const dpx = rml + dotData[i].normX * N;
+            const dpy = MT + dotData[i].normY * N;
+            const dx = mx - dpx, dy = my - dpy;
+            const d2 = dx * dx + dy * dy;
+            if (d2 < bestD) {
+              bestD = d2;
+              best = i;
+            }
           }
-          tooltip.innerHTML = buildPointTooltipHtml(predictor, canvasDots[hitIdx].idx, outcome);
-          tooltip.style.display = "block";
-          positionTooltip(tooltip, tooltipContainer, e.clientX, e.clientY);
-        } else {
-          canvas.style.cursor = "crosshair";
-          if (rsPinnedIdx < 0 && hoverHighlight) {
+          return best;
+        };
+        var findHit = findHit2;
+        const rml = ref.ml;
+        ref.canvas.addEventListener("mousemove", (e) => {
+          const cRect = ref.canvas.getBoundingClientRect();
+          const mx = e.clientX - cRect.left;
+          const my = e.clientY - cRect.top;
+          if (mx < rml || mx > rml + N || my < MT || my > MT + N) {
+            tooltip.style.display = "none";
+            return;
+          }
+          const best = findHit2(mx, my);
+          if (best >= 0) {
+            ref.canvas.style.cursor = "pointer";
+            if (_getPinned() < 0) {
+              applyCanvasHighlight(best);
+              redrawAllDots();
+              hoverHighlight = true;
+            }
+            tooltip.innerHTML = buildPointTooltipHtml(predictor, dotData[best].idx, outcome);
+            tooltip.style.display = "block";
+            positionTooltip(tooltip, e.clientX, e.clientY);
+          } else {
+            ref.canvas.style.cursor = "crosshair";
+            if (_getPinned() < 0 && hoverHighlight) {
+              clearCanvasHighlight();
+              redrawAllDots();
+              hoverHighlight = false;
+            }
+            const xVal = xlo + (mx - rml) / N * (xhi - xlo);
+            const yVal = yhi - (my - MT) / N * (yhi - ylo);
+            const gi = Math.round((mx - rml) / N * (gridSize - 1));
+            const gj = Math.round((my - MT) / N * (gridSize - 1));
+            const idx = Math.max(0, Math.min(gridSize - 1, gj)) * gridSize + Math.max(0, Math.min(gridSize - 1, gi));
+            const mu = means[idx] ?? 0;
+            const s = stds[idx] ?? 0;
+            tooltip.innerHTML = `<b>${names[dimX]}</b>: ${xVal.toFixed(4)}<br><b>${names[dimY]}</b>: ${yVal.toFixed(4)}<br>\u03BC = ${mu.toFixed(4)}<br>\u03C3 = ${s.toFixed(4)}`;
+            tooltip.style.display = "block";
+            positionTooltip(tooltip, e.clientX, e.clientY);
+          }
+        });
+        ref.canvas.addEventListener("click", (e) => {
+          const cRect = ref.canvas.getBoundingClientRect();
+          const mx = e.clientX - cRect.left;
+          const my = e.clientY - cRect.top;
+          const best = findHit2(mx, my);
+          if (best >= 0) {
+            const hitTrainIdx = dotData[best].idx;
+            if (_getPinned() === hitTrainIdx) {
+              _setPinned(-1);
+              clearCanvasHighlight();
+            } else {
+              _setPinned(hitTrainIdx);
+              applyCanvasHighlight(best);
+              if (onSnapToPoint) {
+                onSnapToPoint(dotData[best].pt);
+                return;
+              }
+            }
+          } else {
+            if (_getPinned() >= 0) {
+              _setPinned(-1);
+              clearCanvasHighlight();
+            }
+          }
+          redrawAllDots();
+          hoverHighlight = false;
+        });
+        ref.canvas.addEventListener("mouseleave", () => {
+          ref.canvas.style.cursor = "crosshair";
+          tooltip.style.display = "none";
+          if (_getPinned() < 0 && hoverHighlight) {
             clearCanvasHighlight();
-            redrawDots();
+            redrawAllDots();
             hoverHighlight = false;
           }
-          const xVal = xlo + (mx - ML) / N * (xhi - xlo);
-          const yVal = yhi - (my - MT) / N * (yhi - ylo);
-          const gi = Math.round((mx - ML) / N * (gridSize - 1));
-          const gj = Math.round((my - MT) / N * (gridSize - 1));
-          const idx = Math.max(0, Math.min(gridSize - 1, gj)) * gridSize + Math.max(0, Math.min(gridSize - 1, gi));
-          const predVal = means[idx] ?? 0;
-          tooltip.innerHTML = `<b>${names[dimX]}</b>: ${xVal.toFixed(4)}<br><b>${names[dimY]}</b>: ${yVal.toFixed(4)}<br>Predicted: ${predVal.toFixed(4)}`;
-          tooltip.style.display = "block";
-          positionTooltip(tooltip, tooltipContainer, e.clientX, e.clientY);
-        }
-      });
-      canvas.addEventListener("click", (e) => {
-        const cRect = canvas.getBoundingClientRect();
-        const mx = e.clientX - cRect.left;
-        const my = e.clientY - cRect.top;
-        const hitIdx = findNearestCanvasDot(mx, my);
-        if (hitIdx >= 0) {
-          const hitTrainIdx = canvasDots[hitIdx].idx;
-          if (rsPinnedIdx === hitTrainIdx) {
-            rsPinnedIdx = -1;
-            clearCanvasHighlight();
-          } else {
-            rsPinnedIdx = hitTrainIdx;
-            applyCanvasHighlight(hitIdx);
-          }
-        } else {
-          if (rsPinnedIdx >= 0) {
-            rsPinnedIdx = -1;
-            clearCanvasHighlight();
-          }
-        }
-        redrawDots();
-        hoverHighlight = false;
-      });
-      canvas.addEventListener("mouseleave", () => {
-        canvas.style.cursor = "crosshair";
-        tooltip.style.display = "none";
-        if (rsPinnedIdx < 0 && hoverHighlight) {
-          clearCanvasHighlight();
-          redrawDots();
-          hoverHighlight = false;
-        }
-      });
-    }
-    target.appendChild(canvas);
-    const cbRow = document.createElement("div");
-    cbRow.style.display = "flex";
-    cbRow.style.alignItems = "center";
-    cbRow.style.gap = "6px";
-    cbRow.style.marginTop = "4px";
-    cbRow.style.paddingLeft = ML + "px";
-    cbRow.style.width = N + ML + "px";
-    const cbLo = document.createElement("span");
-    cbLo.style.fontSize = "11px";
-    cbLo.style.color = "#666";
-    cbLo.style.minWidth = "40px";
-    cbLo.textContent = meanMin.toFixed(2);
-    const cbCanvas = document.createElement("canvas");
-    cbCanvas.style.flex = "1";
-    cbCanvas.style.height = "14px";
-    cbCanvas.style.borderRadius = "3px";
-    cbCanvas.height = 14;
-    cbCanvas.width = N;
-    const cbCtx = cbCanvas.getContext("2d");
-    if (cbCtx) {
-      for (let i = 0; i < N; i++) {
-        const rgb = viridis(i / N);
-        cbCtx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
-        cbCtx.fillRect(i, 0, 1, 14);
+        });
       }
     }
-    const cbHi = document.createElement("span");
-    cbHi.style.fontSize = "11px";
-    cbHi.style.color = "#666";
-    cbHi.style.minWidth = "40px";
-    cbHi.style.textAlign = "right";
-    cbHi.textContent = meanMax.toFixed(2);
-    cbRow.appendChild(cbLo);
-    cbRow.appendChild(cbCanvas);
-    cbRow.appendChild(cbHi);
-    target.appendChild(cbRow);
+    target.appendChild(panelWrap);
   }
   return __toCommonJS(viz_exports);
 })();
@@ -6339,515 +6904,26 @@ var Ax;
 </script>
 <script>
 var Predictor = Ax.Predictor;
-var predictor, fixture, selectedOutcome;
-var cvPinnedIdx = -1;
-var plotPanels = [];
-var allOutcomeY = {};
-var tooltip = document.getElementById('tooltip');
-var outcomeSelect = document.getElementById('outcomeSelect');
-
-function broadcastHighlight(idx, rels) {
-  plotPanels.forEach(function(p) { p.highlight(idx, rels); });
-}
-function broadcastClear() {
-  plotPanels.forEach(function(p) { p.clear(); });
-  cvPinnedIdx = -1;
-}
-// Compute kernel correlations once (shared across panels)
-function computeRels(activeIdx, pts, outcomeName) {
-  var rawRels = [], maxRel = 0;
-  for (var i = 0; i < pts.length; i++) {
-    if (i === activeIdx) { rawRels.push(1); continue; }
-    var r = predictor.kernelCorrelation(pts[i], pts[activeIdx], outcomeName);
-    rawRels.push(r);
-    if (r > maxRel) maxRel = r;
-  }
-  return { raw: rawRels, max: maxRel };
-}
-
-function buildParamTooltip(idx, pts) {
-  var paramNames = predictor.paramNames;
-  var params = fixture.search_space.parameters;
-  var html = '';
-  // All outcomes
-  predictor.outcomeNames.forEach(function(name) {
-    var yArr = allOutcomeY[name];
-    if (!yArr || idx >= yArr.length) return;
-    var isSel = name === selectedOutcome;
-    html += (isSel ? '<b>' : '<span style="color:#888">') +
-      name + ' = <span class="tt-val">' + yArr[idx].toFixed(4) + '</span>' +
-      (isSel ? '</b>' : '</span>') + '<br>';
-  });
-  // Parameters
-  html += '<hr style="border-color:#333;margin:4px 0">';
-  paramNames.forEach(function(name, j) {
-    html += '<span style="color:#888">' + name + '</span> = ' +
-      Ax.viz.formatParamValue(pts[idx][j], params[j]) + '<br>';
-  });
-  return html;
-}
+var predictor, fixture;
 
 function loadFixtureData(data) {
   fixture = Ax.viz.normalizeFixture(data);
-  cvPinnedIdx = -1;
   predictor = new Predictor(fixture);
-  outcomeSelect.innerHTML = '';
-  // Add "All" option if multi-output
-  if (predictor.outcomeNames.length > 1) {
-    var allOpt = document.createElement('option');
-    allOpt.value = '__all__'; allOpt.textContent = 'All outcomes';
-    outcomeSelect.appendChild(allOpt);
-  }
-  predictor.outcomeNames.forEach(function(name) {
-    var opt = document.createElement('option');
-    opt.value = name; opt.textContent = name;
-    outcomeSelect.appendChild(opt);
-  });
-  selectedOutcome = predictor.outcomeNames.length > 1 ? '__all__' : predictor.outcomeNames[0];
-  outcomeSelect.value = selectedOutcome;
   document.getElementById('subtitle').textContent =
     (fixture.metadata.name || 'Fixture') + ' — leave-one-out cross-validation';
   render();
 }
 
-// Render a single LOO-CV plot for one outcome into a container element.
-// W/H control the SVG size (small multiples use smaller sizes).
-function renderCVPlot(outcomeName, container, W, H) {
-  var loo = predictor.loocv(outcomeName);
-  if (loo.observed.length === 0) { container.textContent = 'No data'; return; }
-
-  var observed = loo.observed;
-  var predicted = loo.mean;
-  var predStd = loo.variance.map(function(v) { return Math.sqrt(v); });
-  var td = predictor.getTrainingData(outcomeName);
-  var n = observed.length;
-  var isSmall = W < 350;
-
-  // R²
-  var meanObs = observed.reduce(function(a,b){return a+b;}, 0) / n;
-  var ssTot = 0, ssRes = 0;
-  for (var i = 0; i < n; i++) {
-    ssTot += (observed[i] - meanObs) * (observed[i] - meanObs);
-    ssRes += (observed[i] - predicted[i]) * (observed[i] - predicted[i]);
-  }
-  var r2 = 1 - ssRes / ssTot;
-
-  // Axis range
-  var allVals = observed.concat(predicted);
-  var lo = Math.min.apply(null, allVals), hi = Math.max.apply(null, allVals);
-  for (var i = 0; i < n; i++) {
-    lo = Math.min(lo, predicted[i] - 2 * predStd[i]);
-    hi = Math.max(hi, predicted[i] + 2 * predStd[i]);
-  }
-  var pad = 0.08 * (hi - lo); lo -= pad; hi += pad;
-
-  var margin = isSmall
-    ? { top: 24, right: 12, bottom: 30, left: 42 }
-    : { top: 30, right: 20, bottom: 40, left: 55 };
-  var pw = W - margin.left - margin.right;
-  var ph = H - margin.top - margin.bottom;
-
-  var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('width', W); svg.setAttribute('height', H);
-
-  function sx(v) { return margin.left + (v - lo) / (hi - lo) * pw; }
-  function sy(v) { return margin.top + ph - (v - lo) / (hi - lo) * ph; }
-
-  // Diagonal
-  var diag = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  diag.setAttribute('x1', sx(lo)); diag.setAttribute('y1', sy(lo));
-  diag.setAttribute('x2', sx(hi)); diag.setAttribute('y2', sy(hi));
-  diag.setAttribute('stroke', 'rgba(255,255,255,0.15)'); diag.setAttribute('stroke-width', '1');
-  diag.setAttribute('stroke-dasharray', '4,4');
-  svg.appendChild(diag);
-
-  // CI whiskers + dots
-  var dots = [];
-  var dotR = isSmall ? 3 : 4;
-  for (var i = 0; i < n; i++) {
-    var cx = sx(observed[i]), cy = sy(predicted[i]);
-    var ciLo = sy(predicted[i] - 2 * predStd[i]);
-    var ciHi = sy(predicted[i] + 2 * predStd[i]);
-    var whisker = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    whisker.setAttribute('x1', cx); whisker.setAttribute('x2', cx);
-    whisker.setAttribute('y1', ciHi); whisker.setAttribute('y2', ciLo);
-    whisker.setAttribute('stroke', 'rgba(124,154,255,0.3)'); whisker.setAttribute('stroke-width', isSmall ? '1' : '1.5');
-    svg.appendChild(whisker);
-    var dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    dot.setAttribute('cx', cx); dot.setAttribute('cy', cy); dot.setAttribute('r', dotR);
-    dot.setAttribute('fill', 'rgba(124,154,255,0.85)');
-    dot.setAttribute('stroke', 'rgba(255,255,255,0.5)'); dot.setAttribute('stroke-width', '1');
-    svg.appendChild(dot);
-    dots.push({ cx: cx, cy: cy, obs: observed[i], pred: predicted[i], std: predStd[i], idx: i, pt: td.X[i], dot: dot, whisker: whisker, dotR: dotR });
-  }
-
-  // Axis labels (skip on small multiples)
-  if (!isSmall) {
-    var xl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    xl.setAttribute('x', margin.left + pw/2); xl.setAttribute('y', H - 6);
-    xl.setAttribute('fill', '#888'); xl.setAttribute('font-size', '13');
-    xl.setAttribute('text-anchor', 'middle'); xl.textContent = 'Observed';
-    svg.appendChild(xl);
-    var yl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    yl.setAttribute('x', 14); yl.setAttribute('y', margin.top + ph/2);
-    yl.setAttribute('fill', '#888'); yl.setAttribute('font-size', '13');
-    yl.setAttribute('text-anchor', 'middle');
-    yl.setAttribute('transform', 'rotate(-90,' + 14 + ',' + (margin.top + ph/2) + ')');
-    yl.textContent = 'LOO Predicted';
-    svg.appendChild(yl);
-  }
-
-  // Axis ticks
-  var nTicks = isSmall ? 3 : 5;
-  var tickFontSize = isSmall ? '8' : '10';
-  for (var t = 0; t <= nTicks; t++) {
-    var v = lo + (hi - lo) * t / nTicks;
-    var xt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    xt.setAttribute('x', sx(v)); xt.setAttribute('y', margin.top + ph + (isSmall ? 12 : 16));
-    xt.setAttribute('fill', '#555'); xt.setAttribute('font-size', tickFontSize);
-    xt.setAttribute('text-anchor', 'middle'); xt.textContent = v.toFixed(isSmall ? 0 : 2);
-    svg.appendChild(xt);
-    var yt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    yt.setAttribute('x', margin.left - 4); yt.setAttribute('y', sy(v) + 3);
-    yt.setAttribute('fill', '#555'); yt.setAttribute('font-size', tickFontSize);
-    yt.setAttribute('text-anchor', 'end'); yt.textContent = v.toFixed(isSmall ? 0 : 2);
-    svg.appendChild(yt);
-    var gl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    gl.setAttribute('x1', margin.left); gl.setAttribute('x2', margin.left + pw);
-    gl.setAttribute('y1', sy(v)); gl.setAttribute('y2', sy(v));
-    gl.setAttribute('stroke', 'rgba(255,255,255,0.04)');
-    svg.appendChild(gl);
-  }
-
-  // R² annotation
-  var r2text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-  r2text.setAttribute('x', margin.left + 6); r2text.setAttribute('y', margin.top + (isSmall ? 14 : 18));
-  r2text.setAttribute('fill', '#7c9aff'); r2text.setAttribute('font-size', isSmall ? '11' : '14');
-  r2text.setAttribute('font-weight', '600');
-  r2text.textContent = 'R\u00B2 = ' + r2.toFixed(4);
-  svg.appendChild(r2text);
-
-  container.appendChild(svg);
-
-  // ── Highlighting ──
-  function findNearest(px, py) {
-    var best = -1, bestD = isSmall ? 8 : 12;
-    for (var i = 0; i < dots.length; i++) {
-      var dx = px - dots[i].cx, dy = py - dots[i].cy;
-      var d = Math.sqrt(dx*dx + dy*dy);
-      if (d < bestD) { bestD = d; best = i; }
-    }
-    return best;
-  }
-
-  function highlightDots(activeIdx, rels) {
-    for (var i = 0; i < dots.length; i++) {
-      var d = dots[i];
-      if (i === activeIdx) {
-        d.dot.setAttribute('fill', 'rgba(255,80,80,0.95)');
-        d.dot.setAttribute('stroke', 'rgba(255,255,255,1)');
-        d.dot.setAttribute('stroke-width', '2'); d.dot.setAttribute('r', d.dotR + 1);
-        d.whisker.setAttribute('stroke', 'rgba(255,80,80,0.5)');
-      } else {
-        var relNorm = rels.max > 0 ? rels.raw[i] / rels.max : 0;
-        var fa = Math.max(0.08, Math.min(0.90, Math.sqrt(relNorm)));
-        d.dot.setAttribute('fill', 'rgba(255,80,80,' + fa.toFixed(3) + ')');
-        d.dot.setAttribute('stroke', 'rgba(255,255,255,' + Math.max(0.15, fa * 0.6).toFixed(3) + ')');
-        d.dot.setAttribute('stroke-width', '1'); d.dot.setAttribute('r', d.dotR);
-        d.whisker.setAttribute('stroke', 'rgba(255,80,80,' + (fa * 0.35).toFixed(3) + ')');
-      }
-    }
-  }
-
-  function clearDots() {
-    for (var i = 0; i < dots.length; i++) {
-      var d = dots[i];
-      d.dot.setAttribute('fill', 'rgba(124,154,255,0.85)');
-      d.dot.setAttribute('stroke', 'rgba(255,255,255,0.5)');
-      d.dot.setAttribute('stroke-width', '1'); d.dot.setAttribute('r', d.dotR);
-      d.whisker.setAttribute('stroke', 'rgba(124,154,255,0.3)');
-    }
-  }
-
-  plotPanels.push({ highlight: highlightDots, clear: clearDots });
-  var trainPts = dots.map(function(d) { return d.pt; });
-
-  container.addEventListener('mousemove', function(e) {
-    var rect = container.getBoundingClientRect();
-    var px = e.clientX - rect.left, py = e.clientY - rect.top;
-    var best = findNearest(px, py);
-    if (best >= 0) {
-      var d = dots[best];
-      var html = '<div class="tt-title">' + outcomeName + ' — trial ' + d.idx + '</div>' +
-        'observed = <span class="tt-val">' + d.obs.toFixed(4) + '</span><br>' +
-        'LOO predicted = <span class="tt-val">' + d.pred.toFixed(4) + '</span><br>' +
-        '\u00B1 2\u03C3 = [' + (d.pred - 2*d.std).toFixed(4) + ', ' + (d.pred + 2*d.std).toFixed(4) + ']<br>' +
-        buildParamTooltip(d.idx, trainPts);
-      Ax.viz.showTooltip(tooltip, html, e.clientX, e.clientY);
-      if (cvPinnedIdx < 0) broadcastHighlight(best, computeRels(best, trainPts, outcomeName));
-    } else {
-      Ax.viz.hideTooltip(tooltip);
-      if (cvPinnedIdx < 0) broadcastClear();
-    }
-  });
-
-  container.addEventListener('click', function(e) {
-    var rect = container.getBoundingClientRect();
-    var px = e.clientX - rect.left, py = e.clientY - rect.top;
-    var best = findNearest(px, py);
-    if (best >= 0) { cvPinnedIdx = best; broadcastHighlight(best, computeRels(best, trainPts, outcomeName)); }
-    else { broadcastClear(); }
-  });
-
-  container.addEventListener('mouseleave', function() {
-    Ax.viz.hideTooltip(tooltip);
-    if (cvPinnedIdx < 0) broadcastClear();
-  });
-}
-
-// Render an optimization trace panel for one outcome.
-function renderTracePanel(outcomeName, container, W, H) {
-  var td = predictor.getTrainingData(outcomeName);
-  if (td.Y.length === 0) { container.textContent = 'No data'; return; }
-
-  var yVals = td.Y;
-  var trainX = td.X;
-  var n = yVals.length;
-
-  // Determine direction from optimization_config
-  var minimize = true;
-  if (fixture.optimization_config && fixture.optimization_config.objectives) {
-    var obj = fixture.optimization_config.objectives.find(function(o) { return o.name === outcomeName; });
-    if (obj) minimize = obj.minimize;
-  }
-
-  // Running best
-  var best = yVals[0];
-  var bestSoFar = yVals.map(function(y) {
-    if (minimize) { best = Math.min(best, y); }
-    else { best = Math.max(best, y); }
-    return best;
-  });
-
-  var yMin = Math.min.apply(null, yVals);
-  var yMax = Math.max.apply(null, yVals);
-  var yPad = 0.08 * (yMax - yMin || 1);
-  yMin -= yPad; yMax += yPad;
-
-  var margin = { top: 30, right: 20, bottom: 40, left: 55 };
-  var pw = W - margin.left - margin.right;
-  var ph = H - margin.top - margin.bottom;
-
-  var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('width', W); svg.setAttribute('height', H);
-
-  function sx(i) { return margin.left + (i / Math.max(1, n - 1)) * pw; }
-  function sy(v) { return margin.top + ph - (v - yMin) / (yMax - yMin) * ph; }
-
-  // Grid
-  var nTicks = 5;
-  for (var t = 0; t <= nTicks; t++) {
-    var v = yMin + (yMax - yMin) * t / nTicks;
-    var gl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    gl.setAttribute('x1', margin.left); gl.setAttribute('x2', margin.left + pw);
-    gl.setAttribute('y1', sy(v)); gl.setAttribute('y2', sy(v));
-    gl.setAttribute('stroke', 'rgba(255,255,255,0.05)');
-    svg.appendChild(gl);
-    var yt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    yt.setAttribute('x', margin.left - 8); yt.setAttribute('y', sy(v) + 4);
-    yt.setAttribute('fill', '#555'); yt.setAttribute('font-size', '10');
-    yt.setAttribute('text-anchor', 'end'); yt.textContent = v.toFixed(2);
-    svg.appendChild(yt);
-  }
-
-  // Best-so-far step line
-  var bsfPath = 'M ' + sx(0) + ' ' + sy(bestSoFar[0]);
-  for (var i = 1; i < n; i++) {
-    bsfPath += ' H ' + sx(i) + ' V ' + sy(bestSoFar[i]);
-  }
-  var bsfLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  bsfLine.setAttribute('d', bsfPath);
-  bsfLine.setAttribute('stroke', '#7c6ff7'); bsfLine.setAttribute('stroke-width', '2.5');
-  bsfLine.setAttribute('fill', 'none'); bsfLine.setAttribute('opacity', '0.7');
-  svg.appendChild(bsfLine);
-
-  // Dots
-  var dots = [];
-  for (var i = 0; i < n; i++) {
-    var isBest = bestSoFar[i] === yVals[i];
-    var dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    dot.setAttribute('cx', sx(i)); dot.setAttribute('cy', sy(yVals[i]));
-    dot.setAttribute('r', '4');
-    dot.setAttribute('fill', isBest ? 'rgba(124,111,247,0.9)' : 'rgba(255,255,255,0.3)');
-    dot.setAttribute('stroke', isBest ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.15)');
-    dot.setAttribute('stroke-width', '1');
-    svg.appendChild(dot);
-    dots.push({ cx: parseFloat(dot.getAttribute('cx')), cy: parseFloat(dot.getAttribute('cy')),
-      idx: i, value: yVals[i], best: bestSoFar[i], isBest: isBest, pt: trainX[i], el: dot });
-  }
-
-  // Axis labels
-  var xl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-  xl.setAttribute('x', margin.left + pw/2); xl.setAttribute('y', H - 6);
-  xl.setAttribute('fill', '#888'); xl.setAttribute('font-size', '13');
-  xl.setAttribute('text-anchor', 'middle'); xl.textContent = 'Trial';
-  svg.appendChild(xl);
-  var yl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-  yl.setAttribute('x', 14); yl.setAttribute('y', margin.top + ph/2);
-  yl.setAttribute('fill', '#888'); yl.setAttribute('font-size', '13');
-  yl.setAttribute('text-anchor', 'middle');
-  yl.setAttribute('transform', 'rotate(-90,' + 14 + ',' + (margin.top + ph/2) + ')');
-  yl.textContent = outcomeName + (minimize ? ' (min)' : ' (max)');
-  svg.appendChild(yl);
-
-  // X ticks
-  var xStep = Math.max(1, Math.ceil(n / 10));
-  for (var i = 0; i < n; i += xStep) {
-    var xt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    xt.setAttribute('x', sx(i)); xt.setAttribute('y', margin.top + ph + 18);
-    xt.setAttribute('fill', '#555'); xt.setAttribute('font-size', '10');
-    xt.setAttribute('text-anchor', 'middle'); xt.textContent = String(i);
-    svg.appendChild(xt);
-  }
-
-  // Legend
-  var leg = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  var lr = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  lr.setAttribute('x1', margin.left + pw - 120); lr.setAttribute('x2', margin.left + pw - 100);
-  lr.setAttribute('y1', margin.top + 12); lr.setAttribute('y2', margin.top + 12);
-  lr.setAttribute('stroke', '#7c6ff7'); lr.setAttribute('stroke-width', '2.5');
-  leg.appendChild(lr);
-  var lt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-  lt.setAttribute('x', margin.left + pw - 96); lt.setAttribute('y', margin.top + 16);
-  lt.setAttribute('fill', '#888'); lt.setAttribute('font-size', '11');
-  lt.textContent = 'best so far';
-  leg.appendChild(lt);
-  svg.appendChild(leg);
-
-  container.appendChild(svg);
-
-  // ── Highlighting ──
-  function findNearest(px, py) {
-    var best = -1, bestD = 12;
-    for (var i = 0; i < dots.length; i++) {
-      var dx = px - dots[i].cx, dy = py - dots[i].cy;
-      var d = Math.sqrt(dx*dx + dy*dy);
-      if (d < bestD) { bestD = d; best = i; }
-    }
-    return best;
-  }
-
-  function highlightDots(activeIdx, rels) {
-    for (var i = 0; i < dots.length; i++) {
-      var d = dots[i];
-      if (i === activeIdx) {
-        d.el.setAttribute('fill', 'rgba(255,80,80,0.95)');
-        d.el.setAttribute('stroke', 'rgba(255,255,255,1)');
-        d.el.setAttribute('stroke-width', '2'); d.el.setAttribute('r', '6');
-      } else {
-        var relNorm = rels.max > 0 ? rels.raw[i] / rels.max : 0;
-        var fa = Math.max(0.08, Math.min(0.90, Math.sqrt(relNorm)));
-        d.el.setAttribute('fill', 'rgba(124,111,247,' + fa.toFixed(3) + ')');
-        d.el.setAttribute('stroke', 'rgba(255,255,255,' + Math.max(0.15, fa * 0.6).toFixed(3) + ')');
-        d.el.setAttribute('stroke-width', '1'); d.el.setAttribute('r', '4');
-      }
-    }
-  }
-
-  function clearDots() {
-    for (var i = 0; i < dots.length; i++) {
-      var d = dots[i];
-      d.el.setAttribute('fill', d.isBest ? 'rgba(124,111,247,0.9)' : 'rgba(255,255,255,0.3)');
-      d.el.setAttribute('stroke', d.isBest ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.15)');
-      d.el.setAttribute('stroke-width', '1'); d.el.setAttribute('r', '4');
-    }
-  }
-
-  plotPanels.push({ highlight: highlightDots, clear: clearDots });
-
-  container.addEventListener('mousemove', function(e) {
-    var rect = container.getBoundingClientRect();
-    var px = e.clientX - rect.left, py = e.clientY - rect.top;
-    var best = findNearest(px, py);
-    if (best >= 0) {
-      var d = dots[best];
-      var html = '<div class="tt-title">trial ' + d.idx + '</div>' +
-        outcomeName + ' = <span class="tt-val">' + d.value.toFixed(4) + '</span><br>' +
-        'best so far = <span class="tt-val">' + d.best.toFixed(4) + '</span><br>' +
-        buildParamTooltip(d.idx, trainX);
-      Ax.viz.showTooltip(tooltip, html, e.clientX, e.clientY);
-      container.style.cursor = 'pointer';
-      if (cvPinnedIdx < 0) broadcastHighlight(best, computeRels(best, trainX, outcomeName));
-    } else {
-      Ax.viz.hideTooltip(tooltip);
-      container.style.cursor = 'crosshair';
-      if (cvPinnedIdx < 0) broadcastClear();
-    }
-  });
-
-  container.addEventListener('click', function(e) {
-    var rect = container.getBoundingClientRect();
-    var px = e.clientX - rect.left, py = e.clientY - rect.top;
-    var best = findNearest(px, py);
-    if (best >= 0) { cvPinnedIdx = best; broadcastHighlight(best, computeRels(best, trainX, outcomeName)); }
-    else { broadcastClear(); }
-  });
-
-  container.addEventListener('mouseleave', function() {
-    Ax.viz.hideTooltip(tooltip);
-    if (cvPinnedIdx < 0) broadcastClear();
-  });
-}
-
 function render() {
   var plotArea = document.getElementById('plotArea');
   plotArea.innerHTML = '';
-  cvPinnedIdx = -1;
-  plotPanels = [];
-
-  // Pre-compute all outcome Y values for rich tooltips
-  allOutcomeY = {};
-  predictor.outcomeNames.forEach(function(name) {
-    allOutcomeY[name] = predictor.getTrainingData(name).Y;
+  Ax.viz.renderCrossValidation(plotArea, predictor, {
+    interactive: true,
+    width: 440,
+    height: 440
   });
-
-  if (selectedOutcome === '__all__') {
-    // Small multiples: 4 per row (LOO-CV only)
-    var names = predictor.outcomeNames;
-    var tileW = 280, tileH = 280;
-    names.forEach(function(name) {
-      var tile = document.createElement('div');
-      tile.className = 'cv-tile';
-      tile.style.width = tileW + 'px'; tile.style.height = (tileH + 28) + 'px';
-      var title = document.createElement('div');
-      title.className = 'cv-title'; title.textContent = name;
-      tile.appendChild(title);
-      renderCVPlot(name, tile, tileW, tileH);
-      plotArea.appendChild(tile);
-    });
-  } else {
-    // Side by side: LOO-CV + Optimization Trace
-    var tile = document.createElement('div');
-    tile.className = 'cv-tile';
-    tile.style.width = '440px'; tile.style.height = '468px';
-    var title = document.createElement('div');
-    title.className = 'cv-title'; title.textContent = selectedOutcome + ' — LOO-CV';
-    tile.appendChild(title);
-    renderCVPlot(selectedOutcome, tile, 440, 440);
-    plotArea.appendChild(tile);
-
-    var traceTile = document.createElement('div');
-    traceTile.className = 'cv-tile';
-    traceTile.style.width = '440px'; traceTile.style.height = '468px';
-    var traceTitle = document.createElement('div');
-    traceTitle.className = 'cv-title'; traceTitle.textContent = selectedOutcome + ' — Optimization Trace';
-    traceTile.appendChild(traceTitle);
-    renderTracePanel(selectedOutcome, traceTile, 440, 440);
-    plotArea.appendChild(traceTile);
-  }
 }
 
-outcomeSelect.addEventListener('change', function() { selectedOutcome = outcomeSelect.value; render(); });
 document.getElementById('fileInput').addEventListener('change', function(e) {
   var file = e.target.files[0]; if (!file) return;
   file.text().then(function(text) { loadFixtureData(JSON.parse(text)); });

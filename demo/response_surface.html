@@ -6,115 +6,23 @@
 <title>axjs — 2D Response Surface</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #0f0f11; color: #e0e0e0;
-    padding: 2rem; min-height: 100vh;
-  }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #0f0f11; color: #e0e0e0; padding: 2rem; min-height: 100vh; }
   h1 { font-size: 18px; font-weight: 500; color: #f0f0f0; margin-bottom: 4px; }
   .subtitle { font-size: 13px; color: #888; margin-bottom: 20px; }
   .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
   label { font-size: 13px; color: #aaa; }
-  select, button {
-    font-size: 13px; padding: 5px 10px;
-    border-radius: 6px; border: 0.5px solid #444;
-    background: #1a1a1d; color: #e0e0e0; cursor: pointer; outline: none;
-  }
-  button:hover { background: #252528; }
-  .file-btn {
-    font-size: 12px; padding: 5px 12px; border-radius: 6px;
-    border: 0.5px solid #444; background: #1a1a1d; color: #999;
-    cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
-  }
-  .file-btn:hover { background: #252528; color: #ccc; border-color: #555; }
-  .file-btn input { display: none; }
-  .plots { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
-  .plot { display: flex; flex-direction: column; gap: 6px; }
-  .plot-title { font-size: 12px; color: #888; text-align: center; letter-spacing: 0.04em; }
-  .canvas-wrap { position: relative; display: inline-block; }
-  canvas.main {
-    display: block; border-radius: 6px;
-    border: 0.5px solid #333; cursor: crosshair;
-  }
-  canvas.overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
-  .cbrow { display: flex; align-items: center; gap: 6px; }
-  .cblbl { font-size: 11px; color: #666; min-width: 40px; }
-  canvas.cbar { height: 16px; flex: 1; border-radius: 4px; }
-  .section-label {
-    font-size: 11px; color: #555; letter-spacing: 0.06em;
-    text-transform: uppercase; margin: 14px 0 8px;
-  }
-  .slrow { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; }
-  .sllbl { font-size: 13px; color: #888; min-width: 60px; }
-  input[type=range] { flex: 1; min-width: 100px; accent-color: #7c6ff7; cursor: pointer; }
-  .slval { font-size: 13px; font-weight: 500; color: #ccc; min-width: 50px; text-align: right; }
-  .slselect { flex:1; font-size:13px; padding:4px 8px; border-radius:6px;
-              border:0.5px solid #444; background:#1a1a1d; color:#e0e0e0; outline:none; }
-  .statline { font-size: 13px; color: #777; margin-top: 14px; min-height: 1.5em; }
-  .statline span { font-weight: 500; color: #ddd; }
-  #tooltip {
-    position: fixed; display: none;
-    background: #1e1e22; border: 0.5px solid #555;
-    border-radius: 7px; padding: 9px 13px;
-    font-size: 12px; color: #ccc;
-    pointer-events: none; z-index: 100;
-    line-height: 1.8; white-space: nowrap;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-  }
-  #tooltip .tt-title {
-    font-size: 11px; color: #888; letter-spacing: 0.05em;
-    text-transform: uppercase; margin-bottom: 4px;
-  }
-  #tooltip .tt-val { color: #ff6b6b; font-weight: 500; }
-  #tooltip .tt-coord { color: #a0c4ff; }
+  select, input[type=file] { font-size: 13px; padding: 5px 10px;
+    border-radius: 6px; border: 0.5px solid #444; background: #1a1a1d; color: #e0e0e0; cursor: pointer; outline: none; }
 </style>
 </head>
 <body>
-
 <h1><a href="index.html" style="text-decoration:none"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="29" height="29" style="vertical-align:-4px;margin-right:8px;opacity:0.7"><path fill="#fff" d="M761.76,600h0l200-346.16H550.12l-400,692.32H961.76ZM573.41,274H926.82L750.12,579.85ZM550.12,926H185.06L555.94,284.07,738.47,600Zm23.29,0L750.12,620.15,926.82,926Z"/></svg></a>2D Response Surface</h1>
 <p class="subtitle" id="subtitle">Load a fixture JSON to visualize GP posterior</p>
-
 <div class="controls">
-  <label class="file-btn" title="Load custom fixture JSON">📂 Load fixture<input type="file" id="fileInput" accept=".json"></label>
-  <label>X axis <select id="selX"></select></label>
-  <label>Y axis <select id="selY"></select></label>
-  <label>Outcome: <select id="outcomeSelect"><option value="0">y</option></select></label>
-  <label style="margin-left:6px"><input type="checkbox" id="cbContour" checked> contours</label>
+  <label>File: <input type="file" id="fileInput" accept=".json"></label>
 </div>
-
-<div id="tooltip"><div class="tt-title" id="tt-title"></div><div id="tt-body"></div></div>
-
-<div class="plots">
-  <div class="plot">
-    <div class="plot-title">posterior mean</div>
-    <div class="canvas-wrap">
-      <canvas id="cvM" class="main" width="368" height="358"></canvas>
-      <canvas id="ovM" class="overlay" width="368" height="358"></canvas>
-    </div>
-    <div class="cbrow">
-      <span class="cblbl" id="mlo">—</span>
-      <canvas id="cbM" class="cbar"></canvas>
-      <span class="cblbl" id="mhi" style="text-align:right">—</span>
-    </div>
-  </div>
-  <div class="plot">
-    <div class="plot-title">predictive std</div>
-    <div class="canvas-wrap">
-      <canvas id="cvS" class="main" width="368" height="358"></canvas>
-      <canvas id="ovS" class="overlay" width="368" height="358"></canvas>
-    </div>
-    <div class="cbrow">
-      <span class="cblbl">0.00</span>
-      <canvas id="cbS" class="cbar"></canvas>
-      <span class="cblbl" id="shi" style="text-align:right">—</span>
-    </div>
-  </div>
-</div>
-
-<div class="section-label" id="sliderLabel" style="display:none">Fixed dimensions</div>
-<div id="sliders"></div>
-<div class="statline" id="statline">hover over either map to inspect · red dots = training points</div>
-
+<div id="plotContainer"></div>
 <script>
 "use strict";
 var Ax = (() => {
@@ -1967,17 +1875,34 @@ var Ax = (() => {
       const sub = getSubModel(ms, this.outcomeNames, name);
       const ls = findLengthscales(sub.kernel ?? sub.data_kernel);
       const inputTf = sub.input_transform;
+      const warp = sub.input_warp;
+      const warpIndicesSet = warp?.indices ? new Set(warp.indices) : null;
       const params = this.paramSpecs;
+      const eps = 1e-7;
+      const warpRange = 1 - 2 * eps;
       let d2 = 0;
       for (let j = 0; j < point.length; j++) {
         if (params[j] && params[j].type === "choice") {
           if (point[j] !== refPoint[j]) d2 += 4;
           continue;
         }
-        const diff = point[j] - refPoint[j];
+        const offset = inputTf?.offset?.[j] ?? 0;
         const coeff = inputTf?.coefficient?.[j] ?? 1;
+        let v1 = (point[j] - offset) / coeff;
+        let v2 = (refPoint[j] - offset) / coeff;
+        if (warp && (warpIndicesSet === null || warpIndicesSet.has(j))) {
+          const wIdx = warp.indices ? warp.indices.indexOf(j) : j;
+          if (wIdx >= 0 && wIdx < warp.concentration0.length) {
+            const a = warp.concentration1[wIdx];
+            const b = warp.concentration0[wIdx];
+            const xn1 = Math.max(eps, Math.min(1 - eps, v1 * warpRange + eps));
+            const xn2 = Math.max(eps, Math.min(1 - eps, v2 * warpRange + eps));
+            v1 = 1 - Math.pow(1 - Math.pow(xn1, a), b);
+            v2 = 1 - Math.pow(1 - Math.pow(xn2, a), b);
+          }
+        }
         const lsj = ls && j < ls.length ? ls[j] : 1;
-        const scaled = diff / coeff / lsj;
+        const scaled = (v1 - v2) / lsj;
         d2 += scaled * scaled;
       }
       return Math.exp(-0.5 * d2);
@@ -2263,19 +2188,28 @@ var Ax;
   // src/viz/index.ts
   var viz_exports = {};
   __export(viz_exports, {
+    applyDotHighlight: () => applyDotHighlight,
+    attachDotInteractivity: () => attachDotInteractivity,
+    buildPointTooltipHtml: () => buildPointTooltipHtml,
+    clearDotHighlight: () => clearDotHighlight,
     computeDimOrder: () => computeDimOrder,
+    computeKernelRels: () => computeKernelRels,
     createOutcomeSelector: () => createOutcomeSelector,
     createParamSliders: () => createParamSliders,
     defaultParamValue: () => defaultParamValue,
     drawColorbar: () => drawColorbar,
     drawDataDot: () => drawDataDot,
+    findNearestDot: () => findNearestDot,
     formatParamValue: () => formatParamValue,
     hideTooltip: () => hideTooltip,
+    injectScopedStyles: () => injectScopedStyles,
+    injectStyles: () => injectStyles,
     isChoice: () => isChoice,
     isInteger: () => isInteger,
     normalizeFixture: () => normalizeFixture,
     plasma: () => plasma,
     pointRelevance: () => pointRelevance,
+    removeTooltip: () => removeTooltip,
     renderCrossValidation: () => renderCrossValidation,
     renderFeatureImportance: () => renderFeatureImportance,
     renderHeatmap: () => renderHeatmap,
@@ -2286,6 +2220,106 @@ var Ax;
     showTooltip: () => showTooltip,
     viridis: () => viridis
   });
+
+  // src/viz/styles.ts
+  var AXJS_STYLES = `
+:scope .axjs-slider {
+  -webkit-appearance: auto;
+  appearance: auto;
+  cursor: pointer;
+  touch-action: none;
+  pointer-events: auto;
+  user-select: auto;
+  -webkit-user-select: auto;
+  flex: 1;
+  min-width: 100px;
+  accent-color: #7c6ff7;
+}
+:scope .axjs-slider::-webkit-slider-thumb {
+  -webkit-appearance: auto;
+  cursor: grab;
+  pointer-events: auto;
+}
+:scope .axjs-slider:active::-webkit-slider-thumb {
+  cursor: grabbing;
+}
+:scope .axjs-slider::-webkit-slider-runnable-track {
+  pointer-events: auto;
+}
+:scope .axjs-select {
+  pointer-events: auto;
+  cursor: pointer;
+  background: #1a1a1d;
+  color: #e0e0e0;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  -webkit-user-drag: none;
+}
+:scope .axjs-tooltip {
+  position: fixed;
+  display: none;
+  background: rgba(20,20,24,0.95);
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #e0e0e0;
+  pointer-events: none;
+  z-index: 10000;
+  white-space: nowrap;
+}
+:scope .axjs-ctrl-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 6px;
+  max-width: 600px;
+  pointer-events: auto;
+  user-select: auto;
+  -webkit-user-select: auto;
+}
+:scope .axjs-slider-label {
+  font-size: 13px;
+  color: #888;
+  min-width: 140px;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:scope .axjs-slider-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: #ccc;
+  min-width: 70px;
+  text-align: right;
+}
+:scope .axjs-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  pointer-events: auto;
+}
+`;
+  function injectScopedStyles(container) {
+    if (typeof document === "undefined") return;
+    if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    if (container.querySelector("style[data-axjs]")) return;
+    const s = document.createElement("style");
+    s.setAttribute("data-axjs", "");
+    s.textContent = AXJS_STYLES.replace(/:scope/g, `#${container.id}`);
+    container.prepend(s);
+  }
+  function injectStyles() {
+    if (typeof document === "undefined") return;
+    injectScopedStyles(document.body);
+  }
+
+  // src/viz/colormaps.ts
   var VIRIDIS_STOPS = [
     [68, 1, 84],
     [72, 32, 111],
@@ -2342,6 +2376,34 @@ var Ax;
       ctx.fillRect(i, 0, 1, h);
     }
   }
+  function renderHeatmap(ctx, values, gridW, gridH, canvasW, canvasH, colorFn, minVal, maxVal) {
+    const img = ctx.createImageData(canvasW, canvasH);
+    const range = maxVal - minVal || 1;
+    const cellW = canvasW / gridW;
+    const cellH = canvasH / gridH;
+    for (let k = 0; k < values.length; k++) {
+      const gi = k % gridW;
+      const gj = Math.floor(k / gridW);
+      const t = Math.max(0, Math.min(1, (values[k] - minVal) / range));
+      const rgb = colorFn(t);
+      const x0 = Math.round(gi * cellW);
+      const y0 = Math.round(gj * cellH);
+      const x1 = Math.round((gi + 1) * cellW);
+      const y1 = Math.round((gj + 1) * cellH);
+      for (let py = y0; py < y1; py++) {
+        for (let px = x0; px < x1; px++) {
+          const idx = (py * canvasW + px) * 4;
+          img.data[idx] = rgb[0];
+          img.data[idx + 1] = rgb[1];
+          img.data[idx + 2] = rgb[2];
+          img.data[idx + 3] = 255;
+        }
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  // src/viz/drawDataDot.ts
   function drawDataDot(ctx, x, y, alpha, isActive, isHovered, fillRGB = [255, 60, 60]) {
     if (alpha < 0.04) return;
     const outerR = isActive || isHovered ? 7.5 : 5;
@@ -2356,6 +2418,8 @@ var Ax;
     ctx.fillStyle = isActive || isHovered ? `rgba(${fillRGB[0]},${fillRGB[1]},${fillRGB[2]},1)` : `rgba(${fillRGB[0]},${fillRGB[1]},${fillRGB[2]},${alpha.toFixed(3)})`;
     ctx.fill();
   }
+
+  // src/viz/params.ts
   function isChoice(p) {
     return p.type === "choice";
   }
@@ -2371,22 +2435,6 @@ var Ax;
     if (isChoice(p)) return String(val);
     if (isInteger(p)) return String(Math.round(val));
     return val.toFixed(3);
-  }
-  function pointRelevance(pt, fixedValues, plottedDims, ls, inputTf, params) {
-    let d2 = 0;
-    for (let j = 0; j < fixedValues.length; j++) {
-      if (plottedDims.indexOf(j) >= 0) continue;
-      if (params && params[j] && isChoice(params[j])) {
-        if (pt[j] !== fixedValues[j]) d2 += 4;
-        continue;
-      }
-      const diff = pt[j] - fixedValues[j];
-      const coeff = inputTf?.coefficient?.[j] ?? 1;
-      const lsj = ls && j < ls.length ? ls[j] : 1;
-      const scaled = diff / coeff / lsj;
-      d2 += scaled * scaled;
-    }
-    return Math.exp(-0.5 * d2);
   }
   function normalizeFixture(data) {
     if (data.experiment) {
@@ -2430,15 +2478,40 @@ var Ax;
     }
     return order;
   }
-  function showTooltip(el, html, screenX, screenY) {
-    el.innerHTML = html;
-    el.style.display = "block";
-    el.style.left = screenX + 16 + "px";
-    el.style.top = screenY - 10 + "px";
+  function pointRelevance(pt, fixedValues, plottedDims, ls, inputTf, params, inputWarp) {
+    const warpIndicesSet = inputWarp?.indices ? new Set(inputWarp.indices) : null;
+    const eps = 1e-7;
+    const warpRange = 1 - 2 * eps;
+    let d2 = 0;
+    for (let j = 0; j < fixedValues.length; j++) {
+      if (plottedDims.indexOf(j) >= 0) continue;
+      if (params && params[j] && isChoice(params[j])) {
+        if (pt[j] !== fixedValues[j]) d2 += 4;
+        continue;
+      }
+      const offset = inputTf?.offset?.[j] ?? 0;
+      const coeff = inputTf?.coefficient?.[j] ?? 1;
+      let v1 = (pt[j] - offset) / coeff;
+      let v2 = (fixedValues[j] - offset) / coeff;
+      if (inputWarp && (warpIndicesSet === null || warpIndicesSet.has(j))) {
+        const wIdx = inputWarp.indices ? inputWarp.indices.indexOf(j) : j;
+        if (wIdx >= 0 && wIdx < inputWarp.concentration0.length) {
+          const a = inputWarp.concentration1[wIdx];
+          const b = inputWarp.concentration0[wIdx];
+          const xn1 = Math.max(eps, Math.min(1 - eps, v1 * warpRange + eps));
+          const xn2 = Math.max(eps, Math.min(1 - eps, v2 * warpRange + eps));
+          v1 = 1 - Math.pow(1 - Math.pow(xn1, a), b);
+          v2 = 1 - Math.pow(1 - Math.pow(xn2, a), b);
+        }
+      }
+      const lsj = ls && j < ls.length ? ls[j] : 1;
+      const scaled = (v1 - v2) / lsj;
+      d2 += scaled * scaled;
+    }
+    return Math.exp(-0.5 * d2);
   }
-  function hideTooltip(el) {
-    el.style.display = "none";
-  }
+
+  // src/viz/widgets.ts
   function createOutcomeSelector(predictor, selectEl, onChange) {
     selectEl.innerHTML = "";
     predictor.outcomeNames.forEach((name) => {
@@ -2451,6 +2524,8 @@ var Ax;
   }
   function createParamSliders(predictor, params, container, currentValues, onChange, options) {
     container.innerHTML = "";
+    const styleTarget = container.closest("[id]") ?? container;
+    injectScopedStyles(styleTarget);
     const excludeDims = options?.excludeDims ?? /* @__PURE__ */ new Set();
     const order = options?.dimOrder ?? Array.from({ length: predictor.paramNames.length }, (_, i) => i);
     order.forEach((i) => {
@@ -2458,17 +2533,18 @@ var Ax;
       const name = predictor.paramNames[i];
       const p = params[i];
       const row = document.createElement("div");
-      row.style.cssText = "display:flex;gap:10px;align-items:center;margin-bottom:6px;max-width:600px;pointer-events:auto;user-select:auto";
+      row.className = "axjs-ctrl-row";
+      row.style.cssText = "display:flex;gap:10px;align-items:center;margin-bottom:6px;max-width:600px;pointer-events:auto;user-select:auto;-webkit-user-select:auto;";
       const lbl = document.createElement("span");
-      lbl.style.cssText = "font-size:13px;color:#888;min-width:140px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+      lbl.className = "axjs-slider-label";
       lbl.textContent = name;
       lbl.title = name;
       const val = document.createElement("span");
-      val.style.cssText = "font-size:13px;font-weight:500;color:#ccc;min-width:70px;text-align:right";
+      val.className = "axjs-slider-value";
       val.textContent = formatParamValue(currentValues[i], p);
       if (isChoice(p)) {
         const sel = document.createElement("select");
-        sel.className = "slselect";
+        sel.className = "axjs-select";
         p.values.forEach((v) => {
           const o = document.createElement("option");
           o.value = String(v);
@@ -2490,11 +2566,15 @@ var Ax;
         const hi = predictor.paramBounds[i][1];
         const sl = document.createElement("input");
         sl.type = "range";
-        sl.style.cssText = "flex:1;min-width:100px;accent-color:#7c6ff7;cursor:pointer;pointer-events:auto;user-select:auto;touch-action:none;-webkit-user-drag:none";
+        sl.className = "axjs-slider";
+        sl.style.cssText = "-webkit-appearance:auto;appearance:auto;cursor:pointer;touch-action:none;pointer-events:auto;user-select:auto;-webkit-user-select:auto;flex:1;min-width:100px;accent-color:#7c6ff7;";
         sl.min = String(lo);
         sl.max = String(hi);
         sl.step = isInteger(p) ? "1" : String((hi - lo) / 200);
         sl.value = String(currentValues[i]);
+        sl.addEventListener("pointerdown", (e) => {
+          e.stopPropagation();
+        });
         sl.addEventListener("mousedown", (e) => {
           e.stopPropagation();
         });
@@ -2523,19 +2603,31 @@ var Ax;
       file.text().then((text) => callback(JSON.parse(text)));
     });
   }
-  var CTRL_CSS = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
-  var SELECT_CSS = "background:#1a1a1d;color:#e0e0e0;border:1px solid #333;border-radius:4px;padding:3px 8px;font-size:12px;pointer-events:auto;cursor:pointer;-webkit-user-drag:none";
-  function createTooltipDiv(container) {
+  function showTooltip(el, html, screenX, screenY) {
+    el.innerHTML = html;
+    el.style.display = "block";
+    el.style.left = screenX + 16 + "px";
+    el.style.top = screenY - 10 + "px";
+  }
+  function hideTooltip(el) {
+    el.style.display = "none";
+  }
+  function createTooltipDiv(containerId) {
+    if (containerId) removeTooltip(containerId);
     const tooltip = document.createElement("div");
-    tooltip.style.cssText = "position:absolute;display:none;background:rgba(20,20,24,0.95);border:1px solid #444;border-radius:6px;padding:8px 12px;font-size:12px;color:#e0e0e0;pointer-events:none;z-index:100;white-space:nowrap";
-    container.style.position = "relative";
-    container.appendChild(tooltip);
+    tooltip.className = "axjs-tooltip";
+    if (containerId) tooltip.setAttribute("data-axjs-for", containerId);
+    tooltip.style.cssText = "position:fixed;display:none;background:rgba(20,20,24,0.95);border:1px solid #444;border-radius:6px;padding:8px 12px;font-size:12px;color:#e0e0e0;pointer-events:none;z-index:10000;white-space:nowrap;";
+    document.body.appendChild(tooltip);
     return tooltip;
   }
-  function positionTooltip(tooltip, container, clientX, clientY) {
-    const rect = container.getBoundingClientRect();
-    tooltip.style.left = clientX - rect.left + 16 + "px";
-    tooltip.style.top = clientY - rect.top - 10 + "px";
+  function positionTooltip(tooltip, clientX, clientY) {
+    tooltip.style.left = clientX + 16 + "px";
+    tooltip.style.top = clientY - 10 + "px";
+  }
+  function removeTooltip(containerId) {
+    const stale = document.body.querySelector(`div[data-axjs-for="${containerId}"]`);
+    if (stale) stale.remove();
   }
   function makeSelectEl(label) {
     const wrapper = document.createElement("div");
@@ -2544,45 +2636,13 @@ var Ax;
     lbl.style.cssText = "color:#888;font-size:12px";
     lbl.textContent = label;
     const select = document.createElement("select");
-    select.style.cssText = SELECT_CSS;
+    select.className = "axjs-select";
     wrapper.appendChild(lbl);
     wrapper.appendChild(select);
     return { wrapper, select };
   }
-  var SVG_NS = "http://www.w3.org/2000/svg";
-  function svgEl(tag, attrs) {
-    const el = document.createElementNS(SVG_NS, tag);
-    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
-    return el;
-  }
-  function renderFeatureImportance(container, predictor, options) {
-    const interactive = options?.interactive !== false;
-    if (!interactive) {
-      renderFeatureImportanceStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0]);
-      return;
-    }
-    container.innerHTML = "";
-    let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
-    const tooltip = createTooltipDiv(container);
-    const controlsDiv = document.createElement("div");
-    controlsDiv.style.cssText = CTRL_CSS;
-    const plotsDiv = document.createElement("div");
-    container.appendChild(controlsDiv);
-    container.appendChild(plotsDiv);
-    if (predictor.outcomeNames.length > 1) {
-      const { wrapper, select } = makeSelectEl("Outcome:");
-      createOutcomeSelector(predictor, select, (name) => {
-        selectedOutcome = name;
-        redraw();
-      });
-      controlsDiv.appendChild(wrapper);
-    }
-    function redraw() {
-      plotsDiv.innerHTML = "";
-      renderFeatureImportanceStatic(plotsDiv, predictor, selectedOutcome, tooltip, container);
-    }
-    redraw();
-  }
+
+  // src/viz/dots.ts
   function computeKernelRels(predictor, dots, activeIdx, outcome) {
     const rawRels = [];
     let maxRel = 0;
@@ -2679,7 +2739,7 @@ var Ax;
         const html = buildPointTooltipHtml(predictor, dots[hitIdx].idx, outcome);
         tooltip.innerHTML = html;
         tooltip.style.display = "block";
-        positionTooltip(tooltip, tooltipContainer, e.clientX, e.clientY);
+        positionTooltip(tooltip, e.clientX, e.clientY);
       } else {
         svg.style.cursor = "crosshair";
         if (getPinnedIdx() < 0 && hoverHighlight) {
@@ -2726,95 +2786,29 @@ var Ax;
     });
     return { getPinnedIdx };
   }
-  function renderFeatureImportanceStatic(target, predictor, outcome, tooltip, tooltipContainer) {
-    const ranked = predictor.rankDimensionsByImportance(outcome);
-    if (!ranked || ranked.length === 0) {
-      target.textContent = "No lengthscale data";
-      return;
-    }
-    const barColors = ["#7c6ff7", "#6fa0f7", "#6fcff7", "#6ff7c8", "#a0f76f", "#f7e06f", "#f7a06f", "#f76f6f"];
-    const importances = ranked.map((d) => 1 / d.lengthscale);
-    const maxImp = Math.max(...importances);
-    const W = Math.min((tooltipContainer ?? target).clientWidth || 500, 500);
-    const labelW = 130;
-    const barH = 24;
-    const rowGap = 6;
-    const H = ranked.length * (barH + rowGap) + 8;
-    const svg = svgEl("svg", { width: W, height: H });
-    ranked.forEach((dim, i) => {
-      const y = i * (barH + rowGap) + 4;
-      const pct = importances[i] / maxImp;
-      const barW = pct * (W - labelW - 80);
-      svg.appendChild(
-        Object.assign(svgEl("text", {
-          x: labelW - 8,
-          y: y + barH / 2 + 4,
-          fill: "#ccc",
-          "font-size": 13,
-          "text-anchor": "end"
-        }), { textContent: dim.paramName })
-      );
-      svg.appendChild(svgEl("rect", {
-        x: labelW,
-        y,
-        width: W - labelW - 10,
-        height: barH,
-        rx: 4,
-        fill: "#1a1a1d"
-      }));
-      const fillBar = svgEl("rect", {
-        x: labelW,
-        y,
-        width: Math.max(2, barW),
-        height: barH,
-        rx: 4,
-        fill: barColors[dim.dimIndex % barColors.length]
-      });
-      svg.appendChild(fillBar);
-      if (tooltip && tooltipContainer) {
-        const hoverRect = svgEl("rect", {
-          x: labelW,
-          y,
-          width: W - labelW - 10,
-          height: barH,
-          fill: "transparent",
-          cursor: "pointer"
-        });
-        hoverRect.addEventListener("mouseenter", (e) => {
-          tooltip.innerHTML = `<b>${dim.paramName}</b><br>Lengthscale: ${dim.lengthscale.toFixed(4)}<br>Importance: ${(pct * 100).toFixed(1)}%`;
-          tooltip.style.display = "block";
-          positionTooltip(tooltip, tooltipContainer, e.clientX, e.clientY);
-        });
-        hoverRect.addEventListener("mousemove", (e) => {
-          positionTooltip(tooltip, tooltipContainer, e.clientX, e.clientY);
-        });
-        hoverRect.addEventListener("mouseleave", () => {
-          tooltip.style.display = "none";
-        });
-        svg.appendChild(hoverRect);
-      }
-      svg.appendChild(
-        Object.assign(svgEl("text", {
-          x: W - 16,
-          y: y + barH / 2 + 4,
-          fill: "#999",
-          "font-size": 11,
-          "text-anchor": "end",
-          "pointer-events": "none"
-        }), { textContent: `ls=${dim.lengthscale.toFixed(3)}` })
-      );
-    });
-    target.appendChild(svg);
+
+  // src/viz/plots/_svg.ts
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  function svgEl(tag, attrs) {
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+    return el;
   }
-  function renderCrossValidation(container, predictor, options) {
+
+  // src/viz/plots/importance.ts
+  var CTRL_CSS = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
+  function renderFeatureImportance(container, predictor, options) {
     const interactive = options?.interactive !== false;
     if (!interactive) {
-      renderCrossValidationStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0], options);
+      renderFeatureImportanceStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0]);
       return;
     }
+    if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    removeTooltip(container.id);
     container.innerHTML = "";
+    injectScopedStyles(container);
     let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
-    const tooltip = createTooltipDiv(container);
+    const tooltip = createTooltipDiv(container.id);
     const controlsDiv = document.createElement("div");
     controlsDiv.style.cssText = CTRL_CSS;
     const plotsDiv = document.createElement("div");
@@ -2830,13 +2824,199 @@ var Ax;
     }
     function redraw() {
       plotsDiv.innerHTML = "";
-      renderCrossValidationStatic(plotsDiv, predictor, selectedOutcome, options, tooltip, container);
+      renderFeatureImportanceStatic(plotsDiv, predictor, selectedOutcome, tooltip, container);
     }
     redraw();
   }
-  function renderCrossValidationStatic(target, predictor, outcome, options, tooltip, tooltipContainer) {
-    const W = options?.width ?? 440;
-    const H = options?.height ?? 440;
+  function renderFeatureImportanceStatic(target, predictor, outcome, tooltip, tooltipContainer) {
+    const ranked = predictor.rankDimensionsByImportance(outcome);
+    if (!ranked || ranked.length === 0) {
+      target.textContent = "No lengthscale data";
+      return;
+    }
+    const barColors = ["#7c6ff7", "#6fa0f7", "#6fcff7", "#6ff7c8", "#a0f76f", "#f7e06f", "#f7a06f", "#f76f6f"];
+    const importances = ranked.map((d) => 1 / d.lengthscale);
+    const maxImp = Math.max(...importances);
+    const W = Math.min((tooltipContainer ?? target).clientWidth || 500, 500);
+    const labelW = 130;
+    const valueW = 70;
+    const barH = 24;
+    const rowGap = 6;
+    const H = ranked.length * (barH + rowGap) + 8;
+    const trackW = W - labelW - valueW;
+    const svg = svgEl("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+    ranked.forEach((dim, i) => {
+      const y = i * (barH + rowGap) + 4;
+      const pct = importances[i] / maxImp;
+      const barW = Math.max(2, pct * trackW);
+      svg.appendChild(
+        Object.assign(svgEl("text", {
+          x: labelW - 8,
+          y: y + barH / 2 + 4,
+          fill: "#ccc",
+          "font-size": 13,
+          "text-anchor": "end"
+        }), { textContent: dim.paramName })
+      );
+      svg.appendChild(svgEl("rect", {
+        x: labelW,
+        y,
+        width: trackW,
+        height: barH,
+        rx: 4,
+        fill: "#1a1a1d"
+      }));
+      svg.appendChild(svgEl("rect", {
+        x: labelW,
+        y,
+        width: barW,
+        height: barH,
+        rx: 4,
+        fill: barColors[dim.dimIndex % barColors.length]
+      }));
+      if (tooltip) {
+        const hoverRect = svgEl("rect", {
+          x: labelW,
+          y,
+          width: trackW,
+          height: barH,
+          fill: "transparent",
+          cursor: "pointer"
+        });
+        hoverRect.addEventListener("mouseenter", (e) => {
+          tooltip.innerHTML = `<b>${dim.paramName}</b><br>Lengthscale: ${dim.lengthscale.toFixed(4)}<br>Importance: ${(pct * 100).toFixed(1)}%`;
+          tooltip.style.display = "block";
+          positionTooltip(tooltip, e.clientX, e.clientY);
+        });
+        hoverRect.addEventListener("mousemove", (e) => {
+          positionTooltip(tooltip, e.clientX, e.clientY);
+        });
+        hoverRect.addEventListener("mouseleave", () => {
+          tooltip.style.display = "none";
+        });
+        svg.appendChild(hoverRect);
+      }
+      svg.appendChild(
+        Object.assign(svgEl("text", {
+          x: labelW + trackW + 4,
+          y: y + barH / 2 + 4,
+          fill: "#999",
+          "font-size": 11,
+          "text-anchor": "start",
+          "pointer-events": "none"
+        }), { textContent: `ls=${dim.lengthscale.toFixed(3)}` })
+      );
+    });
+    target.appendChild(svg);
+  }
+
+  // src/viz/plots/cv.ts
+  var CTRL_CSS2 = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
+  function renderCrossValidation(container, predictor, options) {
+    const interactive = options?.interactive !== false;
+    if (!interactive) {
+      renderCrossValidationStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0], options);
+      return;
+    }
+    if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    removeTooltip(container.id);
+    container.innerHTML = "";
+    injectScopedStyles(container);
+    const hasMulti = predictor.outcomeNames.length > 1;
+    let selectedOutcome = options?.outcome ?? (hasMulti ? "__all__" : predictor.outcomeNames[0]);
+    const tooltip = createTooltipDiv(container.id);
+    const controlsDiv = document.createElement("div");
+    controlsDiv.style.cssText = CTRL_CSS2;
+    const plotsDiv = document.createElement("div");
+    plotsDiv.style.cssText = "display:flex;gap:12px;flex-wrap:wrap";
+    container.appendChild(controlsDiv);
+    container.appendChild(plotsDiv);
+    if (hasMulti) {
+      const { wrapper, select } = makeSelectEl("Outcome:");
+      const allOpt = document.createElement("option");
+      allOpt.value = "__all__";
+      allOpt.textContent = "All outcomes";
+      select.appendChild(allOpt);
+      predictor.outcomeNames.forEach((name) => {
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+      });
+      select.value = selectedOutcome;
+      select.onchange = () => {
+        selectedOutcome = select.value;
+        redraw();
+      };
+      controlsDiv.appendChild(wrapper);
+    }
+    let pinnedIdx = -1;
+    let panels = [];
+    function broadcastHighlight(idx, rels) {
+      panels.forEach((p) => p.highlight(idx, rels));
+    }
+    function broadcastClear() {
+      panels.forEach((p) => p.clear());
+      pinnedIdx = -1;
+    }
+    function redraw() {
+      plotsDiv.innerHTML = "";
+      pinnedIdx = -1;
+      panels = [];
+      if (selectedOutcome === "__all__") {
+        const tileW = 280, tileH = 280;
+        for (const name of predictor.outcomeNames) {
+          const tile = document.createElement("div");
+          tile.style.cssText = `background:#141418;border:0.5px solid #222;border-radius:8px;overflow:hidden;width:${tileW}px;height:${tileH + 28}px`;
+          const title = document.createElement("div");
+          title.style.cssText = "font-size:13px;font-weight:500;color:#ccc;text-align:center;padding:6px 0 0";
+          title.textContent = name;
+          tile.appendChild(title);
+          renderCVPanel(
+            tile,
+            predictor,
+            name,
+            tileW,
+            tileH,
+            true,
+            tooltip,
+            panels,
+            () => pinnedIdx,
+            (v) => {
+              pinnedIdx = v;
+            },
+            broadcastHighlight,
+            broadcastClear
+          );
+          plotsDiv.appendChild(tile);
+        }
+      } else {
+        const W = options?.width ?? 440;
+        const H = options?.height ?? 440;
+        const cvTile = document.createElement("div");
+        cvTile.style.cssText = `background:#141418;border:0.5px solid #222;border-radius:8px;overflow:hidden;width:${W}px;height:${H}px`;
+        renderCVPanel(
+          cvTile,
+          predictor,
+          selectedOutcome,
+          W,
+          H,
+          false,
+          tooltip,
+          panels,
+          () => pinnedIdx,
+          (v) => {
+            pinnedIdx = v;
+          },
+          broadcastHighlight,
+          broadcastClear
+        );
+        plotsDiv.appendChild(cvTile);
+      }
+    }
+    redraw();
+  }
+  function renderCVPanel(target, predictor, outcome, W, H, isSmall, tooltip, panels, getPinnedIdx, setPinnedIdx, broadcastHighlight, broadcastClear) {
     const loo = predictor.loocv(outcome);
     if (loo.observed.length === 0) {
       target.textContent = "No data";
@@ -2858,7 +3038,7 @@ var Ax;
     const pad = 0.08 * (hi - lo);
     lo -= pad;
     hi += pad;
-    const margin = { top: 30, right: 20, bottom: 40, left: 55 };
+    const margin = isSmall ? { top: 24, right: 12, bottom: 30, left: 42 } : { top: 30, right: 20, bottom: 40, left: 55 };
     const pw = W - margin.left - margin.right;
     const ph = H - margin.top - margin.bottom;
     const sx = (v) => margin.left + (v - lo) / (hi - lo) * pw;
@@ -2873,7 +3053,8 @@ var Ax;
       "stroke-width": 1,
       "stroke-dasharray": "4,4"
     }));
-    const nTicks = 5;
+    const nTicks = isSmall ? 3 : 5;
+    const tickFontSize = isSmall ? "8" : "10";
     for (let t = 0; t <= nTicks; t++) {
       const v = lo + (hi - lo) * t / nTicks;
       svg.appendChild(svgEl("line", {
@@ -2885,20 +3066,21 @@ var Ax;
       }));
       svg.appendChild(Object.assign(svgEl("text", {
         x: sx(v),
-        y: margin.top + ph + 16,
+        y: margin.top + ph + (isSmall ? 12 : 16),
         fill: "#555",
-        "font-size": 10,
+        "font-size": tickFontSize,
         "text-anchor": "middle"
-      }), { textContent: v.toFixed(2) }));
+      }), { textContent: v.toFixed(isSmall ? 0 : 2) }));
       svg.appendChild(Object.assign(svgEl("text", {
         x: margin.left - 4,
         y: sy(v) + 3,
         fill: "#555",
-        "font-size": 10,
+        "font-size": tickFontSize,
         "text-anchor": "end"
-      }), { textContent: v.toFixed(2) }));
+      }), { textContent: v.toFixed(isSmall ? 0 : 2) }));
     }
     const td = predictor.getTrainingData(outcome);
+    const dotR = isSmall ? 3 : 4;
     const cvDots = [];
     const defaultFill = "rgba(124,154,255,0.85)";
     const defaultStroke = "rgba(255,255,255,0.5)";
@@ -2910,13 +3092,13 @@ var Ax;
         y1: sy(predicted[i] + 2 * predStd[i]),
         y2: sy(predicted[i] - 2 * predStd[i]),
         stroke: "rgba(124,154,255,0.3)",
-        "stroke-width": 1.5
+        "stroke-width": isSmall ? 1 : 1.5
       });
       svg.appendChild(whisker);
       const dot = svgEl("circle", {
         cx,
         cy,
-        r: 4,
+        r: dotR,
         fill: defaultFill,
         stroke: defaultStroke,
         "stroke-width": 1
@@ -2931,58 +3113,127 @@ var Ax;
         whisker,
         defaultFill,
         defaultStroke,
-        defaultR: 4
+        defaultR: dotR
       });
     }
-    svg.appendChild(Object.assign(svgEl("text", {
-      x: margin.left + pw / 2,
-      y: H - 6,
-      fill: "#888",
-      "font-size": 13,
-      "text-anchor": "middle"
-    }), { textContent: "Observed" }));
-    svg.appendChild(Object.assign(svgEl("text", {
-      x: 14,
-      y: margin.top + ph / 2,
-      fill: "#888",
-      "font-size": 13,
-      "text-anchor": "middle",
-      transform: `rotate(-90,14,${margin.top + ph / 2})`
-    }), { textContent: "LOO Predicted" }));
+    if (!isSmall) {
+      svg.appendChild(Object.assign(svgEl("text", {
+        x: margin.left + pw / 2,
+        y: H - 6,
+        fill: "#888",
+        "font-size": 13,
+        "text-anchor": "middle"
+      }), { textContent: "Observed" }));
+      svg.appendChild(Object.assign(svgEl("text", {
+        x: 14,
+        y: margin.top + ph / 2,
+        fill: "#888",
+        "font-size": 13,
+        "text-anchor": "middle",
+        transform: `rotate(-90,14,${margin.top + ph / 2})`
+      }), { textContent: "LOO Predicted" }));
+    }
     svg.appendChild(Object.assign(svgEl("text", {
       x: margin.left + 6,
-      y: margin.top + 18,
+      y: margin.top + (isSmall ? 14 : 18),
       fill: "#7c9aff",
-      "font-size": 14,
+      "font-size": isSmall ? 11 : 14,
       "font-weight": "600"
     }), { textContent: `R\xB2 = ${r2.toFixed(4)}` }));
-    if (tooltip && tooltipContainer) {
-      attachDotInteractivity(svg, cvDots, predictor, outcome, tooltip, tooltipContainer, {
-        fallbackMouseMove: (e) => {
-          const svgRect = svg.getBoundingClientRect();
-          const mx = e.clientX - svgRect.left;
-          const my = e.clientY - svgRect.top;
-          if (mx < margin.left || mx > margin.left + pw || my < margin.top || my > margin.top + ph) {
-            tooltip.style.display = "none";
-            return;
-          }
-          tooltip.style.display = "none";
-        }
-      });
-    }
     target.appendChild(svg);
+    function highlightDots(activeIdx, rels) {
+      applyDotHighlight(cvDots, activeIdx, rels);
+    }
+    function clearDots() {
+      clearDotHighlight(cvDots);
+    }
+    panels.push({ highlight: highlightDots, clear: clearDots });
+    const HOVER_R = isSmall ? 8 : 12;
+    svg.addEventListener("mousemove", (e) => {
+      const rect = svg.getBoundingClientRect();
+      const px = e.clientX - rect.left, py = e.clientY - rect.top;
+      const best = findNearestDot(cvDots, px, py, HOVER_R);
+      if (best >= 0) {
+        const d = cvDots[best];
+        let html = `<div style="font-weight:600;color:#aaa;margin-bottom:4px">${outcome} \u2014 trial ${d.idx}</div>`;
+        html += `observed = <span style="color:#7c9aff">${observed[d.idx].toFixed(4)}</span><br>`;
+        html += `LOO predicted = <span style="color:#7c9aff">${predicted[d.idx].toFixed(4)}</span><br>`;
+        html += `\xB1 2\u03C3 = [${(predicted[d.idx] - 2 * predStd[d.idx]).toFixed(4)}, ${(predicted[d.idx] + 2 * predStd[d.idx]).toFixed(4)}]<br>`;
+        html += buildPointTooltipHtml(predictor, d.idx, outcome);
+        tooltip.innerHTML = html;
+        tooltip.style.display = "block";
+        positionTooltip(tooltip, e.clientX, e.clientY);
+        if (getPinnedIdx() < 0) {
+          broadcastHighlight(best, computeKernelRels(predictor, cvDots, best, outcome));
+        }
+      } else {
+        tooltip.style.display = "none";
+        if (getPinnedIdx() < 0) broadcastClear();
+      }
+    });
+    svg.addEventListener("click", (e) => {
+      const rect = svg.getBoundingClientRect();
+      const px = e.clientX - rect.left, py = e.clientY - rect.top;
+      const best = findNearestDot(cvDots, px, py, HOVER_R);
+      if (best >= 0) {
+        setPinnedIdx(best);
+        broadcastHighlight(best, computeKernelRels(predictor, cvDots, best, outcome));
+      } else {
+        broadcastClear();
+      }
+    });
+    svg.addEventListener("mouseleave", () => {
+      tooltip.style.display = "none";
+      if (getPinnedIdx() < 0) broadcastClear();
+    });
   }
+  function renderCrossValidationStatic(target, predictor, outcome, options) {
+    const W = options?.width ?? 440;
+    const H = options?.height ?? 440;
+    const panels = [];
+    let pinnedIdx = -1;
+    if (!target.id) target.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    injectScopedStyles(target);
+    const tooltip = createTooltipDiv(target.id);
+    renderCVPanel(
+      target,
+      predictor,
+      outcome,
+      W,
+      H,
+      false,
+      tooltip,
+      panels,
+      () => pinnedIdx,
+      (v) => {
+        pinnedIdx = v;
+      },
+      (idx, rels) => {
+        panels.forEach((p) => p.highlight(idx, rels));
+      },
+      () => {
+        panels.forEach((p) => p.clear());
+        pinnedIdx = -1;
+      }
+    );
+  }
+
+  // src/viz/plots/trace.ts
+  var CTRL_CSS3 = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
   function renderOptimizationTrace(container, predictor, options) {
     const interactive = options?.interactive !== false;
     if (!interactive) {
       renderOptimizationTraceStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0], options);
       return;
     }
+    if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    removeTooltip(container.id);
     container.innerHTML = "";
+    injectScopedStyles(container);
     let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
-    const tooltip = createTooltipDiv(container);
+    const tooltip = createTooltipDiv(container.id);
     const controlsDiv = document.createElement("div");
-    controlsDiv.style.cssText = CTRL_CSS;
+    controlsDiv.style.cssText = CTRL_CSS3;
     const plotsDiv = document.createElement("div");
     container.appendChild(controlsDiv);
     container.appendChild(plotsDiv);
@@ -3129,31 +3380,53 @@ var Ax;
     }
     target.appendChild(svg);
   }
-  function renderHeatmap(ctx, values, gridW, gridH, canvasW, canvasH, colorFn, minVal, maxVal) {
-    const img = ctx.createImageData(canvasW, canvasH);
-    const range = maxVal - minVal || 1;
-    const cellW = canvasW / gridW;
-    const cellH = canvasH / gridH;
-    for (let k = 0; k < values.length; k++) {
-      const gi = k % gridW;
-      const gj = Math.floor(k / gridW);
-      const t = Math.max(0, Math.min(1, (values[k] - minVal) / range));
-      const rgb = colorFn(t);
-      const x0 = Math.round(gi * cellW);
-      const y0 = Math.round(gj * cellH);
-      const x1 = Math.round((gi + 1) * cellW);
-      const y1 = Math.round((gj + 1) * cellH);
-      for (let py = y0; py < y1; py++) {
-        for (let px = x0; px < x1; px++) {
-          const idx = (py * canvasW + px) * 4;
-          img.data[idx] = rgb[0];
-          img.data[idx + 1] = rgb[1];
-          img.data[idx + 2] = rgb[2];
-          img.data[idx + 3] = 255;
+
+  // src/viz/plots/slice.ts
+  var CTRL_CSS4 = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
+  function getParamSpecs(predictor) {
+    if (predictor.paramSpecs) return predictor.paramSpecs;
+    return predictor.paramBounds.map(([lo, hi]) => ({
+      type: "range",
+      bounds: [lo, hi]
+    }));
+  }
+  function precomputeYRange(predictor, params) {
+    const result = {};
+    const nSample = 200;
+    const bounds = predictor.paramBounds;
+    const pts = [];
+    for (let i = 0; i < nSample; i++) {
+      pts.push(params.map((p, j) => {
+        if (isChoice(p)) {
+          const vals = p.values.map(Number);
+          return vals[Math.floor(Math.random() * vals.length)];
+        }
+        if (isInteger(p)) return Math.round(bounds[j][0] + Math.random() * (bounds[j][1] - bounds[j][0]));
+        return bounds[j][0] + Math.random() * (bounds[j][1] - bounds[j][0]);
+      }));
+    }
+    for (const name of predictor.outcomeNames) {
+      const preds = predictor.predict(pts);
+      const pred = preds[name];
+      let lo = Infinity, hi = -Infinity;
+      for (let j = 0; j < nSample; j++) {
+        const s = Math.sqrt(pred.variance[j]);
+        const lower = pred.mean[j] - 2 * s;
+        const upper = pred.mean[j] + 2 * s;
+        if (lower < lo) lo = lower;
+        if (upper > hi) hi = upper;
+      }
+      const td = predictor.getTrainingData(name);
+      if (td.Y) {
+        for (const yv of td.Y) {
+          if (yv < lo) lo = yv;
+          if (yv > hi) hi = yv;
         }
       }
+      const pad = 0.05 * (hi - lo);
+      result[name] = { min: lo - pad, max: hi + pad };
     }
-    ctx.putImageData(img, 0, 0);
+    return result;
   }
   function renderSlicePlot(container, predictor, options) {
     const interactive = options?.interactive !== false;
@@ -3161,24 +3434,29 @@ var Ax;
       renderSlicePlotStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0], options);
       return;
     }
+    if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    removeTooltip(container.id);
     container.innerHTML = "";
+    injectScopedStyles(container);
     let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
-    const bounds = predictor.paramBounds;
-    const fixedValues = options?.fixedValues?.slice() ?? bounds.map(([lo, hi]) => (lo + hi) / 2);
-    const params = bounds.map(([lo, hi]) => ({
-      type: "range",
-      bounds: [lo, hi]
+    const params = getParamSpecs(predictor);
+    const td0 = predictor.getTrainingData();
+    const fixedValues = options?.fixedValues?.slice() ?? (td0.X.length > 0 ? td0.X[0].slice() : params.map((p, j) => {
+      if (isChoice(p)) return p.values[0];
+      return (predictor.paramBounds[j][0] + predictor.paramBounds[j][1]) / 2;
     }));
-    const tooltip = createTooltipDiv(container);
+    const tooltip = createTooltipDiv(container.id);
+    const globalYRange = precomputeYRange(predictor, params);
+    let slicePinnedIdx = -1;
     const controlsDiv = document.createElement("div");
-    controlsDiv.style.cssText = CTRL_CSS + "padding:8px 16px;";
+    controlsDiv.style.cssText = CTRL_CSS4 + "padding:8px 16px;";
     const slidersDiv = document.createElement("div");
     slidersDiv.style.cssText = "margin-bottom:8px;padding:0 16px;";
     const plotsDiv = document.createElement("div");
     plotsDiv.style.cssText = "padding:4px 8px 12px;";
     container.appendChild(controlsDiv);
-    container.appendChild(slidersDiv);
     container.appendChild(plotsDiv);
+    container.appendChild(slidersDiv);
     if (predictor.outcomeNames.length > 1) {
       const { wrapper, select } = makeSelectEl("Outcome:");
       createOutcomeSelector(predictor, select, (name) => {
@@ -3195,43 +3473,83 @@ var Ax;
         slidersDiv,
         fixedValues,
         () => {
-          redraw();
+          redrawPlots();
         },
         { dimOrder: dimOrd }
       );
     }
-    rebuildSliders();
-    function redraw() {
+    function redrawPlots() {
       plotsDiv.innerHTML = "";
+      renderSlicePlotStatic(
+        plotsDiv,
+        predictor,
+        selectedOutcome,
+        options,
+        fixedValues,
+        tooltip,
+        globalYRange,
+        params,
+        () => slicePinnedIdx,
+        (v) => {
+          slicePinnedIdx = v;
+        },
+        (pt) => {
+          for (let j = 0; j < fixedValues.length; j++) fixedValues[j] = pt[j];
+          rebuildSliders();
+          redrawPlots();
+        }
+      );
+    }
+    function redraw() {
       rebuildSliders();
-      renderSlicePlotStatic(plotsDiv, predictor, selectedOutcome, options, fixedValues, tooltip, container);
+      redrawPlots();
     }
     redraw();
   }
-  function renderSlicePlotStatic(target, predictor, outcome, options, fixedValuesOverride, tooltip, tooltipContainer) {
-    const numPoints = options?.numPoints ?? 50;
-    const W = options?.width ?? 350;
+  function renderSlicePlotStatic(target, predictor, outcome, options, fixedValuesOverride, tooltip, globalYRange, paramSpecs, getPinnedIdx, setPinnedIdx, onSnapToPoint) {
+    const numPoints = options?.numPoints ?? 80;
+    const W = options?.width ?? 340;
     const H = options?.height ?? 220;
     const bounds = predictor.paramBounds;
     const names = predictor.paramNames;
     const nDim = names.length;
+    const params = paramSpecs ?? getParamSpecs(predictor);
     const fixedValues = fixedValuesOverride?.slice() ?? options?.fixedValues?.slice() ?? bounds.map(([lo, hi]) => (lo + hi) / 2);
     target.style.display = "flex";
     target.style.flexWrap = "wrap";
-    target.style.gap = "16px";
-    const margin = { top: 28, right: 18, bottom: 40, left: 68 };
+    target.style.gap = "8px";
+    const margin = { top: 24, right: 16, bottom: 32, left: 50 };
     const pw = W - margin.left - margin.right;
     const ph = H - margin.top - margin.bottom;
-    let slicePinnedIdx = -1;
     const allSubplotDots = [];
+    let localPinnedIdx = -1;
+    const _getPinned = getPinnedIdx ?? (() => localPinnedIdx);
+    const _setPinned = setPinnedIdx ?? ((v) => {
+      localPinnedIdx = v;
+    });
     const dimOrder = computeDimOrder(predictor, nDim, outcome);
     for (const dim of dimOrder) {
-      const [lo, hi] = bounds[dim];
-      if (lo === hi) continue;
-      const xs = [];
-      for (let i = 0; i < numPoints; i++) {
-        xs.push(lo + (hi - lo) * i / (numPoints - 1));
+      const p = params[dim];
+      const dimIsChoice = isChoice(p);
+      const dimIsInt = isInteger(p);
+      let xs;
+      let xLo, xHi;
+      if (dimIsChoice) {
+        xs = p.values.map(Number);
+        xLo = 0;
+        xHi = xs.length - 1;
+      } else if (dimIsInt) {
+        xLo = bounds[dim][0];
+        xHi = bounds[dim][1];
+        xs = [];
+        for (let iv = Math.ceil(xLo); iv <= Math.floor(xHi); iv++) xs.push(iv);
+      } else {
+        [xLo, xHi] = bounds[dim];
+        if (xLo === xHi) continue;
+        xs = [];
+        for (let i = 0; i < numPoints; i++) xs.push(xLo + (xHi - xLo) * i / (numPoints - 1));
       }
+      if (xs.length === 0) continue;
       const testPoints = xs.map((v) => {
         const pt = fixedValues.slice();
         pt[dim] = v;
@@ -3243,174 +3561,268 @@ var Ax;
       const stds = means.map((_, i) => Math.sqrt(pred.variance[i]));
       const upper = means.map((m, i) => m + 2 * stds[i]);
       const lower = means.map((m, i) => m - 2 * stds[i]);
-      const td = predictor.getTrainingData(outcome);
-      let yMin = Math.min(...lower);
-      let yMax = Math.max(...upper);
-      if (td.Y.length > 0) {
-        yMin = Math.min(yMin, ...td.Y);
-        yMax = Math.max(yMax, ...td.Y);
+      let yMin, yMax;
+      if (globalYRange && globalYRange[outcome]) {
+        yMin = globalYRange[outcome].min;
+        yMax = globalYRange[outcome].max;
+      } else {
+        const td2 = predictor.getTrainingData(outcome);
+        yMin = Math.min(...lower);
+        yMax = Math.max(...upper);
+        if (td2.Y.length > 0) {
+          yMin = Math.min(yMin, ...td2.Y);
+          yMax = Math.max(yMax, ...td2.Y);
+        }
+        const yPad = 0.08 * (yMax - yMin || 1);
+        yMin -= yPad;
+        yMax += yPad;
       }
-      const yPad = 0.08 * (yMax - yMin || 1);
-      yMin -= yPad;
-      yMax += yPad;
-      const sx = (v) => margin.left + (v - lo) / (hi - lo || 1) * pw;
-      const sy = (v) => margin.top + ph - (v - yMin) / (yMax - yMin || 1) * ph;
+      const yRange = yMax - yMin || 1;
+      const sx = dimIsChoice ? (ci) => margin.left + (ci + 0.5) / xs.length * pw : (v) => margin.left + (v - xLo) / (xHi - xLo || 1) * pw;
+      const sy = (v) => margin.top + (1 - (v - yMin) / yRange) * ph;
       const svg = svgEl("svg", { width: W, height: H });
-      svg.appendChild(
-        Object.assign(
-          svgEl("text", {
-            x: margin.left + pw / 2,
-            y: 15,
-            fill: "#999",
-            "font-size": 13,
-            "text-anchor": "middle"
-          }),
-          { textContent: names[dim] }
-        )
-      );
-      let bandD = `M ${sx(xs[0])} ${sy(upper[0])}`;
-      for (let i = 1; i < xs.length; i++) bandD += ` L ${sx(xs[i])} ${sy(upper[i])}`;
-      for (let i = xs.length - 1; i >= 0; i--) bandD += ` L ${sx(xs[i])} ${sy(lower[i])}`;
-      bandD += " Z";
-      svg.appendChild(svgEl("path", { d: bandD, fill: "rgba(124,154,255,0.15)" }));
-      let lineD = `M ${sx(xs[0])} ${sy(means[0])}`;
-      for (let i = 1; i < xs.length; i++) lineD += ` L ${sx(xs[i])} ${sy(means[i])}`;
-      svg.appendChild(
-        svgEl("path", { d: lineD, stroke: "#7c9aff", "stroke-width": 2, fill: "none" })
-      );
-      const nYTicks = 4;
-      for (let t = 0; t <= nYTicks; t++) {
-        const v = yMin + (yMax - yMin) * t / nYTicks;
-        svg.appendChild(
-          svgEl("line", {
-            x1: margin.left,
-            x2: margin.left + pw,
-            y1: sy(v),
-            y2: sy(v),
-            stroke: "rgba(255,255,255,0.06)"
-          })
-        );
-        svg.appendChild(
-          Object.assign(
-            svgEl("text", {
-              x: margin.left - 5,
-              y: sy(v) + 3,
-              fill: "#555",
-              "font-size": 10,
-              "text-anchor": "end"
-            }),
-            { textContent: v.toFixed(2) }
-          )
-        );
+      svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      svg.appendChild(Object.assign(
+        svgEl("text", { x: margin.left + pw / 2, y: 16, fill: "#999", "font-size": 12, "text-anchor": "middle" }),
+        { textContent: names[dim] }
+      ));
+      if (dimIsChoice) {
+        for (let ci = 0; ci < xs.length; ci++) {
+          const cx = sx(ci), cyMu = sy(means[ci]);
+          const cyUp = sy(upper[ci]), cyLo = sy(lower[ci]);
+          svg.appendChild(svgEl("line", { x1: cx, y1: cyUp, x2: cx, y2: cyLo, stroke: "rgba(100,120,230,0.5)", "stroke-width": 2 }));
+          for (const capY of [cyUp, cyLo]) {
+            svg.appendChild(svgEl("line", { x1: cx - 4, y1: capY, x2: cx + 4, y2: capY, stroke: "rgba(100,120,230,0.5)", "stroke-width": 1.5 }));
+          }
+          svg.appendChild(svgEl("circle", { cx, cy: cyMu, r: 5, fill: "rgba(130,155,255,0.9)", stroke: "white", "stroke-width": 1.5 }));
+        }
+      } else {
+        let bandD = `M ${sx(xs[0])} ${sy(upper[0])}`;
+        for (let i = 1; i < xs.length; i++) bandD += ` L ${sx(xs[i])} ${sy(upper[i])}`;
+        for (let i = xs.length - 1; i >= 0; i--) bandD += ` L ${sx(xs[i])} ${sy(lower[i])}`;
+        bandD += " Z";
+        svg.appendChild(svgEl("path", { d: bandD, fill: "rgba(100,120,230,0.18)" }));
+        let lineD = `M ${sx(xs[0])} ${sy(means[0])}`;
+        for (let i = 1; i < xs.length; i++) lineD += ` L ${sx(xs[i])} ${sy(means[i])}`;
+        svg.appendChild(svgEl("path", { d: lineD, stroke: "rgba(130,155,255,0.9)", "stroke-width": 2, fill: "none" }));
       }
-      const nXTicks = 4;
-      for (let t = 0; t <= nXTicks; t++) {
-        const v = lo + (hi - lo) * t / nXTicks;
-        svg.appendChild(
-          Object.assign(
-            svgEl("text", {
-              x: sx(v),
-              y: margin.top + ph + 14,
-              fill: "#555",
-              "font-size": 10,
-              "text-anchor": "middle"
-            }),
-            { textContent: v.toFixed(2) }
-          )
-        );
-      }
-      svg.appendChild(
-        Object.assign(
-          svgEl("text", {
-            x: margin.left + pw / 2,
-            y: H - 6,
-            fill: "#888",
-            "font-size": 11,
-            "text-anchor": "middle"
-          }),
-          { textContent: names[dim] }
-        )
-      );
+      const td = predictor.getTrainingData(outcome);
       const sliceDots = [];
-      const sliceDotFill = "rgba(255,60,60,0.85)";
-      const sliceDotStroke = "rgba(255,255,255,0.6)";
       if (td.X.length > 0) {
         for (let i = 0; i < td.X.length; i++) {
-          const ptX = td.X[i][dim];
-          if (ptX < lo || ptX > hi) continue;
-          const ptY = td.Y[i];
-          if (ptY < yMin || ptY > yMax) continue;
-          const dot = svgEl("circle", {
-            cx: sx(ptX),
-            cy: sy(ptY),
-            r: 3.5,
-            fill: sliceDotFill,
-            stroke: sliceDotStroke,
-            "stroke-width": 1.2
-          });
-          svg.appendChild(dot);
-          sliceDots.push({
-            cx: sx(ptX),
-            cy: sy(ptY),
-            idx: i,
-            pt: td.X[i],
-            el: dot,
-            defaultFill: sliceDotFill,
-            defaultStroke: sliceDotStroke,
-            defaultR: 3.5
-          });
-        }
-      }
-      allSubplotDots.push(sliceDots);
-      if (tooltip && tooltipContainer) {
-        const dimXs = xs;
-        const dimMeans = means;
-        const dimStds = stds;
-        attachDotInteractivity(svg, sliceDots, predictor, outcome, tooltip, tooltipContainer, {
-          getPinnedIdx: () => slicePinnedIdx,
-          setPinnedIdx: (v) => {
-            slicePinnedIdx = v;
-          },
-          fallbackMouseMove: (e) => {
-            const svgRect = svg.getBoundingClientRect();
-            const mx = e.clientX - svgRect.left;
-            const paramVal = lo + (mx - margin.left) / pw * (hi - lo);
-            if (paramVal < lo || paramVal > hi) {
-              tooltip.style.display = "none";
-              return;
-            }
-            let bestIdx = 0;
-            let bestDist = Math.abs(dimXs[0] - paramVal);
-            for (let j = 1; j < dimXs.length; j++) {
-              const d = Math.abs(dimXs[j] - paramVal);
-              if (d < bestDist) {
-                bestDist = d;
-                bestIdx = j;
-              }
-            }
-            tooltip.innerHTML = `<b>${names[dim]}</b>: ${dimXs[bestIdx].toFixed(4)}<br>Mean: ${dimMeans[bestIdx].toFixed(4)}<br>Std: ${dimStds[bestIdx].toFixed(4)}`;
-            tooltip.style.display = "block";
-            positionTooltip(tooltip, tooltipContainer, e.clientX, e.clientY);
-          },
-          onPinChange: (pinnedIdx) => {
-            for (const subDots of allSubplotDots) {
-              if (pinnedIdx < 0) {
-                clearDotHighlight(subDots);
-              } else {
-                const subActiveIdx = subDots.findIndex((d) => d.idx === pinnedIdx);
-                if (subActiveIdx >= 0) {
-                  applyDotHighlight(subDots, subActiveIdx, computeKernelRels(predictor, subDots, subActiveIdx, outcome));
-                } else {
-                  clearDotHighlight(subDots);
+          let ptScreenX;
+          if (dimIsChoice) {
+            let ci = xs.indexOf(td.X[i][dim]);
+            if (ci < 0) {
+              ci = 0;
+              let bestD = Infinity;
+              for (let cj = 0; cj < xs.length; cj++) {
+                const cd = Math.abs(xs[cj] - td.X[i][dim]);
+                if (cd < bestD) {
+                  bestD = cd;
+                  ci = cj;
                 }
               }
             }
+            ptScreenX = sx(ci);
+          } else {
+            ptScreenX = sx(td.X[i][dim]);
+          }
+          const ptScreenY = sy(td.Y[i]);
+          if (ptScreenY >= margin.top && ptScreenY <= H - margin.bottom) {
+            const dot = svgEl("circle", {
+              cx: ptScreenX,
+              cy: ptScreenY,
+              r: 3,
+              fill: "rgba(255,80,80,0.85)",
+              stroke: "rgba(255,255,255,0.5)",
+              "stroke-width": 1
+            });
+            svg.appendChild(dot);
+            sliceDots.push({
+              cx: ptScreenX,
+              cy: ptScreenY,
+              idx: i,
+              pt: td.X[i],
+              el: dot,
+              defaultFill: "rgba(255,80,80,0.85)",
+              defaultStroke: "rgba(255,255,255,0.5)",
+              defaultR: 3
+            });
+          }
+        }
+      }
+      allSubplotDots.push(sliceDots);
+      const nYTicks = 4;
+      for (let t = 0; t <= nYTicks; t++) {
+        const v = yMin + yRange * t / nYTicks;
+        const yp = sy(v);
+        svg.appendChild(svgEl("line", { x1: margin.left, x2: margin.left + pw, y1: yp, y2: yp, stroke: "rgba(255,255,255,0.06)" }));
+        svg.appendChild(Object.assign(
+          svgEl("text", { x: margin.left - 6, y: yp + 4, fill: "#666", "font-size": 10, "text-anchor": "end" }),
+          { textContent: v.toFixed(2) }
+        ));
+      }
+      if (dimIsChoice) {
+        for (let ci = 0; ci < xs.length; ci++) {
+          svg.appendChild(Object.assign(
+            svgEl("text", { x: sx(ci), y: H - margin.bottom + 16, fill: "#666", "font-size": 10, "text-anchor": "middle" }),
+            { textContent: String(p.values[ci]) }
+          ));
+        }
+      } else {
+        const nXTicks = dimIsInt ? Math.min(xs.length - 1, 4) : 4;
+        for (let t = 0; t <= nXTicks; t++) {
+          let xv = xLo + (xHi - xLo) * t / nXTicks;
+          if (dimIsInt) xv = Math.round(xv);
+          svg.appendChild(Object.assign(
+            svgEl("text", { x: sx(xv), y: H - margin.bottom + 16, fill: "#666", "font-size": 10, "text-anchor": "middle" }),
+            { textContent: dimIsInt ? String(xv) : xv.toFixed(2) }
+          ));
+        }
+      }
+      svg.appendChild(Object.assign(
+        svgEl("text", { x: margin.left + pw / 2, y: H - 4, fill: "#666", "font-size": 11, "text-anchor": "middle" }),
+        { textContent: names[dim] }
+      ));
+      const hoverLine = svgEl("line", { y1: margin.top, y2: margin.top + ph, stroke: "rgba(255,255,255,0.3)", "stroke-width": 1 });
+      hoverLine.style.display = "none";
+      svg.appendChild(hoverLine);
+      const hoverDot = svgEl("circle", { r: 4, fill: "rgba(130,155,255,0.9)", stroke: "white", "stroke-width": 1.5 });
+      hoverDot.style.display = "none";
+      svg.appendChild(hoverDot);
+      if (_getPinned() >= 0) {
+        const pvIdx = sliceDots.findIndex((d) => d.idx === _getPinned());
+        if (pvIdx >= 0) {
+          applyDotHighlight(sliceDots, pvIdx, computeKernelRels(predictor, sliceDots, pvIdx, outcome));
+        }
+      }
+      if (tooltip) {
+        let findHit2 = function(px, py) {
+          for (let pi = 0; pi < sliceDots.length; pi++) {
+            const dx = px - sliceDots[pi].cx, dy = py - sliceDots[pi].cy;
+            if (dx * dx + dy * dy < HOVER_R * HOVER_R) return pi;
+          }
+          return -1;
+        };
+        var findHit = findHit2;
+        const HOVER_R = 10;
+        let hoverHighlight = false;
+        svg.addEventListener("mousemove", (e) => {
+          const rect = svg.getBoundingClientRect();
+          const px = e.clientX - rect.left;
+          const py = e.clientY - rect.top;
+          if (px < margin.left || px > margin.left + pw) {
+            hoverLine.style.display = "none";
+            hoverDot.style.display = "none";
+            tooltip.style.display = "none";
+            return;
+          }
+          const hitVpIdx = findHit2(px, py);
+          if (hitVpIdx >= 0) {
+            const hitPt = sliceDots[hitVpIdx];
+            hoverLine.style.display = "none";
+            hoverDot.style.display = "none";
+            svg.style.cursor = "pointer";
+            if (_getPinned() < 0) {
+              applyDotHighlight(sliceDots, hitVpIdx, computeKernelRels(predictor, sliceDots, hitVpIdx, outcome));
+              hoverHighlight = true;
+            }
+            let html = `<div style="font-size:11px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">training point #${hitPt.idx + 1}</div>`;
+            html += `<span style="color:#ff6b6b;font-weight:500">y = ${td.Y[hitPt.idx].toFixed(4)}</span><br>`;
+            html += names.map((n, j) => `<span style="color:#a0c4ff">${n}</span> = ${formatParamValue(td.X[hitPt.idx][j], params[j])}`).join("<br>");
+            tooltip.innerHTML = html;
+            tooltip.style.display = "block";
+            positionTooltip(tooltip, e.clientX, e.clientY);
+          } else {
+            svg.style.cursor = "crosshair";
+            if (_getPinned() < 0 && hoverHighlight) {
+              clearDotHighlight(sliceDots);
+              hoverHighlight = false;
+            }
+            const frac = (px - margin.left) / pw;
+            let idx;
+            if (dimIsChoice) {
+              idx = Math.floor(frac * xs.length);
+              idx = Math.max(0, Math.min(xs.length - 1, idx));
+            } else {
+              idx = Math.round(frac * (xs.length - 1));
+              idx = Math.max(0, Math.min(xs.length - 1, idx));
+            }
+            const mu = means[idx], s = stds[idx];
+            const screenX = dimIsChoice ? sx(idx) : sx(xs[idx]);
+            hoverLine.setAttribute("x1", String(screenX));
+            hoverLine.setAttribute("x2", String(screenX));
+            hoverLine.style.display = "";
+            hoverDot.setAttribute("cx", String(screenX));
+            hoverDot.setAttribute("cy", String(sy(mu)));
+            hoverDot.style.display = "";
+            const xLabel = dimIsChoice ? String(p.values[idx]) : formatParamValue(xs[idx], p);
+            let html = `<div style="font-size:11px;color:#888;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">${names[dim]}</div>`;
+            html += `<span style="color:#a0c4ff">${names[dim]}</span> = ${xLabel}<br>`;
+            html += `\u03BC = <span style="color:#ff6b6b;font-weight:500">${mu.toFixed(4)}</span><br>`;
+            html += `\u03C3 = ${s.toFixed(4)}<br>`;
+            html += `95% CI: [${(mu - 2 * s).toFixed(4)}, ${(mu + 2 * s).toFixed(4)}]`;
+            tooltip.innerHTML = html;
+            tooltip.style.display = "block";
+            positionTooltip(tooltip, e.clientX, e.clientY);
+          }
+        });
+        svg.addEventListener("click", (e) => {
+          const rect = svg.getBoundingClientRect();
+          const px = e.clientX - rect.left;
+          const py = e.clientY - rect.top;
+          const hitVpIdx = findHit2(px, py);
+          if (hitVpIdx >= 0) {
+            const hitTrainIdx = sliceDots[hitVpIdx].idx;
+            if (_getPinned() === hitTrainIdx) {
+              _setPinned(-1);
+              clearDotHighlight(sliceDots);
+            } else {
+              _setPinned(hitTrainIdx);
+              if (onSnapToPoint) {
+                onSnapToPoint(sliceDots[hitVpIdx].pt);
+                return;
+              }
+              applyDotHighlight(sliceDots, hitVpIdx, computeKernelRels(predictor, sliceDots, hitVpIdx, outcome));
+            }
+          } else {
+            if (_getPinned() >= 0) {
+              _setPinned(-1);
+              clearDotHighlight(sliceDots);
+            }
+          }
+          hoverHighlight = false;
+          for (const subDots of allSubplotDots) {
+            if (_getPinned() < 0) {
+              clearDotHighlight(subDots);
+            } else {
+              const subActiveIdx = subDots.findIndex((d) => d.idx === _getPinned());
+              if (subActiveIdx >= 0) {
+                applyDotHighlight(subDots, subActiveIdx, computeKernelRels(predictor, subDots, subActiveIdx, outcome));
+              } else {
+                clearDotHighlight(subDots);
+              }
+            }
+          }
+        });
+        svg.addEventListener("mouseleave", () => {
+          hoverLine.style.display = "none";
+          hoverDot.style.display = "none";
+          svg.style.cursor = "crosshair";
+          tooltip.style.display = "none";
+          if (_getPinned() < 0 && hoverHighlight) {
+            clearDotHighlight(sliceDots);
+            hoverHighlight = false;
           }
         });
       }
       target.appendChild(svg);
     }
   }
+
+  // src/viz/plots/surface.ts
+  var CTRL_CSS5 = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
   function renderResponseSurface(container, predictor, options) {
     const interactive = options?.interactive !== false;
     if (!interactive) {
@@ -3424,7 +3836,10 @@ var Ax;
       );
       return;
     }
+    if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    removeTooltip(container.id);
     container.innerHTML = "";
+    injectScopedStyles(container);
     let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
     const initOrder = computeDimOrder(predictor, predictor.paramNames.length, selectedOutcome);
     let selDimX = options?.dimX ?? initOrder[0];
@@ -3435,16 +3850,19 @@ var Ax;
       type: "range",
       bounds: [lo, hi]
     }));
-    const tooltip = createTooltipDiv(container);
+    const tooltip = createTooltipDiv(container.id);
     const controlsDiv = document.createElement("div");
-    controlsDiv.style.cssText = CTRL_CSS + "padding:8px 16px;";
-    const slidersDiv = document.createElement("div");
-    slidersDiv.style.cssText = "margin-bottom:8px;padding:0 16px;";
+    controlsDiv.style.cssText = CTRL_CSS5 + "padding:8px 16px;";
     const plotsDiv = document.createElement("div");
     plotsDiv.style.cssText = "padding:4px 8px 12px;";
+    const axisDiv = document.createElement("div");
+    axisDiv.style.cssText = CTRL_CSS5 + "padding:4px 16px 0;";
+    const slidersDiv = document.createElement("div");
+    slidersDiv.style.cssText = "margin-bottom:8px;padding:0 16px;";
     container.appendChild(controlsDiv);
-    container.appendChild(slidersDiv);
     container.appendChild(plotsDiv);
+    container.appendChild(axisDiv);
+    container.appendChild(slidersDiv);
     if (predictor.outcomeNames.length > 1) {
       const { wrapper, select } = makeSelectEl("Outcome:");
       createOutcomeSelector(predictor, select, (name) => {
@@ -3453,6 +3871,8 @@ var Ax;
       });
       controlsDiv.appendChild(wrapper);
     }
+    let selXEl;
+    let selYEl;
     function makeDimSelect(label, initial, onChange) {
       const { wrapper, select } = makeSelectEl(label);
       predictor.paramNames.forEach((name, i) => {
@@ -3466,17 +3886,26 @@ var Ax;
         onChange(+select.value);
         redraw();
       };
-      controlsDiv.appendChild(wrapper);
+      axisDiv.appendChild(wrapper);
       return select;
     }
-    makeDimSelect("X axis:", selDimX, (v) => {
+    selXEl = makeDimSelect("X axis:", selDimX, (v) => {
       selDimX = v;
+      if (selDimX === selDimY) {
+        selDimY = (selDimX + 1) % predictor.paramNames.length;
+        selYEl.value = String(selDimY);
+      }
       rebuildSliders();
     });
-    makeDimSelect("Y axis:", selDimY, (v) => {
+    selYEl = makeDimSelect("Y axis:", selDimY, (v) => {
       selDimY = v;
+      if (selDimX === selDimY) {
+        selDimX = (selDimY + 1) % predictor.paramNames.length;
+        selXEl.value = String(selDimX);
+      }
       rebuildSliders();
     });
+    let rsPinnedIdx = -1;
     function rebuildSliders() {
       const dimOrd = computeDimOrder(predictor, predictor.paramNames.length, selectedOutcome);
       createParamSliders(
@@ -3502,27 +3931,109 @@ var Ax;
         options,
         fixedValues,
         tooltip,
-        container
+        container,
+        (pt) => {
+          for (let j = 0; j < fixedValues.length; j++) fixedValues[j] = pt[j];
+          rebuildSliders();
+          redraw();
+        },
+        () => rsPinnedIdx,
+        (v) => {
+          rsPinnedIdx = v;
+        }
       );
     }
     redraw();
   }
-  function renderResponseSurfaceStatic(target, predictor, outcome, dimX, dimY, options, fixedValuesOverride, tooltip, tooltipContainer) {
-    const gridSize = options?.gridSize ?? 30;
+  function drawVerticalColorbar(ctx, x, y, w, h, vMin, vMax, colorFn) {
+    for (let i = 0; i < h; i++) {
+      const t = 1 - i / h;
+      const rgb = colorFn(t);
+      ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+      ctx.fillRect(x, y + i, w, 1);
+    }
+    ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.textAlign = "left";
+    ctx.fillText(vMax.toFixed(2), x + w + 3, y + 8);
+    ctx.fillText(vMin.toFixed(2), x + w + 3, y + h);
+  }
+  function drawAxes(ctx, ML, MT, N, xlo, xhi, ylo, yhi, xName, yName, showYAxis) {
+    ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.strokeStyle = "rgba(255,255,255,0.2)";
+    ctx.lineWidth = 1;
+    const nTicks = 4;
+    ctx.textAlign = "center";
+    for (let ti = 0; ti <= nTicks; ti++) {
+      const v = xlo + (xhi - xlo) * ti / nTicks;
+      const tx = ML + ti * N / nTicks;
+      ctx.beginPath();
+      ctx.moveTo(tx, MT + N);
+      ctx.lineTo(tx, MT + N + 4);
+      ctx.stroke();
+      ctx.fillText(v.toFixed(2), tx, MT + N + 15);
+    }
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.fillText(xName, ML + N / 2, MT + N + 30);
+    if (!showYAxis) return;
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.textAlign = "right";
+    for (let ti = 0; ti <= nTicks; ti++) {
+      const v = ylo + (yhi - ylo) * ti / nTicks;
+      const ty = MT + (1 - ti / nTicks) * N;
+      ctx.beginPath();
+      ctx.moveTo(ML - 4, ty);
+      ctx.lineTo(ML, ty);
+      ctx.stroke();
+      ctx.fillText(v.toFixed(2), ML - 6, ty + 3);
+    }
+    ctx.save();
+    ctx.translate(12, MT + N / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.fillText(yName, 0, 0);
+    ctx.restore();
+  }
+  function drawDots(ctx, dots, pinnedIdx) {
+    for (const d of dots) {
+      const isActive = d.idx === pinnedIdx;
+      const outerR = isActive ? 6 : 4;
+      const innerR = isActive ? 3.5 : 2.5;
+      ctx.beginPath();
+      ctx.arc(d.px, d.py, outerR, 0, 2 * Math.PI);
+      ctx.strokeStyle = isActive ? "rgba(255,255,255,1)" : `rgba(255,255,255,${Math.max(0.15, d.alpha * 0.7).toFixed(3)})`;
+      ctx.lineWidth = isActive ? 2.5 : 1.5;
+      ctx.stroke();
+      if (d.alpha >= 0.04) {
+        ctx.beginPath();
+        ctx.arc(d.px, d.py, innerR, 0, 2 * Math.PI);
+        ctx.fillStyle = isActive ? "rgba(255,60,60,1)" : `rgba(255,60,60,${d.alpha.toFixed(3)})`;
+        ctx.fill();
+      }
+    }
+  }
+  function renderResponseSurfaceStatic(target, predictor, outcome, dimX, dimY, options, fixedValuesOverride, tooltip, tooltipContainer, onSnapToPoint, getPinnedIdx, setPinnedIdx) {
+    const gridSize = options?.gridSize ?? 80;
     const bounds = predictor.paramBounds;
     const names = predictor.paramNames;
     const fixedValues = fixedValuesOverride?.slice() ?? options?.fixedValues?.slice() ?? bounds.map(([lo, hi]) => (lo + hi) / 2);
     const ML = 48;
-    const MT = 10;
+    const MT = 18;
     const MB = 38;
-    const MR = 10;
-    const defaultW = options?.width ?? 420;
+    const CB_W = 14;
+    const CB_GAP = 4;
+    const CB_LBL = 36;
+    const MR = CB_GAP + CB_W + CB_LBL;
+    const totalW = options?.width ?? 420;
+    const panelW = Math.floor((totalW - 12) / 2);
     const defaultH = options?.height ?? 420;
-    const containerW = (tooltipContainer ?? target).clientWidth || parseInt((tooltipContainer ?? target).style.width) || defaultW;
-    const containerH = (tooltipContainer ?? target).clientHeight || parseInt((tooltipContainer ?? target).style.height) || defaultH;
-    const totalW = Math.min(containerW, defaultW);
-    const totalH = Math.min(containerH, defaultH);
-    const N = Math.min(totalW - ML - MR, totalH - MT - MB);
+    const ML2 = 10;
+    const N = Math.min(panelW - ML - MR, defaultH - MT - MB);
     const CW = N + ML + MR;
     const CH = N + MT + MB;
     const [xlo, xhi] = bounds[dimX];
@@ -3544,254 +4055,227 @@ var Ax;
       return;
     }
     const means = Array.from(pred.mean);
+    const stds = means.map((_, i) => Math.sqrt(pred.variance[i]));
     const meanMin = Math.min(...means);
     const meanMax = Math.max(...means);
-    const canvas = document.createElement("canvas");
-    canvas.width = CW;
-    canvas.height = CH;
-    canvas.style.display = "block";
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const heatImg = ctx.createImageData(N, N);
-    const range = meanMax - meanMin || 1;
-    const cellW = N / gridSize;
-    const cellH = N / gridSize;
-    for (let k = 0; k < means.length; k++) {
-      const gi = k % gridSize;
-      const gj = Math.floor(k / gridSize);
-      const t = Math.max(0, Math.min(1, (means[k] - meanMin) / range));
-      const rgb = viridis(t);
-      const x0 = Math.round(gi * cellW);
-      const y0 = Math.round(gj * cellH);
-      const x1 = Math.round((gi + 1) * cellW);
-      const y1 = Math.round((gj + 1) * cellH);
-      for (let py = y0; py < y1; py++) {
-        for (let px = x0; px < x1; px++) {
-          const idx = (py * N + px) * 4;
-          heatImg.data[idx] = rgb[0];
-          heatImg.data[idx + 1] = rgb[1];
-          heatImg.data[idx + 2] = rgb[2];
-          heatImg.data[idx + 3] = 255;
-        }
-      }
-    }
-    ctx.putImageData(heatImg, ML, MT);
-    ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
-    ctx.strokeStyle = "rgba(255,255,255,0.2)";
-    ctx.lineWidth = 1;
-    const nTicks = 4;
-    ctx.textAlign = "center";
-    for (let ti = 0; ti <= nTicks; ti++) {
-      const v = xlo + (xhi - xlo) * ti / nTicks;
-      const tx = ML + ti * N / nTicks;
-      ctx.beginPath();
-      ctx.moveTo(tx, MT + N);
-      ctx.lineTo(tx, MT + N + 4);
-      ctx.stroke();
-      ctx.fillText(v.toFixed(2), tx, MT + N + 15);
-    }
-    ctx.fillStyle = "rgba(255,255,255,0.6)";
-    ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.fillText(names[dimX], ML + N / 2, MT + N + 30);
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
-    ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.textAlign = "right";
-    for (let ti = 0; ti <= nTicks; ti++) {
-      const v = ylo + (yhi - ylo) * ti / nTicks;
-      const ty = MT + (1 - ti / nTicks) * N;
-      ctx.beginPath();
-      ctx.moveTo(ML - 4, ty);
-      ctx.lineTo(ML, ty);
-      ctx.stroke();
-      ctx.fillText(v.toFixed(2), ML - 6, ty + 3);
-    }
-    ctx.save();
-    ctx.translate(12, MT + N / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.textAlign = "center";
-    ctx.fillStyle = "rgba(255,255,255,0.6)";
-    ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
-    ctx.fillText(names[dimY], 0, 0);
-    ctx.restore();
+    const stdMin = 0;
+    const stdMax = Math.max(...stds);
     const td = predictor.getTrainingData(outcome);
-    const canvasDots = [];
     const xRange = xhi - xlo || 1;
     const yRange = yhi - ylo || 1;
+    const dotData = [];
     if (td.X.length > 0) {
       for (let i = 0; i < td.X.length; i++) {
-        const px = ML + (td.X[i][dimX] - xlo) / xRange * N;
-        const py = MT + (1 - (td.X[i][dimY] - ylo) / yRange) * N;
-        canvasDots.push({ px, py, idx: i, pt: td.X[i], alpha: 0.85 });
+        dotData.push({
+          normX: (td.X[i][dimX] - xlo) / xRange,
+          normY: 1 - (td.X[i][dimY] - ylo) / yRange,
+          idx: i,
+          pt: td.X[i],
+          alpha: 0.85
+        });
       }
     }
-    let rsPinnedIdx = -1;
-    function redrawDots() {
-      ctx.putImageData(heatImg, ML, MT);
-      for (const d of canvasDots) {
-        const isActive = d.idx === rsPinnedIdx;
-        const outerR = isActive ? 6 : 4;
-        const innerR = isActive ? 3.5 : 2.5;
-        ctx.beginPath();
-        ctx.arc(d.px, d.py, outerR, 0, 2 * Math.PI);
-        ctx.strokeStyle = isActive ? "rgba(255,255,255,1)" : `rgba(255,255,255,${Math.max(0.15, d.alpha * 0.7).toFixed(3)})`;
-        ctx.lineWidth = isActive ? 2.5 : 1.5;
-        ctx.stroke();
-        if (d.alpha >= 0.04) {
-          ctx.beginPath();
-          ctx.arc(d.px, d.py, innerR, 0, 2 * Math.PI);
-          ctx.fillStyle = isActive ? "rgba(255,60,60,1)" : `rgba(255,60,60,${d.alpha.toFixed(3)})`;
-          ctx.fill();
+    let localPinnedIdx = -1;
+    const _getPinned = getPinnedIdx ?? (() => localPinnedIdx);
+    const _setPinned = setPinnedIdx ?? ((v) => {
+      localPinnedIdx = v;
+    });
+    function buildHeatmap(values, vMin, vMax, colorFn) {
+      const img = new ImageData(N, N);
+      const range = vMax - vMin || 1;
+      const cellW = N / gridSize;
+      const cellH = N / gridSize;
+      for (let k = 0; k < values.length; k++) {
+        const gi = k % gridSize;
+        const gj = Math.floor(k / gridSize);
+        const t = Math.max(0, Math.min(1, (values[k] - vMin) / range));
+        const rgb = colorFn(t);
+        const x0 = Math.round(gi * cellW);
+        const y0 = Math.round(gj * cellH);
+        const x1 = Math.round((gi + 1) * cellW);
+        const y1 = Math.round((gj + 1) * cellH);
+        for (let py = y0; py < y1; py++) {
+          for (let px = x0; px < x1; px++) {
+            const idx = (py * N + px) * 4;
+            img.data[idx] = rgb[0];
+            img.data[idx + 1] = rgb[1];
+            img.data[idx + 2] = rgb[2];
+            img.data[idx + 3] = 255;
+          }
         }
       }
+      return img;
     }
-    function findNearestCanvasDot(mx, my) {
-      let best = -1;
-      let bestD = 144;
-      for (let i = 0; i < canvasDots.length; i++) {
-        const dx = mx - canvasDots[i].px;
-        const dy = my - canvasDots[i].py;
-        const d2 = dx * dx + dy * dy;
-        if (d2 < bestD) {
-          bestD = d2;
-          best = i;
-        }
+    const meanImg = buildHeatmap(means, meanMin, meanMax, viridis);
+    const stdImg = buildHeatmap(stds, stdMin, stdMax, plasma);
+    const panels = [
+      { title: "posterior mean", img: meanImg, colorFn: viridis, vMin: meanMin, vMax: meanMax, values: means },
+      { title: "predictive std", img: stdImg, colorFn: plasma, vMin: stdMin, vMax: stdMax, values: stds }
+    ];
+    const panelWrap = document.createElement("div");
+    panelWrap.style.cssText = "display:flex;gap:12px";
+    const canvasRefs = [];
+    for (let pi = 0; pi < panels.length; pi++) {
+      const panel = panels[pi];
+      const isFirst = pi === 0;
+      const pML = isFirst ? ML : ML2;
+      const pCW = N + pML + MR;
+      const canvas = document.createElement("canvas");
+      canvas.width = pCW;
+      canvas.height = CH;
+      canvas.style.display = "block";
+      canvas.style.cursor = "crosshair";
+      const ctx = canvas.getContext("2d");
+      if (!ctx) continue;
+      ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.4)";
+      ctx.textAlign = "center";
+      ctx.fillText(panel.title, pML + N / 2, 12);
+      ctx.putImageData(panel.img, pML, MT);
+      drawVerticalColorbar(ctx, pML + N + CB_GAP, MT, CB_W, N, panel.vMin, panel.vMax, panel.colorFn);
+      drawAxes(ctx, pML, MT, N, xlo, xhi, ylo, yhi, names[dimX], names[dimY], isFirst);
+      canvasRefs.push({ canvas, ctx, img: panel.img, ml: pML });
+      const col = document.createElement("div");
+      col.appendChild(canvas);
+      panelWrap.appendChild(col);
+    }
+    function redrawAllDots() {
+      for (const ref of canvasRefs) {
+        ref.ctx.putImageData(ref.img, ref.ml, MT);
+        const panelDots = dotData.map((d) => ({
+          px: ref.ml + d.normX * N,
+          py: MT + d.normY * N,
+          idx: d.idx,
+          pt: d.pt,
+          alpha: d.alpha
+        }));
+        drawDots(ref.ctx, panelDots, _getPinned());
       }
-      return best;
     }
     function applyCanvasHighlight(activeIdx) {
       const rels = { raw: [], max: 0 };
-      for (let i = 0; i < canvasDots.length; i++) {
+      for (let i = 0; i < dotData.length; i++) {
         if (i === activeIdx) {
           rels.raw.push(1);
           continue;
         }
-        const r = predictor.kernelCorrelation(canvasDots[i].pt, canvasDots[activeIdx].pt, outcome);
+        const r = predictor.kernelCorrelation(dotData[i].pt, dotData[activeIdx].pt, outcome);
         rels.raw.push(r);
         if (r > rels.max) rels.max = r;
       }
-      for (let i = 0; i < canvasDots.length; i++) {
+      for (let i = 0; i < dotData.length; i++) {
         if (i === activeIdx) {
-          canvasDots[i].alpha = 1;
+          dotData[i].alpha = 1;
           continue;
         }
         const relNorm = rels.max > 0 ? rels.raw[i] / rels.max : 0;
-        canvasDots[i].alpha = Math.max(0.08, Math.sqrt(relNorm));
+        dotData[i].alpha = Math.max(0.08, Math.sqrt(relNorm));
       }
     }
     function clearCanvasHighlight() {
-      for (const d of canvasDots) d.alpha = 0.85;
+      for (const d of dotData) d.alpha = 0.85;
     }
-    redrawDots();
+    if (_getPinned() >= 0) {
+      const pvIdx = dotData.findIndex((d) => d.idx === _getPinned());
+      if (pvIdx >= 0) applyCanvasHighlight(pvIdx);
+    }
+    redrawAllDots();
     if (tooltip && tooltipContainer) {
       let hoverHighlight = false;
-      canvas.addEventListener("mousemove", (e) => {
-        const cRect = canvas.getBoundingClientRect();
-        const mx = e.clientX - cRect.left;
-        const my = e.clientY - cRect.top;
-        if (mx < ML || mx > ML + N || my < MT || my > MT + N) {
-          tooltip.style.display = "none";
-          return;
-        }
-        const hitIdx = findNearestCanvasDot(mx, my);
-        if (hitIdx >= 0) {
-          canvas.style.cursor = "pointer";
-          if (rsPinnedIdx < 0) {
-            applyCanvasHighlight(hitIdx);
-            redrawDots();
-            hoverHighlight = true;
+      for (const ref of canvasRefs) {
+        let findHit2 = function(mx, my) {
+          let best = -1, bestD = 144;
+          for (let i = 0; i < dotData.length; i++) {
+            const dpx = rml + dotData[i].normX * N;
+            const dpy = MT + dotData[i].normY * N;
+            const dx = mx - dpx, dy = my - dpy;
+            const d2 = dx * dx + dy * dy;
+            if (d2 < bestD) {
+              bestD = d2;
+              best = i;
+            }
           }
-          tooltip.innerHTML = buildPointTooltipHtml(predictor, canvasDots[hitIdx].idx, outcome);
-          tooltip.style.display = "block";
-          positionTooltip(tooltip, tooltipContainer, e.clientX, e.clientY);
-        } else {
-          canvas.style.cursor = "crosshair";
-          if (rsPinnedIdx < 0 && hoverHighlight) {
+          return best;
+        };
+        var findHit = findHit2;
+        const rml = ref.ml;
+        ref.canvas.addEventListener("mousemove", (e) => {
+          const cRect = ref.canvas.getBoundingClientRect();
+          const mx = e.clientX - cRect.left;
+          const my = e.clientY - cRect.top;
+          if (mx < rml || mx > rml + N || my < MT || my > MT + N) {
+            tooltip.style.display = "none";
+            return;
+          }
+          const best = findHit2(mx, my);
+          if (best >= 0) {
+            ref.canvas.style.cursor = "pointer";
+            if (_getPinned() < 0) {
+              applyCanvasHighlight(best);
+              redrawAllDots();
+              hoverHighlight = true;
+            }
+            tooltip.innerHTML = buildPointTooltipHtml(predictor, dotData[best].idx, outcome);
+            tooltip.style.display = "block";
+            positionTooltip(tooltip, e.clientX, e.clientY);
+          } else {
+            ref.canvas.style.cursor = "crosshair";
+            if (_getPinned() < 0 && hoverHighlight) {
+              clearCanvasHighlight();
+              redrawAllDots();
+              hoverHighlight = false;
+            }
+            const xVal = xlo + (mx - rml) / N * (xhi - xlo);
+            const yVal = yhi - (my - MT) / N * (yhi - ylo);
+            const gi = Math.round((mx - rml) / N * (gridSize - 1));
+            const gj = Math.round((my - MT) / N * (gridSize - 1));
+            const idx = Math.max(0, Math.min(gridSize - 1, gj)) * gridSize + Math.max(0, Math.min(gridSize - 1, gi));
+            const mu = means[idx] ?? 0;
+            const s = stds[idx] ?? 0;
+            tooltip.innerHTML = `<b>${names[dimX]}</b>: ${xVal.toFixed(4)}<br><b>${names[dimY]}</b>: ${yVal.toFixed(4)}<br>\u03BC = ${mu.toFixed(4)}<br>\u03C3 = ${s.toFixed(4)}`;
+            tooltip.style.display = "block";
+            positionTooltip(tooltip, e.clientX, e.clientY);
+          }
+        });
+        ref.canvas.addEventListener("click", (e) => {
+          const cRect = ref.canvas.getBoundingClientRect();
+          const mx = e.clientX - cRect.left;
+          const my = e.clientY - cRect.top;
+          const best = findHit2(mx, my);
+          if (best >= 0) {
+            const hitTrainIdx = dotData[best].idx;
+            if (_getPinned() === hitTrainIdx) {
+              _setPinned(-1);
+              clearCanvasHighlight();
+            } else {
+              _setPinned(hitTrainIdx);
+              applyCanvasHighlight(best);
+              if (onSnapToPoint) {
+                onSnapToPoint(dotData[best].pt);
+                return;
+              }
+            }
+          } else {
+            if (_getPinned() >= 0) {
+              _setPinned(-1);
+              clearCanvasHighlight();
+            }
+          }
+          redrawAllDots();
+          hoverHighlight = false;
+        });
+        ref.canvas.addEventListener("mouseleave", () => {
+          ref.canvas.style.cursor = "crosshair";
+          tooltip.style.display = "none";
+          if (_getPinned() < 0 && hoverHighlight) {
             clearCanvasHighlight();
-            redrawDots();
+            redrawAllDots();
             hoverHighlight = false;
           }
-          const xVal = xlo + (mx - ML) / N * (xhi - xlo);
-          const yVal = yhi - (my - MT) / N * (yhi - ylo);
-          const gi = Math.round((mx - ML) / N * (gridSize - 1));
-          const gj = Math.round((my - MT) / N * (gridSize - 1));
-          const idx = Math.max(0, Math.min(gridSize - 1, gj)) * gridSize + Math.max(0, Math.min(gridSize - 1, gi));
-          const predVal = means[idx] ?? 0;
-          tooltip.innerHTML = `<b>${names[dimX]}</b>: ${xVal.toFixed(4)}<br><b>${names[dimY]}</b>: ${yVal.toFixed(4)}<br>Predicted: ${predVal.toFixed(4)}`;
-          tooltip.style.display = "block";
-          positionTooltip(tooltip, tooltipContainer, e.clientX, e.clientY);
-        }
-      });
-      canvas.addEventListener("click", (e) => {
-        const cRect = canvas.getBoundingClientRect();
-        const mx = e.clientX - cRect.left;
-        const my = e.clientY - cRect.top;
-        const hitIdx = findNearestCanvasDot(mx, my);
-        if (hitIdx >= 0) {
-          const hitTrainIdx = canvasDots[hitIdx].idx;
-          if (rsPinnedIdx === hitTrainIdx) {
-            rsPinnedIdx = -1;
-            clearCanvasHighlight();
-          } else {
-            rsPinnedIdx = hitTrainIdx;
-            applyCanvasHighlight(hitIdx);
-          }
-        } else {
-          if (rsPinnedIdx >= 0) {
-            rsPinnedIdx = -1;
-            clearCanvasHighlight();
-          }
-        }
-        redrawDots();
-        hoverHighlight = false;
-      });
-      canvas.addEventListener("mouseleave", () => {
-        canvas.style.cursor = "crosshair";
-        tooltip.style.display = "none";
-        if (rsPinnedIdx < 0 && hoverHighlight) {
-          clearCanvasHighlight();
-          redrawDots();
-          hoverHighlight = false;
-        }
-      });
-    }
-    target.appendChild(canvas);
-    const cbRow = document.createElement("div");
-    cbRow.style.display = "flex";
-    cbRow.style.alignItems = "center";
-    cbRow.style.gap = "6px";
-    cbRow.style.marginTop = "4px";
-    cbRow.style.paddingLeft = ML + "px";
-    cbRow.style.width = N + ML + "px";
-    const cbLo = document.createElement("span");
-    cbLo.style.fontSize = "11px";
-    cbLo.style.color = "#666";
-    cbLo.style.minWidth = "40px";
-    cbLo.textContent = meanMin.toFixed(2);
-    const cbCanvas = document.createElement("canvas");
-    cbCanvas.style.flex = "1";
-    cbCanvas.style.height = "14px";
-    cbCanvas.style.borderRadius = "3px";
-    cbCanvas.height = 14;
-    cbCanvas.width = N;
-    const cbCtx = cbCanvas.getContext("2d");
-    if (cbCtx) {
-      for (let i = 0; i < N; i++) {
-        const rgb = viridis(i / N);
-        cbCtx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
-        cbCtx.fillRect(i, 0, 1, 14);
+        });
       }
     }
-    const cbHi = document.createElement("span");
-    cbHi.style.fontSize = "11px";
-    cbHi.style.color = "#666";
-    cbHi.style.minWidth = "40px";
-    cbHi.style.textAlign = "right";
-    cbHi.textContent = meanMax.toFixed(2);
-    cbRow.appendChild(cbLo);
-    cbRow.appendChild(cbCanvas);
-    cbRow.appendChild(cbHi);
-    target.appendChild(cbRow);
+    target.appendChild(panelWrap);
   }
   return __toCommonJS(viz_exports);
 })();
@@ -3803,67 +4287,20 @@ var __DEFAULT_FIXTURE__ = {
     "search_space": {
       "parameters": [
         {
-          "name": "culture_volume",
+          "name": "x0",
           "type": "range",
           "bounds": [
-            60.0,
-            120.0
-          ],
-          "parameter_type": "float"
+            0.0,
+            1.0
+          ]
         },
         {
-          "name": "bioreactor_vol",
+          "name": "x1",
           "type": "range",
           "bounds": [
-            0.05,
-            18.0
-          ],
-          "parameter_type": "float"
-        },
-        {
-          "name": "culture_temp",
-          "type": "range",
-          "bounds": [
-            293.0,
-            303.0
-          ],
-          "parameter_type": "float"
-        },
-        {
-          "name": "aeration_rate",
-          "type": "range",
-          "bounds": [
-            0.05,
-            18.0
-          ],
-          "parameter_type": "float"
-        },
-        {
-          "name": "agitator_power",
-          "type": "range",
-          "bounds": [
-            0.01,
-            0.5
-          ],
-          "parameter_type": "float"
-        },
-        {
-          "name": "substrate_feed_conc",
-          "type": "range",
-          "bounds": [
-            500.0,
-            700.0
-          ],
-          "parameter_type": "float"
-        },
-        {
-          "name": "substrate_feed_rate",
-          "type": "range",
-          "bounds": [
-            5.0,
-            6.5
-          ],
-          "parameter_type": "float"
+            0.0,
+            1.0
+          ]
         }
       ]
     },
@@ -3871,1931 +4308,258 @@ var __DEFAULT_FIXTURE__ = {
       "model_type": "ModelListGP",
       "outcome_names": [
         "y0",
-        "y1",
-        "y2"
+        "y1"
       ],
       "models": [
         {
           "model_type": "SingleTaskGP",
           "train_X": [
             [
-              90.0,
-              9.025,
-              298.0,
-              9.025,
-              0.255,
-              600.0,
-              5.75
+              0.8200685627383052,
+              0.9420553524357094
             ],
             [
-              66.25801088288426,
-              12.335324419522658,
-              300.51322949305177,
-              15.90226907506585,
-              0.1971506217867136,
-              504.7986911609769,
-              5.515919690951705
+              0.39567360581246724,
+              0.30361943636500466
             ],
             [
-              102.07989513874054,
-              5.973184563731774,
-              293.3644657507539,
-              6.646111942548305,
-              0.2883910004422069,
-              695.6671725958586,
-              5.784760326612741
+              0.08615444342209266,
+              0.5157911283161187
             ],
             [
-              109.39854780212045,
-              14.181004816200584,
-              298.9259326197207,
-              9.927023949334398,
-              0.4773574133682996,
-              640.7828005030751,
-              5.322175104636699
+              0.926870574745141,
+              0.505862592242148
             ],
             [
-              89.0602046996355,
-              3.6103920156136153,
-              296.6996569111943,
-              3.475561739271506,
-              0.01882813767530024,
-              556.5548207610846,
-              6.377647655084729
+              0.7748563060581313,
+              0.48824341359565027
             ],
             [
-              107.99521075540657,
-              5.807055624991278,
-              293.0,
-              6.046802002953758,
-              0.18662710369866792,
-              700.0,
-              6.5
+              0.015028417247688775,
+              0.6053746859563036
             ],
             [
-              60.0,
-              3.6425934545839627,
-              293.0,
-              8.623347877917992,
-              0.5,
-              700.0,
-              5.0
+              0.2761913916049854,
+              0.09549082065376724
             ],
             [
-              120.0,
-              7.003577371374231,
-              293.0,
-              3.590081144550625,
-              0.5,
-              700.0,
-              5.0
+              0.2873179905477079,
+              0.9405416762243727
             ],
             [
-              105.77580245900036,
-              5.024726250563749,
-              293.0,
-              10.39785320008446,
-              0.01,
-              700.0,
-              5.0
+              0.5899781848178907,
+              0.668168378622126
             ],
             [
-              60.0,
-              9.67653926885379,
-              295.3254406615641,
-              5.488245656435147,
-              0.01,
-              700.0,
-              5.0
+              0.237684018618189,
+              0.2945110570886321
             ],
             [
-              120.0,
-              0.05,
-              293.0,
-              9.296489622615308,
-              0.5,
-              700.0,
-              5.0
+              0.5449827507525005,
+              0.0019360364100490246
             ],
             [
-              60.0,
-              18.0,
-              293.0,
-              0.05,
-              0.3786607955234735,
-              500.0,
-              6.5
+              0.9110819659531877,
+              0.1250225536511227
             ],
             [
-              60.0,
-              18.0,
-              293.0,
-              18.0,
-              0.3845535867896108,
-              700.0,
-              5.0
+              0.6295342516452229,
+              0.5758733596534695
             ],
             [
-              60.0,
-              18.0,
-              293.0,
-              18.0,
-              0.07161020252552437,
-              700.0,
-              6.5
+              0.8376571341321497,
+              0.5663894198887092
             ],
             [
-              60.0,
-              0.05,
-              293.0,
-              18.0,
-              0.354721546415329,
-              500.0,
-              5.0
+              0.43552681671720284,
+              0.4123640352834317
             ],
             [
-              60.0,
-              18.0,
-              293.0,
-              0.05,
-              0.5,
-              500.0,
-              6.5
+              0.5601487840786474,
+              0.2572539060863216
             ],
             [
-              60.0,
-              18.0,
-              293.0,
-              18.0,
-              0.44305431821267705,
-              700.0,
-              6.5
+              0.3693104066357912,
+              0.43007071601477365
             ],
             [
-              95.57359668360213,
-              0.05,
-              293.0,
-              18.0,
-              0.2731956383031798,
-              500.0,
-              6.5
+              0.6506044252534554,
+              0.7150284958775023
             ],
             [
-              120.0,
-              18.0,
-              293.0,
-              0.05,
-              0.2826500747886887,
-              500.0,
-              5.0
+              0.4349193727918549,
+              0.8041915732805467
             ],
             [
-              60.0,
-              18.0,
-              293.0,
-              0.05,
-              0.4543568366134556,
-              500.0,
-              5.0
-            ],
-            [
-              60.0,
-              0.05,
-              293.0,
-              18.0,
-              0.25621954778847894,
-              700.0,
-              5.0
-            ],
-            [
-              60.0,
-              0.05,
-              293.0,
-              18.0,
-              0.4013421787877121,
-              500.0,
-              5.0
-            ],
-            [
-              60.0,
-              18.0,
-              303.0,
-              18.0,
-              0.290618474244211,
-              700.0,
-              5.0
-            ],
-            [
-              120.0,
-              18.0,
-              303.0,
-              18.0,
-              0.06800773462422971,
-              500.0,
-              5.0
-            ],
-            [
-              60.0,
-              18.0,
-              303.0,
-              18.0,
-              0.3754863763103625,
-              500.0,
-              5.0
-            ],
-            [
-              60.0,
-              18.0,
-              303.0,
-              18.0,
-              0.01,
-              500.0,
-              5.0
-            ],
-            [
-              120.0,
-              18.0,
-              293.0,
-              0.05,
-              0.09546785869417626,
-              695.9195882799022,
-              5.0
-            ],
-            [
-              60.0,
-              0.05,
-              293.0,
-              0.05,
-              0.41390683206112155,
-              500.0,
-              5.0
-            ],
-            [
-              60.0,
-              0.05,
-              293.0,
-              0.05,
-              0.3951627927063143,
-              602.7678383174219,
-              5.0
-            ],
-            [
-              60.0,
-              0.05,
-              293.0,
-              0.05,
-              0.5,
-              572.0434147313761,
-              5.0
-            ],
-            [
-              60.0,
-              0.05,
-              293.0,
-              0.05,
-              0.5,
-              647.6861820144753,
-              6.5
+              0.8677972469516426,
+              0.9929819628798723
             ]
           ],
           "train_Y": [
-            0.6626469174721036,
-            0.44567585471485066,
-            0.9179069913041659,
-            0.6817914230095082,
-            -1.302855651034776,
-            0.9115254894583643,
-            0.988103511607983,
-            0.9944850134537846,
-            -1.2773296436515695,
-            -1.3092371528805775,
-            0.7966584562339363,
-            0.7647509470049285,
-            0.9434329986873721,
-            0.5094908731728662,
-            0.6052134008598896,
-            -1.3220001565721806,
-            0.8987624857667612,
-            0.6179764045514927,
-            0.6945544267011114,
-            -1.3220001565721806,
-            0.7456064414675239,
-            0.6052134008598896,
-            0.5924503971682865,
-            -1.3092371528805775,
-            0.4775833639438585,
-            -1.3092371528805775,
-            0.5988318990140881,
-            -1.3220001565721806,
-            -1.3220001565721806,
-            -1.3283816584179822,
-            -1.3283816584179822
+            2.417533947331153,
+            -0.8071815310983832,
+            -0.387096277369836,
+            -0.4860300697437087,
+            0.009819124620595197,
+            0.18255939574055202,
+            -0.08527948936686118,
+            0.17046457341799834,
+            0.265173705828378,
+            -0.5593647209024922,
+            -1.0101194570476004,
+            -1.0551358051752746,
+            0.03390516142898968,
+            0.13286949111698504,
+            -0.8062520784904343,
+            -1.038450025845417,
+            -0.7259885527036323,
+            0.8089657822163525,
+            0.40163887534370085,
+            2.5379679506989365
           ],
           "kernel": {
             "type": "RBF",
             "lengthscale": [
-              0.7959790476719103,
-              9.21522871256529,
-              4.150762845107154,
-              0.41352725836030385,
-              0.2942413316802057,
-              4.594858693546314,
-              0.7783656229580853
+              0.20880184093093848,
+              0.4788182614876796
             ]
           },
-          "mean_constant": -0.10382896167225356,
-          "noise_variance": 0.003736900551670383,
-          "input_transform": {
-            "offset": [
-              60.0,
-              0.05,
-              293.0,
-              0.05,
-              0.01,
-              500.0,
-              5.0
-            ],
-            "coefficient": [
-              60.0,
-              17.95,
-              10.0,
-              17.95,
-              0.49,
-              200.0,
-              1.5
-            ]
+          "mean_constant": 0.5201623137768343,
+          "noise_variance": 0.002384230544046459,
+          "outcome_transform": {
+            "type": "Standardize",
+            "mean": 56.96601878813715,
+            "std": 51.11607864012407
           }
         },
         {
           "model_type": "SingleTaskGP",
           "train_X": [
             [
-              90.0,
-              9.025,
-              298.0,
-              9.025,
-              0.255,
-              600.0,
-              5.75
+              0.8200685627383052,
+              0.9420553524357094
             ],
             [
-              66.25801088288426,
-              12.335324419522658,
-              300.51322949305177,
-              15.90226907506585,
-              0.1971506217867136,
-              504.7986911609769,
-              5.515919690951705
+              0.39567360581246724,
+              0.30361943636500466
             ],
             [
-              102.07989513874054,
-              5.973184563731774,
-              293.3644657507539,
-              6.646111942548305,
-              0.2883910004422069,
-              695.6671725958586,
-              5.784760326612741
+              0.08615444342209266,
+              0.5157911283161187
             ],
             [
-              109.39854780212045,
-              14.181004816200584,
-              298.9259326197207,
-              9.927023949334398,
-              0.4773574133682996,
-              640.7828005030751,
-              5.322175104636699
+              0.926870574745141,
+              0.505862592242148
             ],
             [
-              89.0602046996355,
-              3.6103920156136153,
-              296.6996569111943,
-              3.475561739271506,
-              0.01882813767530024,
-              556.5548207610846,
-              6.377647655084729
+              0.7748563060581313,
+              0.48824341359565027
             ],
             [
-              107.99521075540657,
-              5.807055624991278,
-              293.0,
-              6.046802002953758,
-              0.18662710369866792,
-              700.0,
-              6.5
+              0.015028417247688775,
+              0.6053746859563036
             ],
             [
-              60.0,
-              3.6425934545839627,
-              293.0,
-              8.623347877917992,
-              0.5,
-              700.0,
-              5.0
+              0.2761913916049854,
+              0.09549082065376724
             ],
             [
-              120.0,
-              7.003577371374231,
-              293.0,
-              3.590081144550625,
-              0.5,
-              700.0,
-              5.0
+              0.2873179905477079,
+              0.9405416762243727
             ],
             [
-              105.77580245900036,
-              5.024726250563749,
-              293.0,
-              10.39785320008446,
-              0.01,
-              700.0,
-              5.0
+              0.5899781848178907,
+              0.668168378622126
             ],
             [
-              60.0,
-              9.67653926885379,
-              295.3254406615641,
-              5.488245656435147,
-              0.01,
-              700.0,
-              5.0
+              0.237684018618189,
+              0.2945110570886321
             ],
             [
-              120.0,
-              0.05,
-              293.0,
-              9.296489622615308,
-              0.5,
-              700.0,
-              5.0
+              0.5449827507525005,
+              0.0019360364100490246
             ],
             [
-              60.0,
-              18.0,
-              293.0,
-              0.05,
-              0.3786607955234735,
-              500.0,
-              6.5
+              0.9110819659531877,
+              0.1250225536511227
             ],
             [
-              60.0,
-              18.0,
-              293.0,
-              18.0,
-              0.3845535867896108,
-              700.0,
-              5.0
+              0.6295342516452229,
+              0.5758733596534695
             ],
             [
-              60.0,
-              18.0,
-              293.0,
-              18.0,
-              0.07161020252552437,
-              700.0,
-              6.5
+              0.8376571341321497,
+              0.5663894198887092
             ],
             [
-              60.0,
-              0.05,
-              293.0,
-              18.0,
-              0.354721546415329,
-              500.0,
-              5.0
+              0.43552681671720284,
+              0.4123640352834317
             ],
             [
-              60.0,
-              18.0,
-              293.0,
-              0.05,
-              0.5,
-              500.0,
-              6.5
+              0.5601487840786474,
+              0.2572539060863216
             ],
             [
-              60.0,
-              18.0,
-              293.0,
-              18.0,
-              0.44305431821267705,
-              700.0,
-              6.5
+              0.3693104066357912,
+              0.43007071601477365
             ],
             [
-              95.57359668360213,
-              0.05,
-              293.0,
-              18.0,
-              0.2731956383031798,
-              500.0,
-              6.5
+              0.6506044252534554,
+              0.7150284958775023
             ],
             [
-              120.0,
-              18.0,
-              293.0,
-              0.05,
-              0.2826500747886887,
-              500.0,
-              5.0
+              0.4349193727918549,
+              0.8041915732805467
             ],
             [
-              60.0,
-              18.0,
-              293.0,
-              0.05,
-              0.4543568366134556,
-              500.0,
-              5.0
-            ],
-            [
-              60.0,
-              0.05,
-              293.0,
-              18.0,
-              0.25621954778847894,
-              700.0,
-              5.0
-            ],
-            [
-              60.0,
-              0.05,
-              293.0,
-              18.0,
-              0.4013421787877121,
-              500.0,
-              5.0
-            ],
-            [
-              60.0,
-              18.0,
-              303.0,
-              18.0,
-              0.290618474244211,
-              700.0,
-              5.0
-            ],
-            [
-              120.0,
-              18.0,
-              303.0,
-              18.0,
-              0.06800773462422971,
-              500.0,
-              5.0
-            ],
-            [
-              60.0,
-              18.0,
-              303.0,
-              18.0,
-              0.3754863763103625,
-              500.0,
-              5.0
-            ],
-            [
-              60.0,
-              18.0,
-              303.0,
-              18.0,
-              0.01,
-              500.0,
-              5.0
-            ],
-            [
-              120.0,
-              18.0,
-              293.0,
-              0.05,
-              0.09546785869417626,
-              695.9195882799022,
-              5.0
-            ],
-            [
-              60.0,
-              0.05,
-              293.0,
-              0.05,
-              0.41390683206112155,
-              500.0,
-              5.0
-            ],
-            [
-              60.0,
-              0.05,
-              293.0,
-              0.05,
-              0.3951627927063143,
-              602.7678383174219,
-              5.0
-            ],
-            [
-              60.0,
-              0.05,
-              293.0,
-              0.05,
-              0.5,
-              572.0434147313761,
-              5.0
-            ],
-            [
-              60.0,
-              0.05,
-              293.0,
-              0.05,
-              0.5,
-              647.6861820144753,
-              6.5
+              0.8677972469516426,
+              0.9929819628798723
             ]
           ],
           "train_Y": [
-            0.1934838552224356,
-            -0.28369463747807,
-            1.116319481032189,
-            0.27213115028594764,
-            -1.2093335791866913,
-            1.1197002397691702,
-            1.283273488511005,
-            1.2384310776477019,
-            -1.1929303830905877,
-            -1.2047306324401992,
-            1.24665484465894,
-            0.43481260916887193,
-            1.2102051159162048,
-            0.7605889645871718,
-            0.5129987946912955,
-            -1.2068604648247587,
-            1.1946668618195129,
-            0.4316866237289136,
-            0.36148880013817564,
-            -1.208222465341889,
-            1.2420195536654552,
-            0.5208752754423878,
-            0.057946184406460446,
-            -1.178572147328038,
-            -0.3247675975184818,
-            -1.179864511744351,
-            0.664274274584105,
-            -1.2181326996577215,
-            -1.2181324497716348,
-            -1.2181604775359856,
-            -1.2181551493575418
+            -1.118517998615029,
+            0.9358431705809371,
+            -0.30920505048726177,
+            -0.3610410636569641,
+            -0.25220461991613946,
+            -1.7303799310706574,
+            2.126085663978989,
+            -0.6733834538774979,
+            -0.5517475872083151,
+            1.3365422281340253,
+            1.404834012734943,
+            0.9274117366511891,
+            -0.3780137767292115,
+            -0.48298587598670845,
+            0.3901509145020181,
+            0.8004178299859784,
+            0.46134584688592745,
+            -0.694107273210071,
+            -0.640582407754711,
+            -1.1904623649414419
           ],
           "kernel": {
             "type": "RBF",
             "lengthscale": [
-              3.051316085038947,
-              4.834582085511881,
-              0.715319759377925,
-              0.2184177173744687,
-              0.2894032911495904,
-              2.1068444739123913,
-              1.0979239779465613
+              0.44570675698898765,
+              0.19576062826897703
             ]
           },
-          "mean_constant": 0.019053918802748107,
-          "noise_variance": 0.004974090369967107,
-          "input_transform": {
-            "offset": [
-              60.0,
-              0.05,
-              293.0,
-              0.05,
-              0.01,
-              500.0,
-              5.0
-            ],
-            "coefficient": [
-              60.0,
-              17.95,
-              10.0,
-              17.95,
-              0.49,
-              200.0,
-              1.5
-            ]
-          }
-        },
-        {
-          "model_type": "SingleTaskGP",
-          "train_X": [
-            [
-              90.0,
-              9.025,
-              298.0,
-              9.025,
-              0.255,
-              600.0,
-              5.75
-            ],
-            [
-              66.25801088288426,
-              12.335324419522658,
-              300.51322949305177,
-              15.90226907506585,
-              0.1971506217867136,
-              504.7986911609769,
-              5.515919690951705
-            ],
-            [
-              102.07989513874054,
-              5.973184563731774,
-              293.3644657507539,
-              6.646111942548305,
-              0.2883910004422069,
-              695.6671725958586,
-              5.784760326612741
-            ],
-            [
-              109.39854780212045,
-              14.181004816200584,
-              298.9259326197207,
-              9.927023949334398,
-              0.4773574133682996,
-              640.7828005030751,
-              5.322175104636699
-            ],
-            [
-              89.0602046996355,
-              3.6103920156136153,
-              296.6996569111943,
-              3.475561739271506,
-              0.01882813767530024,
-              556.5548207610846,
-              6.377647655084729
-            ],
-            [
-              107.99521075540657,
-              5.807055624991278,
-              293.0,
-              6.046802002953758,
-              0.18662710369866792,
-              700.0,
-              6.5
-            ],
-            [
-              60.0,
-              3.6425934545839627,
-              293.0,
-              8.623347877917992,
-              0.5,
-              700.0,
-              5.0
-            ],
-            [
-              120.0,
-              7.003577371374231,
-              293.0,
-              3.590081144550625,
-              0.5,
-              700.0,
-              5.0
-            ],
-            [
-              105.77580245900036,
-              5.024726250563749,
-              293.0,
-              10.39785320008446,
-              0.01,
-              700.0,
-              5.0
-            ],
-            [
-              60.0,
-              9.67653926885379,
-              295.3254406615641,
-              5.488245656435147,
-              0.01,
-              700.0,
-              5.0
-            ],
-            [
-              120.0,
-              0.05,
-              293.0,
-              9.296489622615308,
-              0.5,
-              700.0,
-              5.0
-            ],
-            [
-              60.0,
-              18.0,
-              293.0,
-              0.05,
-              0.3786607955234735,
-              500.0,
-              6.5
-            ],
-            [
-              60.0,
-              18.0,
-              293.0,
-              18.0,
-              0.3845535867896108,
-              700.0,
-              5.0
-            ],
-            [
-              60.0,
-              18.0,
-              293.0,
-              18.0,
-              0.07161020252552437,
-              700.0,
-              6.5
-            ],
-            [
-              60.0,
-              0.05,
-              293.0,
-              18.0,
-              0.354721546415329,
-              500.0,
-              5.0
-            ],
-            [
-              60.0,
-              18.0,
-              293.0,
-              0.05,
-              0.5,
-              500.0,
-              6.5
-            ],
-            [
-              60.0,
-              18.0,
-              293.0,
-              18.0,
-              0.44305431821267705,
-              700.0,
-              6.5
-            ],
-            [
-              95.57359668360213,
-              0.05,
-              293.0,
-              18.0,
-              0.2731956383031798,
-              500.0,
-              6.5
-            ],
-            [
-              120.0,
-              18.0,
-              293.0,
-              0.05,
-              0.2826500747886887,
-              500.0,
-              5.0
-            ],
-            [
-              60.0,
-              18.0,
-              293.0,
-              0.05,
-              0.4543568366134556,
-              500.0,
-              5.0
-            ],
-            [
-              60.0,
-              0.05,
-              293.0,
-              18.0,
-              0.25621954778847894,
-              700.0,
-              5.0
-            ],
-            [
-              60.0,
-              0.05,
-              293.0,
-              18.0,
-              0.4013421787877121,
-              500.0,
-              5.0
-            ],
-            [
-              60.0,
-              18.0,
-              303.0,
-              18.0,
-              0.290618474244211,
-              700.0,
-              5.0
-            ],
-            [
-              120.0,
-              18.0,
-              303.0,
-              18.0,
-              0.06800773462422971,
-              500.0,
-              5.0
-            ],
-            [
-              60.0,
-              18.0,
-              303.0,
-              18.0,
-              0.3754863763103625,
-              500.0,
-              5.0
-            ],
-            [
-              60.0,
-              18.0,
-              303.0,
-              18.0,
-              0.01,
-              500.0,
-              5.0
-            ],
-            [
-              120.0,
-              18.0,
-              293.0,
-              0.05,
-              0.09546785869417626,
-              695.9195882799022,
-              5.0
-            ],
-            [
-              60.0,
-              0.05,
-              293.0,
-              0.05,
-              0.41390683206112155,
-              500.0,
-              5.0
-            ],
-            [
-              60.0,
-              0.05,
-              293.0,
-              0.05,
-              0.3951627927063143,
-              602.7678383174219,
-              5.0
-            ],
-            [
-              60.0,
-              0.05,
-              293.0,
-              0.05,
-              0.5,
-              572.0434147313761,
-              5.0
-            ],
-            [
-              60.0,
-              0.05,
-              293.0,
-              0.05,
-              0.5,
-              647.6861820144753,
-              6.5
-            ]
-          ],
-          "train_Y": [
-            -0.5702396930150168,
-            -0.3342298007616162,
-            -0.8793581134239038,
-            -0.6206446094809257,
-            1.2977460415181588,
-            -1.1674072106615092,
-            -0.9203493516413142,
-            -1.0344140979235967,
-            1.2990379781968384,
-            1.2916479771983944,
-            -1.0526474501118854,
-            -0.6060220909544075,
-            -0.8767602450204809,
-            -0.8885064971769321,
-            -0.41333867728779666,
-            1.2912585403282402,
-            -0.9662504377954358,
-            -0.6310719126970218,
-            -0.5879640140794549,
-            1.2911839737796709,
-            -0.7454953418162489,
-            -0.5525624166790838,
-            -0.42748656338644236,
-            1.2994887903915675,
-            -0.20492390290181997,
-            1.2988517999625666,
-            -0.7951403243782078,
-            1.3013992606350897,
-            1.3013994921362462,
-            1.3013993992500974,
-            1.3013994977962373
-          ],
-          "kernel": {
-            "type": "RBF",
-            "lengthscale": [
-              0.8520742741697862,
-              8.710153381705297,
-              3.0022106685617698,
-              0.4485751558379074,
-              0.28613503512036614,
-              3.732628362239209,
-              0.79476144945249
-            ]
-          },
-          "mean_constant": -0.013501176035675572,
-          "noise_variance": 0.003981050483355388,
-          "input_transform": {
-            "offset": [
-              60.0,
-              0.05,
-              293.0,
-              0.05,
-              0.01,
-              500.0,
-              5.0
-            ],
-            "coefficient": [
-              60.0,
-              17.95,
-              10.0,
-              17.95,
-              0.49,
-              200.0,
-              1.5
-            ]
+          "mean_constant": -0.2405477762558092,
+          "noise_variance": 0.002497119099917537,
+          "outcome_transform": {
+            "type": "Standardize",
+            "mean": 7.457975287188764,
+            "std": 2.830385999070368
           }
         }
       ]
     },
-    "name": "penicillin_modellist",
+    "name": "branincurrin_modellist",
+    "description": "BraninCurrin 2D, ModelListGP with 2 outcomes",
     "outcome_names": [
-      "penicillin_yield",
-      "fermentation_time",
-      "CO2_byproduct"
-    ],
-    "adapter_transforms": [
-      {
-        "type": "StandardizeY",
-        "Ymean": {
-          "CO2_byproduct": 210.16129032258064,
-          "fermentation_time": 40.593467792629276,
-          "penicillin_yield": -7.640781324164633
-        },
-        "Ystd": {
-          "CO2_byproduct": 156.70292419611354,
-          "fermentation_time": 33.322341340145435,
-          "penicillin_yield": 5.871076479245199
-        }
-      }
-    ],
-    "optimization_config": {
-      "objectives": [
-        {
-          "name": "penicillin_yield",
-          "minimize": false
-        },
-        {
-          "name": "fermentation_time",
-          "minimize": false
-        },
-        {
-          "name": "CO2_byproduct",
-          "minimize": false
-        }
-      ]
-    },
-    "observations": [
-      {
-        "arm_name": "0_0",
-        "parameters": {
-          "culture_volume": 90.0,
-          "bioreactor_vol": 9.025,
-          "culture_temp": 298.0,
-          "aeration_rate": 9.025,
-          "agitator_power": 0.255,
-          "substrate_feed_conc": 600.0,
-          "substrate_feed_rate": 5.75
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 314.0
-          },
-          "fermentation_time": {
-            "mean": 47.04080286015856
-          },
-          "penicillin_yield": {
-            "mean": -10.988702173357101
-          }
-        }
-      },
-      {
-        "arm_name": "10_0",
-        "parameters": {
-          "culture_volume": 120.0,
-          "bioreactor_vol": 0.05,
-          "culture_temp": 293.0,
-          "aeration_rate": 9.296489622615306,
-          "agitator_power": 0.5,
-          "substrate_feed_conc": 700.0,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 335.0
-          },
-          "fermentation_time": {
-            "mean": 82.13492605970046
-          },
-          "penicillin_yield": {
-            "mean": -13.820955009453957
-          }
-        }
-      },
-      {
-        "arm_name": "11_0",
-        "parameters": {
-          "culture_volume": 60.0,
-          "bioreactor_vol": 18.0,
-          "culture_temp": 293.0,
-          "aeration_rate": 0.05,
-          "agitator_power": 0.3786607955234735,
-          "substrate_feed_conc": 500.0,
-          "substrate_feed_rate": 6.5
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 330.0
-          },
-          "fermentation_time": {
-            "mean": 55.08244197435368
-          },
-          "penicillin_yield": {
-            "mean": -11.19878336827005
-          }
-        }
-      },
-      {
-        "arm_name": "12_0",
-        "parameters": {
-          "culture_volume": 60.0,
-          "bioreactor_vol": 18.0,
-          "culture_temp": 293.0,
-          "aeration_rate": 18.0,
-          "agitator_power": 0.3845535867896108,
-          "substrate_feed_conc": 700.0,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 358.0
-          },
-          "fermentation_time": {
-            "mean": 80.92033575677932
-          },
-          "penicillin_yield": {
-            "mean": -12.788307776641636
-          }
-        }
-      },
-      {
-        "arm_name": "13_0",
-        "parameters": {
-          "culture_volume": 60.0,
-          "bioreactor_vol": 18.0,
-          "culture_temp": 293.0,
-          "aeration_rate": 18.0,
-          "agitator_power": 0.07161020252552437,
-          "substrate_feed_conc": 700.0,
-          "substrate_feed_rate": 6.5
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 290.0
-          },
-          "fermentation_time": {
-            "mean": 65.9380728901508
-          },
-          "penicillin_yield": {
-            "mean": -12.85727092139666
-          }
-        }
-      },
-      {
-        "arm_name": "14_0",
-        "parameters": {
-          "culture_volume": 60.0,
-          "bioreactor_vol": 0.05,
-          "culture_temp": 293.0,
-          "aeration_rate": 18.0,
-          "agitator_power": 0.354721546415329,
-          "substrate_feed_conc": 500.0,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 305.0
-          },
-          "fermentation_time": {
-            "mean": 57.68778873641581
-          },
-          "penicillin_yield": {
-            "mean": -10.067524310351338
-          }
-        }
-      },
-      {
-        "arm_name": "15_0",
-        "parameters": {
-          "culture_volume": 60.0,
-          "bioreactor_vol": 18.0,
-          "culture_temp": 293.0,
-          "aeration_rate": 0.05,
-          "agitator_power": 0.5,
-          "substrate_feed_conc": 500.0,
-          "substrate_feed_rate": 6.5
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 3.0
-          },
-          "fermentation_time": {
-            "mean": 0.3780514338120844
-          },
-          "penicillin_yield": {
-            "mean": -0.05970367941901477
-          }
-        }
-      },
-      {
-        "arm_name": "16_0",
-        "parameters": {
-          "culture_volume": 60.0,
-          "bioreactor_vol": 18.0,
-          "culture_temp": 293.0,
-          "aeration_rate": 18.0,
-          "agitator_power": 0.44305431821267705,
-          "substrate_feed_conc": 700.0,
-          "substrate_feed_rate": 6.5
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 351.0
-          },
-          "fermentation_time": {
-            "mean": 80.40256474993944
-          },
-          "penicillin_yield": {
-            "mean": -13.313711542565793
-          }
-        }
-      },
-      {
-        "arm_name": "17_0",
-        "parameters": {
-          "culture_volume": 95.57359668360213,
-          "bioreactor_vol": 0.05,
-          "culture_temp": 293.0,
-          "aeration_rate": 18.0,
-          "agitator_power": 0.2731956383031798,
-          "substrate_feed_conc": 500.0,
-          "substrate_feed_rate": 6.5
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 307.0
-          },
-          "fermentation_time": {
-            "mean": 54.97827682049906
-          },
-          "penicillin_yield": {
-            "mean": -11.345852787512397
-          }
-        }
-      },
-      {
-        "arm_name": "18_0",
-        "parameters": {
-          "culture_volume": 120.0,
-          "bioreactor_vol": 18.0,
-          "culture_temp": 293.0,
-          "aeration_rate": 0.05,
-          "agitator_power": 0.2826500747886887,
-          "substrate_feed_conc": 500.0,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 319.0
-          },
-          "fermentation_time": {
-            "mean": 52.63912098147318
-          },
-          "penicillin_yield": {
-            "mean": -11.092763017869114
-          }
-        }
-      },
-      {
-        "arm_name": "19_0",
-        "parameters": {
-          "culture_volume": 60.0,
-          "bioreactor_vol": 18.0,
-          "culture_temp": 293.0,
-          "aeration_rate": 0.05,
-          "agitator_power": 0.4543568366134556,
-          "substrate_feed_conc": 500.0,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 3.0
-          },
-          "fermentation_time": {
-            "mean": 0.3326663876748145
-          },
-          "penicillin_yield": {
-            "mean": -0.06014146532845794
-          }
-        }
-      },
-      {
-        "arm_name": "1_0",
-        "parameters": {
-          "culture_volume": 66.25801088288426,
-          "bioreactor_vol": 12.335324419522658,
-          "culture_temp": 300.51322949305177,
-          "aeration_rate": 15.90226907506585,
-          "agitator_power": 0.1971506217867136,
-          "substrate_feed_conc": 504.7986911609769,
-          "substrate_feed_rate": 5.515919690951705
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 280.0
-          },
-          "fermentation_time": {
-            "mean": 31.140098246216212
-          },
-          "penicillin_yield": {
-            "mean": -9.603070046078967
-          }
-        }
-      },
-      {
-        "arm_name": "20_0",
-        "parameters": {
-          "culture_volume": 60.0,
-          "bioreactor_vol": 0.05,
-          "culture_temp": 293.0,
-          "aeration_rate": 18.0,
-          "agitator_power": 0.25621954778847894,
-          "substrate_feed_conc": 700.0,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 327.0
-          },
-          "fermentation_time": {
-            "mean": 81.98046731100466
-          },
-          "penicillin_yield": {
-            "mean": -12.017641490888872
-          }
-        }
-      },
-      {
-        "arm_name": "21_0",
-        "parameters": {
-          "culture_volume": 60.0,
-          "bioreactor_vol": 0.05,
-          "culture_temp": 293.0,
-          "aeration_rate": 18.0,
-          "agitator_power": 0.4013421787877121,
-          "substrate_feed_conc": 500.0,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 305.0
-          },
-          "fermentation_time": {
-            "mean": 57.950251516562794
-          },
-          "penicillin_yield": {
-            "mean": -10.884917532044087
-          }
-        }
-      },
-      {
-        "arm_name": "22_0",
-        "parameters": {
-          "culture_volume": 60.0,
-          "bioreactor_vol": 18.0,
-          "culture_temp": 303.0,
-          "aeration_rate": 18.0,
-          "agitator_power": 0.290618474244211,
-          "substrate_feed_conc": 700.0,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 303.0
-          },
-          "fermentation_time": {
-            "mean": 42.524370328780364
-          },
-          "penicillin_yield": {
-            "mean": -10.150587631656137
-          }
-        }
-      },
-      {
-        "arm_name": "23_0",
-        "parameters": {
-          "culture_volume": 120.0,
-          "bioreactor_vol": 18.0,
-          "culture_temp": 303.0,
-          "aeration_rate": 18.0,
-          "agitator_power": 0.06800773462422971,
-          "substrate_feed_conc": 500.0,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 5.0
-          },
-          "fermentation_time": {
-            "mean": 1.3206844053762212
-          },
-          "penicillin_yield": {
-            "mean": -0.011383251853906762
-          }
-        }
-      },
-      {
-        "arm_name": "24_0",
-        "parameters": {
-          "culture_volume": 60.0,
-          "bioreactor_vol": 18.0,
-          "culture_temp": 303.0,
-          "aeration_rate": 18.0,
-          "agitator_power": 0.3754863763103625,
-          "substrate_feed_conc": 500.0,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 285.0
-          },
-          "fermentation_time": {
-            "mean": 29.771451051899458
-          },
-          "penicillin_yield": {
-            "mean": -8.843905230526635
-          }
-        }
-      },
-      {
-        "arm_name": "25_0",
-        "parameters": {
-          "culture_volume": 60.0,
-          "bioreactor_vol": 18.0,
-          "culture_temp": 303.0,
-          "aeration_rate": 18.0,
-          "agitator_power": 0.01,
-          "substrate_feed_conc": 500.0,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 5.0
-          },
-          "fermentation_time": {
-            "mean": 1.2776197971599876
-          },
-          "penicillin_yield": {
-            "mean": -0.0151230713791189
-          }
-        }
-      },
-      {
-        "arm_name": "26_0",
-        "parameters": {
-          "culture_volume": 120.0,
-          "bioreactor_vol": 18.0,
-          "culture_temp": 293.0,
-          "aeration_rate": 0.05,
-          "agitator_power": 0.09546785869417626,
-          "substrate_feed_conc": 695.9195882799022,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 304.0
-          },
-          "fermentation_time": {
-            "mean": 62.72864191379832
-          },
-          "penicillin_yield": {
-            "mean": -12.309110980320927
-          }
-        }
-      },
-      {
-        "arm_name": "27_0",
-        "parameters": {
-          "culture_volume": 60.0,
-          "bioreactor_vol": 0.05,
-          "culture_temp": 293.0,
-          "aeration_rate": 0.05,
-          "agitator_power": 0.41390683206112155,
-          "substrate_feed_conc": 500.0,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 3.0
-          },
-          "fermentation_time": {
-            "mean": 0.0024341770418220654
-          },
-          "penicillin_yield": {
-            "mean": -0.0001667349428665389
-          }
-        }
-      },
-      {
-        "arm_name": "28_0",
-        "parameters": {
-          "culture_volume": 60.0,
-          "bioreactor_vol": 0.05,
-          "culture_temp": 293.0,
-          "aeration_rate": 0.05,
-          "agitator_power": 0.3951627927063143,
-          "substrate_feed_conc": 602.7678383174219,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 3.0
-          },
-          "fermentation_time": {
-            "mean": 0.0024425038312971123
-          },
-          "penicillin_yield": {
-            "mean": -0.00016537578187175763
-          }
-        }
-      },
-      {
-        "arm_name": "29_0",
-        "parameters": {
-          "culture_volume": 60.0,
-          "bioreactor_vol": 0.05,
-          "culture_temp": 293.0,
-          "aeration_rate": 0.05,
-          "agitator_power": 0.5,
-          "substrate_feed_conc": 572.0434147313761,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 2.0
-          },
-          "fermentation_time": {
-            "mean": 0.0015085531005961136
-          },
-          "penicillin_yield": {
-            "mean": -0.00016592112355506353
-          }
-        }
-      },
-      {
-        "arm_name": "2_0",
-        "parameters": {
-          "culture_volume": 102.07989513874054,
-          "bioreactor_vol": 5.973184563731774,
-          "culture_temp": 293.3644657507539,
-          "aeration_rate": 6.646111942548305,
-          "agitator_power": 0.2883910004422069,
-          "substrate_feed_conc": 695.6671725958586,
-          "substrate_feed_rate": 5.784760326612741
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 354.0
-          },
-          "fermentation_time": {
-            "mean": 77.79184658423789
-          },
-          "penicillin_yield": {
-            "mean": -12.803560060721146
-          }
-        }
-      },
-      {
-        "arm_name": "30_0",
-        "parameters": {
-          "culture_volume": 60.0,
-          "bioreactor_vol": 0.05,
-          "culture_temp": 293.0,
-          "aeration_rate": 0.05,
-          "agitator_power": 0.5,
-          "substrate_feed_conc": 647.6861820144753,
-          "substrate_feed_rate": 6.5
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 2.0
-          },
-          "fermentation_time": {
-            "mean": 0.0016861004814255588
-          },
-          "penicillin_yield": {
-            "mean": -0.00016534255163152607
-          }
-        }
-      },
-      {
-        "arm_name": "31_0",
-        "parameters": {
-          "culture_volume": 61.94275734276793,
-          "bioreactor_vol": 4.493359709835532,
-          "culture_temp": 293.0,
-          "aeration_rate": 5.452032956482413,
-          "agitator_power": 0.5,
-          "substrate_feed_conc": 680.4940535637318,
-          "substrate_feed_rate": 5.787258293164839
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 357.0
-          },
-          "fermentation_time": {
-            "mean": 80.13129151961337
-          },
-          "penicillin_yield": {
-            "mean": -12.390210036196374
-          }
-        }
-      },
-      {
-        "arm_name": "32_0",
-        "parameters": {
-          "culture_volume": 120.0,
-          "bioreactor_vol": 18.0,
-          "culture_temp": 293.0,
-          "aeration_rate": 18.0,
-          "agitator_power": 0.3097283558479074,
-          "substrate_feed_conc": 700.0,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 340.0
-          },
-          "fermentation_time": {
-            "mean": 78.01751512321614
-          },
-          "penicillin_yield": {
-            "mean": -12.545319370162913
-          }
-        }
-      },
-      {
-        "arm_name": "33_0",
-        "parameters": {
-          "culture_volume": 120.0,
-          "bioreactor_vol": 18.0,
-          "culture_temp": 293.0,
-          "aeration_rate": 6.323372486693234,
-          "agitator_power": 0.5,
-          "substrate_feed_conc": 700.0,
-          "substrate_feed_rate": 6.5
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 348.0
-          },
-          "fermentation_time": {
-            "mean": 79.26099030350038
-          },
-          "penicillin_yield": {
-            "mean": -13.403014002954396
-          }
-        }
-      },
-      {
-        "arm_name": "34_0",
-        "parameters": {
-          "culture_volume": 60.0,
-          "bioreactor_vol": 18.0,
-          "culture_temp": 293.0,
-          "aeration_rate": 0.05,
-          "agitator_power": 0.15933000212170567,
-          "substrate_feed_conc": 550.1916669843835,
-          "substrate_feed_rate": 6.499981725400847
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 323.0
-          },
-          "fermentation_time": {
-            "mean": 58.74515705269698
-          },
-          "penicillin_yield": {
-            "mean": -11.457453748650106
-          }
-        }
-      },
-      {
-        "arm_name": "35_0",
-        "parameters": {
-          "culture_volume": 120.0,
-          "bioreactor_vol": 18.0,
-          "culture_temp": 293.0,
-          "aeration_rate": 4.756537816233673,
-          "agitator_power": 0.38798770057836557,
-          "substrate_feed_conc": 500.0,
-          "substrate_feed_rate": 6.5
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 316.0
-          },
-          "fermentation_time": {
-            "mean": 53.22933710654731
-          },
-          "penicillin_yield": {
-            "mean": -11.007090454169957
-          }
-        }
-      },
-      {
-        "arm_name": "3_0",
-        "parameters": {
-          "culture_volume": 109.39854780212045,
-          "bioreactor_vol": 14.181004816200584,
-          "culture_temp": 298.9259326197207,
-          "aeration_rate": 9.927023949334398,
-          "agitator_power": 0.4773574133682996,
-          "substrate_feed_conc": 640.7828005030751,
-          "substrate_feed_rate": 5.322175104636699
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 317.0
-          },
-          "fermentation_time": {
-            "mean": 49.66151487174404
-          },
-          "penicillin_yield": {
-            "mean": -11.284633292858418
-          }
-        }
-      },
-      {
-        "arm_name": "4_0",
-        "parameters": {
-          "culture_volume": 89.0602046996355,
-          "bioreactor_vol": 3.6103920156136153,
-          "culture_temp": 296.6996569111943,
-          "aeration_rate": 3.475561739271506,
-          "agitator_power": 0.01882813767530024,
-          "substrate_feed_conc": 556.5548207610846,
-          "substrate_feed_rate": 6.377647655084729
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 6.0
-          },
-          "fermentation_time": {
-            "mean": 0.2956414728705493
-          },
-          "penicillin_yield": {
-            "mean": -0.021615063773808157
-          }
-        }
-      },
-      {
-        "arm_name": "5_0",
-        "parameters": {
-          "culture_volume": 107.99521075540657,
-          "bioreactor_vol": 5.807055624991278,
-          "culture_temp": 293.0,
-          "aeration_rate": 6.046802002953758,
-          "agitator_power": 0.18662710369866792,
-          "substrate_feed_conc": 700.0,
-          "substrate_feed_rate": 6.5
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 353.0
-          },
-          "fermentation_time": {
-            "mean": 77.90450138086025
-          },
-          "penicillin_yield": {
-            "mean": -14.494718340380665
-          }
-        }
-      },
-      {
-        "arm_name": "6_0",
-        "parameters": {
-          "culture_volume": 60.0,
-          "bioreactor_vol": 3.6425934545839627,
-          "culture_temp": 293.0,
-          "aeration_rate": 8.623347877917992,
-          "agitator_power": 0.5,
-          "substrate_feed_conc": 700.0,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 365.0
-          },
-          "fermentation_time": {
-            "mean": 83.35514500955219
-          },
-          "penicillin_yield": {
-            "mean": -13.044222755274522
-          }
-        }
-      },
-      {
-        "arm_name": "7_0",
-        "parameters": {
-          "culture_volume": 120.0,
-          "bioreactor_vol": 7.003577371374231,
-          "culture_temp": 293.0,
-          "aeration_rate": 3.590081144550625,
-          "agitator_power": 0.5,
-          "substrate_feed_conc": 700.0,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 366.0
-          },
-          "fermentation_time": {
-            "mean": 81.86089088825015
-          },
-          "penicillin_yield": {
-            "mean": -13.713905604283502
-          }
-        }
-      },
-      {
-        "arm_name": "8_0",
-        "parameters": {
-          "culture_volume": 105.77580245900036,
-          "bioreactor_vol": 5.0247262505637496,
-          "culture_temp": 293.0,
-          "aeration_rate": 10.39785320008446,
-          "agitator_power": 0.01,
-          "substrate_feed_conc": 700.0,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 10.0
-          },
-          "fermentation_time": {
-            "mean": 0.8422343722542512
-          },
-          "penicillin_yield": {
-            "mean": -0.014030004726938949
-          }
-        }
-      },
-      {
-        "arm_name": "9_0",
-        "parameters": {
-          "culture_volume": 60.0,
-          "bioreactor_vol": 9.67653926885379,
-          "culture_temp": 295.3254406615641,
-          "aeration_rate": 5.488245656435147,
-          "agitator_power": 0.01,
-          "substrate_feed_conc": 700.0,
-          "substrate_feed_rate": 5.0
-        },
-        "metrics": {
-          "CO2_byproduct": {
-            "mean": 5.0
-          },
-          "fermentation_time": {
-            "mean": 0.44902243552767185
-          },
-          "penicillin_yield": {
-            "mean": -0.05741726577050192
-          }
-        }
-      }
+      "y0",
+      "y1"
     ]
   },
   "test": {
@@ -5803,1220 +4567,176 @@ var __DEFAULT_FIXTURE__ = {
       "botorch_version": "0.17.2",
       "gpytorch_version": "1.15.2",
       "torch_version": "2.11.0.dev20260124",
-      "generated_at": "2026-03-17T01:34:28.365217+00:00",
-      "seed": 42,
-      "ax_pipeline": true
+      "generated_at": "2026-03-17T03:14:09.783294+00:00",
+      "seed": 48,
+      "benchmark": "BraninCurrin"
     },
     "test_points": [
       [
-        73.70590680611748,
-        10.971930362327802,
-        301.58116695899156,
-        3.3265940764829924,
-        0.1168352785694183,
-        645.4187667201985,
-        5.602949419001609
+        0.0635457820969223,
+        0.22886436832493118
       ],
       [
-        101.98617967763053,
-        13.104473355389084,
-        294.6254777926934,
-        17.666530894312313,
-        0.048617057531306886,
-        648.5277221324892,
-        5.104605696638149
+        0.4126929092789685,
+        0.2329670165259391
       ],
       [
-        81.92080670905418,
-        6.698272351227575,
-        293.2192534795958,
-        16.43689418078051,
-        0.1158174595117881,
-        533.2486034545394,
-        5.3188833345671735
+        0.6283417472570398,
+        0.11648251505068663
       ],
       [
-        104.48646815014405,
-        7.435453104862729,
-        302.6589500583492,
-        7.624988101377469,
-        0.1699188894436619,
-        520.5102804533369,
-        5.840319632695595
+        0.08277337264977314,
+        0.46390447536454327
       ],
       [
-        101.92927407343458,
-        6.062225984020026,
-        295.87023875095747,
-        15.61218477467994,
-        0.4287726637095926,
-        627.2527032583415,
-        5.945022490912665
+        0.8718041458734207,
+        0.021000318018770447
       ],
       [
-        72.47892425068328,
-        13.403313212670898,
-        299.1508357409428,
-        17.667757324755424,
-        0.19407031033185376,
-        683.7593465294058,
-        5.5197695263385524
+        0.8460804702375483,
+        0.4348748558867468
       ],
       [
-        99.4996329790626,
-        8.768445445123687,
-        299.6272355517618,
-        10.788686776982441,
-        0.39780497041405954,
-        581.891902349997,
-        5.475694957892587
+        0.9587733536219347,
+        0.5525357684397003
       ],
       [
-        83.72567587602853,
-        12.095092234259441,
-        296.27849323026834,
-        16.175500316365348,
-        0.04336893976036604,
-        513.8221647893374,
-        5.922815976240782
+        0.9951619663905126,
+        0.007727927025213743
       ],
       [
-        97.62510746726778,
-        1.5010315758048487,
-        296.13867269480147,
-        7.199358478840552,
-        0.10030320468284416,
-        633.9904078787529,
-        6.429705144277257
+        0.13781387847012283,
+        0.600283275100592
       ],
       [
-        71.24909221987446,
-        2.832543901823161,
-        294.7711771557514,
-        16.695639672860796,
-        0.3800183297603452,
-        686.1630693298338,
-        5.901813125835474
+        0.711208139249472,
+        0.5876946208936915
       ],
       [
-        85.39430510557439,
-        7.790683512692677,
-        298.0385309535476,
-        15.333093096495247,
-        0.016691386663041177,
-        559.294389160459,
-        5.930049086990012
+        0.9156212318186626,
+        0.5020851389390668
       ],
       [
-        76.33760636680093,
-        0.2633434648006057,
-        294.7931476917259,
-        13.604143952077033,
-        0.24846445308045728,
-        543.0776765960738,
-        6.18076022622499
+        0.8099624542250486,
+        0.9108420548105819
       ],
       [
-        111.31725768110479,
-        1.3184948779172576,
-        297.76723356841677,
-        14.309010237740068,
-        0.3382343332985916,
-        570.553187038889,
-        5.402912225212636
+        0.22451623623292838,
+        0.4641160992829656
       ],
       [
-        79.9323927794616,
-        2.44311193842916,
-        302.5766822754646,
-        9.55062464421153,
-        0.2306830527363416,
-        688.8026226378755,
-        5.486022207459674
+        0.4964751955075082,
+        0.5842005845843254
       ],
       [
-        119.03072263230278,
-        0.17325026113030606,
-        293.4768137788781,
-        6.921799644936014,
-        0.30626455730243857,
-        601.6915850759058,
-        5.471398672485051
+        0.6310045144106576,
+        0.5780010223660199
       ]
     ],
     "expected": {
       "mean": [
         [
-          [
-            -0.48847317313370575,
-            -0.3771304029407101,
-            0.38481703229581954
-          ],
-          [
-            -1.2835758383290257,
-            0.09179042700260741,
-            1.1971504102911867
-          ],
-          [
-            -0.4327947214733645,
-            0.3416536370336704,
-            0.3431584155976292
-          ],
-          [
-            0.2739190676463311,
-            -0.20223995225098168,
-            -0.3158781264300812
-          ],
-          [
-            0.4248374577383732,
-            0.6535390262434296,
-            -0.34178265937205166
-          ],
-          [
-            0.5081260891593254,
-            0.3028434723342988,
-            -0.553730742798298
-          ],
-          [
-            0.5626667917641229,
-            -0.05464788484667664,
-            -0.2611596942522
-          ],
-          [
-            -0.5920185471133688,
-            -0.1934086814413059,
-            0.4838170881814773
-          ],
-          [
-            -0.2137577270532908,
-            -0.2484830457785936,
-            0.04900422237830516
-          ],
-          [
-            0.9935579907841697,
-            1.0118509028976457,
-            -0.8412363918050092
-          ],
-          [
-            -0.8405204266539084,
-            -0.49608544396223364,
-            0.7759503213212959
-          ],
-          [
-            0.9413711769753036,
-            0.23511031096130952,
-            -0.8857078952094778
-          ],
-          [
-            0.172747078510436,
-            0.12292663269330766,
-            -0.002179664496567528
-          ],
-          [
-            0.32797802990344105,
-            -0.15184769178729046,
-            -0.2368569357433825
-          ],
-          [
-            0.6932152144230956,
-            0.968374749983947,
-            -0.6144910463507033
-          ]
+          53.63294397934851,
+          15.033153394817752,
+          6.264782690355986,
+          38.432015953353,
+          11.0171734782625,
+          35.5103437867737,
+          36.378836453846645,
+          7.601837550765694,
+          27.4711122729659,
+          76.37114839819077,
+          33.43473964190866,
+          172.47645617870086,
+          18.83617159356327,
+          39.74015943626327,
+          59.61710746422298
         ],
         [
-          [
-            -0.48847317313370575,
-            -0.3771304029407101,
-            0.38481703229581954
-          ],
-          [
-            -1.2835758383290257,
-            0.09179042700260741,
-            1.1971504102911867
-          ],
-          [
-            -0.4327947214733645,
-            0.3416536370336704,
-            0.3431584155976292
-          ],
-          [
-            0.2739190676463311,
-            -0.20223995225098168,
-            -0.3158781264300812
-          ],
-          [
-            0.4248374577383732,
-            0.6535390262434296,
-            -0.34178265937205166
-          ],
-          [
-            0.5081260891593254,
-            0.3028434723342988,
-            -0.553730742798298
-          ],
-          [
-            0.5626667917641229,
-            -0.05464788484667664,
-            -0.2611596942522
-          ],
-          [
-            -0.5920185471133688,
-            -0.1934086814413059,
-            0.4838170881814773
-          ],
-          [
-            -0.2137577270532908,
-            -0.2484830457785936,
-            0.04900422237830516
-          ],
-          [
-            0.9935579907841697,
-            1.0118509028976457,
-            -0.8412363918050092
-          ],
-          [
-            -0.8405204266539084,
-            -0.49608544396223364,
-            0.7759503213212959
-          ],
-          [
-            0.9413711769753036,
-            0.23511031096130952,
-            -0.8857078952094778
-          ],
-          [
-            0.172747078510436,
-            0.12292663269330766,
-            -0.002179664496567528
-          ],
-          [
-            0.32797802990344105,
-            -0.15184769178729046,
-            -0.2368569357433825
-          ],
-          [
-            0.6932152144230956,
-            0.968374749983947,
-            -0.6144910463507033
-          ]
-        ],
-        [
-          [
-            -0.48847317313370575,
-            -0.3771304029407101,
-            0.38481703229581954
-          ],
-          [
-            -1.2835758383290257,
-            0.09179042700260741,
-            1.1971504102911867
-          ],
-          [
-            -0.4327947214733645,
-            0.3416536370336704,
-            0.3431584155976292
-          ],
-          [
-            0.2739190676463311,
-            -0.20223995225098168,
-            -0.3158781264300812
-          ],
-          [
-            0.4248374577383732,
-            0.6535390262434296,
-            -0.34178265937205166
-          ],
-          [
-            0.5081260891593254,
-            0.3028434723342988,
-            -0.553730742798298
-          ],
-          [
-            0.5626667917641229,
-            -0.05464788484667664,
-            -0.2611596942522
-          ],
-          [
-            -0.5920185471133688,
-            -0.1934086814413059,
-            0.4838170881814773
-          ],
-          [
-            -0.2137577270532908,
-            -0.2484830457785936,
-            0.04900422237830516
-          ],
-          [
-            0.9935579907841697,
-            1.0118509028976457,
-            -0.8412363918050092
-          ],
-          [
-            -0.8405204266539084,
-            -0.49608544396223364,
-            0.7759503213212959
-          ],
-          [
-            0.9413711769753036,
-            0.23511031096130952,
-            -0.8857078952094778
-          ],
-          [
-            0.172747078510436,
-            0.12292663269330766,
-            -0.002179664496567528
-          ],
-          [
-            0.32797802990344105,
-            -0.15184769178729046,
-            -0.2368569357433825
-          ],
-          [
-            0.6932152144230956,
-            0.968374749983947,
-            -0.6144910463507033
-          ]
+          12.520335518169958,
+          11.091624599569634,
+          11.358912212482135,
+          8.307110346140266,
+          9.931815459870556,
+          6.9639596335755,
+          6.068140074344406,
+          9.38090756079939,
+          4.058436900472317,
+          6.164509725957932,
+          6.482163380860468,
+          4.391962181406544,
+          8.520778118709226,
+          6.469450596119008,
+          6.4083367954371475
         ]
       ],
       "variance": [
         [
-          [
-            0.3067117338400954,
-            0.6485093389437336,
-            0.30211615363048716
-          ],
-          [
-            0.10557517219175383,
-            0.41696248789576296,
-            0.11949129662622571
-          ],
-          [
-            0.1218507336352268,
-            0.364417983403139,
-            0.13211533641283912
-          ],
-          [
-            0.1529005894994725,
-            0.5363301886744538,
-            0.16390754277807817
-          ],
-          [
-            0.26156385732674925,
-            0.3738263909609786,
-            0.23663298409500577
-          ],
-          [
-            0.05920341392713435,
-            0.14833298890386126,
-            0.06279011470680673
-          ],
-          [
-            0.094185693552306,
-            0.19918559120419,
-            0.09571559754059877
-          ],
-          [
-            0.22529997364338827,
-            0.3523365206543394,
-            0.2102157362600806
-          ],
-          [
-            0.11388015126043838,
-            0.25808359905262335,
-            0.10870211220112835
-          ],
-          [
-            0.12914929377833584,
-            0.1955900679551602,
-            0.12404027226621128
-          ],
-          [
-            0.2871321712710575,
-            0.4640000679594607,
-            0.26211521935977267
-          ],
-          [
-            0.11534645863517257,
-            0.4541855944629385,
-            0.10600916853512021
-          ],
-          [
-            0.32765732315173435,
-            0.4497473206864331,
-            0.2970165821797962
-          ],
-          [
-            0.06665448086050552,
-            0.3491546970621989,
-            0.07275923165530318
-          ],
-          [
-            0.12007702015264399,
-            0.08408732753117609,
-            0.11099458677981977
-          ]
+          393.2027336964208,
+          9.772189188552048,
+          48.03841860369924,
+          18.280615265104476,
+          82.86819818659947,
+          10.674235047790896,
+          22.375617164869816,
+          269.9025026477099,
+          56.86204264928932,
+          5.8765316359491875,
+          4.841558512808971,
+          6.267604249578565,
+          23.428553697872104,
+          8.7669882811168,
+          3.469234613539619
         ],
         [
-          [
-            0.3067117338400954,
-            0.6485093389437336,
-            0.30211615363048716
-          ],
-          [
-            0.10557517219175383,
-            0.41696248789576296,
-            0.11949129662622571
-          ],
-          [
-            0.1218507336352268,
-            0.364417983403139,
-            0.13211533641283912
-          ],
-          [
-            0.1529005894994725,
-            0.5363301886744538,
-            0.16390754277807817
-          ],
-          [
-            0.26156385732674925,
-            0.3738263909609786,
-            0.23663298409500577
-          ],
-          [
-            0.05920341392713435,
-            0.14833298890386126,
-            0.06279011470680673
-          ],
-          [
-            0.094185693552306,
-            0.19918559120419,
-            0.09571559754059877
-          ],
-          [
-            0.22529997364338827,
-            0.3523365206543394,
-            0.2102157362600806
-          ],
-          [
-            0.11388015126043838,
-            0.25808359905262335,
-            0.10870211220112835
-          ],
-          [
-            0.12914929377833584,
-            0.1955900679551602,
-            0.12404027226621128
-          ],
-          [
-            0.2871321712710575,
-            0.4640000679594607,
-            0.26211521935977267
-          ],
-          [
-            0.11534645863517257,
-            0.4541855944629385,
-            0.10600916853512021
-          ],
-          [
-            0.32765732315173435,
-            0.4497473206864331,
-            0.2970165821797962
-          ],
-          [
-            0.06665448086050552,
-            0.3491546970621989,
-            0.07275923165530318
-          ],
-          [
-            0.12007702015264399,
-            0.08408732753117609,
-            0.11099458677981977
-          ]
-        ],
-        [
-          [
-            0.3067117338400954,
-            0.6485093389437336,
-            0.30211615363048716
-          ],
-          [
-            0.10557517219175383,
-            0.41696248789576296,
-            0.11949129662622571
-          ],
-          [
-            0.1218507336352268,
-            0.364417983403139,
-            0.13211533641283912
-          ],
-          [
-            0.1529005894994725,
-            0.5363301886744538,
-            0.16390754277807817
-          ],
-          [
-            0.26156385732674925,
-            0.3738263909609786,
-            0.23663298409500577
-          ],
-          [
-            0.05920341392713435,
-            0.14833298890386126,
-            0.06279011470680673
-          ],
-          [
-            0.094185693552306,
-            0.19918559120419,
-            0.09571559754059877
-          ],
-          [
-            0.22529997364338827,
-            0.3523365206543394,
-            0.2102157362600806
-          ],
-          [
-            0.11388015126043838,
-            0.25808359905262335,
-            0.10870211220112835
-          ],
-          [
-            0.12914929377833584,
-            0.1955900679551602,
-            0.12404027226621128
-          ],
-          [
-            0.2871321712710575,
-            0.4640000679594607,
-            0.26211521935977267
-          ],
-          [
-            0.11534645863517257,
-            0.4541855944629385,
-            0.10600916853512021
-          ],
-          [
-            0.32765732315173435,
-            0.4497473206864331,
-            0.2970165821797962
-          ],
-          [
-            0.06665448086050552,
-            0.3491546970621989,
-            0.07275923165530318
-          ],
-          [
-            0.12007702015264399,
-            0.08408732753117609,
-            0.11099458677981977
-          ]
+          0.3863928088972201,
+          0.049898773095542935,
+          0.22547178320147462,
+          0.0656780186516262,
+          0.6119922008076594,
+          0.0781666597501869,
+          0.05146962136638531,
+          1.3269822561668816,
+          0.10750014360599013,
+          0.012237081717824174,
+          0.01566992105752271,
+          0.04143005729378074,
+          0.02611040664373361,
+          0.05002926855932998,
+          0.013484284257417564
         ]
       ]
     }
   }
 };
 </script>
-
 <script>
 var Predictor = Ax.Predictor;
-
-var N = 320, GS = 60;
-var ML = 48, MT = 0, MB = 38; // margins: left, top, bottom (pixels)
-var CW = N + ML, CH = N + MB;  // total canvas size
-var predictor = null, fixture = null;
-var params = [], paramNames = [], paramBounds = [], fixedValues = [];
-var dimOrder = []; // dims sorted by importance
-var axX = 0, axY = 1, selectedOutcome = '';
-var contourMode = true;
-
-var ctxM  = document.getElementById('cvM').getContext('2d');
-var ctxS  = document.getElementById('cvS').getContext('2d');
-var ctxOM = document.getElementById('ovM').getContext('2d');
-var ctxOS = document.getElementById('ovS').getContext('2d');
-var selX = document.getElementById('selX');
-var selY = document.getElementById('selY');
-var outcomeSelect = document.getElementById('outcomeSelect');
+var predictor, fixture;
 
 function loadFixtureData(data) {
   fixture = Ax.viz.normalizeFixture(data);
   predictor = new Predictor(fixture);
-  params = fixture.search_space.parameters;
-  paramNames = predictor.paramNames;
-  paramBounds = predictor.paramBounds;
-  var _td = predictor.getTrainingData();
-  fixedValues = _td.X.length > 0 ? _td.X[0].slice() : params.map(function(p) { return Ax.viz.defaultParamValue(p); });
-
-  outcomeSelect.innerHTML = '';
-  predictor.outcomeNames.forEach(function(name) {
-    var opt = document.createElement('option');
-    opt.value = name; opt.textContent = name;
-    outcomeSelect.appendChild(opt);
-  });
-  selectedOutcome = predictor.outcomeNames[0];
-
-  // Populate axis selectors — all params including choice
-  selX.innerHTML = ''; selY.innerHTML = '';
-  paramNames.forEach(function(name, i) {
-    [selX, selY].forEach(function(sel) {
-      var o = document.createElement('option');
-      o.value = i; o.textContent = name + (Ax.viz.isChoice(params[i]) ? ' (cat)' : '');
-      sel.appendChild(o);
-    });
-  });
-  // Auto-select the two most active non-choice dims for the initial outcome
-  updateDimOrder();
-  var nonChoiceDims = dimOrder.filter(function(i) { return !Ax.viz.isChoice(params[i]); });
-  if (nonChoiceDims.length >= 2) {
-    axX = nonChoiceDims[0]; axY = nonChoiceDims[1];
-  } else {
-    axX = 0; axY = paramNames.length > 1 ? 1 : 0;
-  }
-  selX.value = axX; selY.value = axY;
-
   document.getElementById('subtitle').textContent =
     fixture.metadata.name + ' — ' + fixture.metadata.description;
-
-  buildSliders();
   render();
-}
-
-function updateDimOrder() {
-  dimOrder = Ax.viz.computeDimOrder(predictor, paramNames.length, selectedOutcome);
-}
-
-document.getElementById('fileInput').addEventListener('change', function(e) {
-  var file = e.target.files[0];
-  if (!file) return;
-  file.text().then(function(text) { loadFixtureData(JSON.parse(text)); });
-});
-
-selX.addEventListener('change', function() {
-  axX = +selX.value;
-  if (axX === axY) { axY = (axX + 1) % paramNames.length; selY.value = axY; }
-  buildSliders(); render();
-});
-selY.addEventListener('change', function() {
-  axY = +selY.value;
-  if (axX === axY) { axX = (axY + 1) % paramNames.length; selX.value = axX; }
-  buildSliders(); render();
-});
-outcomeSelect.addEventListener('change', function() {
-  selectedOutcome = outcomeSelect.value;
-  updateDimOrder();
-  buildSliders();
-  render();
-});
-document.getElementById('cbContour').addEventListener('change', function() {
-  contourMode = this.checked;
-  render();
-});
-function buildSliders() {
-  var div = document.getElementById('sliders');
-  var label = document.getElementById('sliderLabel');
-  div.innerHTML = '';
-  var axes = new Set([axX, axY]);
-  var hasSliders = paramNames.some(function(_, i) { return !axes.has(i); });
-  label.style.display = hasSliders ? 'block' : 'none';
-  dimOrder.forEach(function(i) {
-    if (axes.has(i)) return;
-    var name = paramNames[i];
-    var p = params[i];
-    var row = document.createElement('div'); row.className = 'slrow';
-    var lbl = document.createElement('span'); lbl.className = 'sllbl';
-    lbl.textContent = name;
-
-    if (Ax.viz.isChoice(p)) {
-      var sel = document.createElement('select'); sel.className = 'slselect';
-      p.values.forEach(function(v) {
-        var o = document.createElement('option');
-        o.value = v; o.textContent = String(v);
-        if (v == fixedValues[i]) o.selected = true;
-        sel.appendChild(o);
-      });
-      var val = document.createElement('span'); val.className = 'slval';
-      val.textContent = Ax.viz.formatParamValue(fixedValues[i], p);
-      sel.addEventListener('change', function() {
-        fixedValues[i] = +sel.value;
-        val.textContent = Ax.viz.formatParamValue(+sel.value, p);
-        render();
-      });
-      row.appendChild(lbl); row.appendChild(sel); row.appendChild(val);
-    } else {
-      var lo = paramBounds[i][0], hi = paramBounds[i][1];
-      var sl = document.createElement('input');
-      sl.type = 'range'; sl.min = lo; sl.max = hi;
-      sl.step = Ax.viz.isInteger(p) ? '1' : ((hi - lo) / 200).toString();
-      sl.value = fixedValues[i].toString();
-      var val = document.createElement('span'); val.className = 'slval';
-      val.textContent = Ax.viz.formatParamValue(fixedValues[i], p);
-      sl.addEventListener('input', function() {
-        fixedValues[i] = Ax.viz.isInteger(p) ? Math.round(+sl.value) : +sl.value;
-        val.textContent = Ax.viz.formatParamValue(fixedValues[i], p);
-        render();
-      });
-      row.appendChild(lbl); row.appendChild(sl); row.appendChild(val);
-    }
-    div.appendChild(row);
-  });
-}
-
-function predictAt(points) {
-  return predictor.predict(points)[selectedOutcome];
-}
-
-// Marching-squares contour line rendering
-function drawContourLines(ctx, vals, gs, canvasN, vMin, vRange, cfn) {
-  var nLevels = 10;
-  var step = canvasN / (gs - 1);
-  // Edge interpolation: 0=top, 1=right, 2=bottom, 3=left
-  function edgeXY(gi, gj, edge, frac) {
-    switch (edge) {
-      case 0: return [step*(gi+frac), step*gj];
-      case 1: return [step*(gi+1),    step*(gj+frac)];
-      case 2: return [step*(gi+frac), step*(gj+1)];
-      case 3: return [step*gi,        step*(gj+frac)];
-    }
-  }
-  function lerp(a, b, level) { var d=b-a; return d===0 ? 0.5 : (level-a)/d; }
-
-  // Segment table: case → [[edgeA, edgeB], ...]
-  var SEG = [
-    [],[[2,3]],[[1,2]],[[1,3]],[[0,1]],null,[[0,2]],[[0,3]],
-    [[0,3]],[[0,2]],null,[[0,1]],[[1,3]],[[1,2]],[[2,3]],[]
-  ];
-
-  for (var li = 1; li < nLevels; li++) {
-    var level = vMin + vRange * li / nLevels;
-    var rgb = cfn(li / nLevels);
-    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-
-    for (var gj = 0; gj < gs-1; gj++) {
-      for (var gi = 0; gi < gs-1; gi++) {
-        var tl=vals[gj*gs+gi], tr=vals[gj*gs+gi+1];
-        var bl=vals[(gj+1)*gs+gi], br=vals[(gj+1)*gs+gi+1];
-        var code = (tl>=level?8:0)|(tr>=level?4:0)|(br>=level?2:0)|(bl>=level?1:0);
-        if (code===0||code===15) continue;
-
-        var segs = SEG[code];
-        if (!segs) {
-          // Saddle: disambiguate with center value
-          var center = (tl+tr+br+bl)/4;
-          if (code===5) segs = center>=level ? [[0,3],[1,2]] : [[0,1],[2,3]];
-          else          segs = center>=level ? [[0,1],[2,3]] : [[0,3],[1,2]];
-        }
-
-        for (var si=0; si<segs.length; si++) {
-          var eA=segs[si][0], eB=segs[si][1];
-          var fA, fB;
-          if (eA===0) fA=lerp(tl,tr,level);
-          else if (eA===1) fA=lerp(tr,br,level);
-          else if (eA===2) fA=lerp(bl,br,level);
-          else fA=lerp(tl,bl,level);
-          if (eB===0) fB=lerp(tl,tr,level);
-          else if (eB===1) fB=lerp(tr,br,level);
-          else if (eB===2) fB=lerp(bl,br,level);
-          else fB=lerp(tl,bl,level);
-          var pA=edgeXY(gi,gj,eA,fA), pB=edgeXY(gi,gj,eB,fB);
-          ctx.moveTo(pA[0],pA[1]);
-          ctx.lineTo(pB[0],pB[1]);
-        }
-      }
-    }
-    ctx.stroke();
-  }
-}
-
-// Axis coordinate helpers — choice axes use index-based mapping
-var xIsChoice = false, yIsChoice = false;
-var xCatVals = [], yCatVals = []; // numeric category values for choice axes
-var gsX = GS, gsY = GS; // grid sizes (smaller for choice axes)
-
-function nearestCatIdx(catVals, val) {
-  var ci = catVals.indexOf(val);
-  if (ci >= 0) return ci;
-  // Fuzzy match for floating-point category values
-  var best = 0, bestD = Infinity;
-  for (var k = 0; k < catVals.length; k++) {
-    var d = Math.abs(catVals[k] - val);
-    if (d < bestD) { bestD = d; best = k; }
-  }
-  return best;
-}
-
-function axisToPixel(axIdx, val) {
-  // Convert a parameter value to canvas pixel (with margin offset)
-  if (axIdx === axX && xIsChoice) {
-    var ci = nearestCatIdx(xCatVals, val);
-    return ML + (ci + 0.5) / xCatVals.length * N;
-  }
-  if (axIdx === axY && yIsChoice) {
-    var ci = nearestCatIdx(yCatVals, val);
-    return MT + (1 - (ci + 0.5) / yCatVals.length) * N;
-  }
-  var lo = paramBounds[axIdx][0], hi = paramBounds[axIdx][1];
-  if (axIdx === axX) return ML + (val - lo) / ((hi - lo) || 1) * N;
-  return MT + (1 - (val - lo) / ((hi - lo) || 1)) * N;
-}
-
-function pixelToValue(axIdx, px) {
-  // Convert canvas pixel to parameter value (accounting for margins)
-  var p = (axIdx === axX) ? px - ML : px - MT; // offset by margin
-  if (axIdx === axX && xIsChoice) {
-    var ci = Math.floor(p / N * xCatVals.length);
-    ci = Math.max(0, Math.min(xCatVals.length - 1, ci));
-    return xCatVals[ci];
-  }
-  if (axIdx === axY && yIsChoice) {
-    var ci = Math.floor((1 - p / N) * yCatVals.length);
-    ci = Math.max(0, Math.min(yCatVals.length - 1, ci));
-    return yCatVals[ci];
-  }
-  var lo = paramBounds[axIdx][0], hi = paramBounds[axIdx][1];
-  var v;
-  if (axIdx === axX) v = lo + (hi - lo) * p / N;
-  else v = hi - (hi - lo) * p / N;
-  if (Ax.viz.isInteger(params[axIdx])) v = Math.round(v);
-  return v;
 }
 
 function render() {
-  if (!predictor) return;
-  xIsChoice = Ax.viz.isChoice(params[axX]);
-  yIsChoice = Ax.viz.isChoice(params[axY]);
-  xCatVals = xIsChoice ? params[axX].values.map(Number) : [];
-  yCatVals = yIsChoice ? params[axY].values.map(Number) : [];
-  // For choice axes, grid size = number of categories; for continuous, use GS
-  gsX = xIsChoice ? xCatVals.length : GS;
-  gsY = yIsChoice ? yCatVals.length : GS;
-
-  var xlo = paramBounds[axX][0], xhi = paramBounds[axX][1];
-  var ylo = paramBounds[axY][0], yhi = paramBounds[axY][1];
-  var imgM = ctxM.createImageData(N, N);
-  var imgS = ctxS.createImageData(N, N);
-
-  var testPoints = [];
-  for (var gj = 0; gj < gsY; gj++) {
-    for (var gi = 0; gi < gsX; gi++) {
-      var xv, yv;
-      if (xIsChoice) { xv = xCatVals[gi]; }
-      else { xv = xlo + (xhi - xlo) * gi / (gsX - 1); if (Ax.viz.isInteger(params[axX])) xv = Math.round(xv); }
-      if (yIsChoice) { yv = yCatVals[gsY - 1 - gj]; }
-      else { yv = yhi - (yhi - ylo) * gj / (gsY - 1); if (Ax.viz.isInteger(params[axY])) yv = Math.round(yv); }
-      var pt = fixedValues.slice();
-      pt[axX] = xv; pt[axY] = yv;
-      testPoints.push(pt);
-    }
-  }
-
-  var pred = predictAt(testPoints);
-  var means = Array.from(pred.mean);
-  var stds = means.map(function(_, i) { return Math.sqrt(pred.variance[i]); });
-
-  var meanMin = Math.min.apply(null, means), meanMax = Math.max.apply(null, means);
-  var stdMax = Math.max.apply(null, stds);
-  var meanRange = meanMax - meanMin || 1;
-
-  var cellW = N / gsX, cellH = N / gsY;
-  for (var k = 0; k < means.length; k++) {
-    var gi = k % gsX, gj = Math.floor(k / gsX);
-    var tm = (means[k] - meanMin) / meanRange;
-    var ts = stds[k] / (stdMax || 1);
-    var mr = Ax.viz.viridis(tm), sr = Ax.viz.plasma(ts);
-    var x0 = Math.round(gi * cellW), y0 = Math.round(gj * cellH);
-    var x1 = Math.round((gi + 1) * cellW), y1 = Math.round((gj + 1) * cellH);
-    for (var py = y0; py < y1; py++) {
-      for (var px = x0; px < x1; px++) {
-        var idx = (py * N + px) * 4;
-        imgM.data[idx] = mr[0]; imgM.data[idx+1] = mr[1]; imgM.data[idx+2] = mr[2]; imgM.data[idx+3] = 255;
-        imgS.data[idx] = sr[0]; imgS.data[idx+1] = sr[1]; imgS.data[idx+2] = sr[2]; imgS.data[idx+3] = 255;
-      }
-    }
-  }
-
-  // Clear full canvas and place heatmap at margin offset
-  ctxM.clearRect(0, 0, CW, CH);
-  ctxS.clearRect(0, 0, CW, CH);
-  ctxM.putImageData(imgM, ML, MT);
-  ctxS.putImageData(imgS, ML, MT);
-
-  // Contour lines — only when both axes are continuous (contours across categories are meaningless)
-  if (contourMode && !xIsChoice && !yIsChoice) {
-    [ctxM, ctxS].forEach(function(ctx) { ctx.save(); ctx.translate(ML, MT); });
-    drawContourLines(ctxM, means, gsX, N, meanMin, meanRange, Ax.viz.viridis);
-    drawContourLines(ctxS, stds, gsX, N, 0, stdMax || 1, Ax.viz.plasma);
-    [ctxM, ctxS].forEach(function(ctx) { ctx.restore(); });
-  }
-
-  // Draw category grid lines to visually separate discrete bands
-  if (xIsChoice || yIsChoice) {
-    [ctxM, ctxS].forEach(function(ctx) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
-      if (xIsChoice) {
-        for (var ci = 1; ci < xCatVals.length; ci++) {
-          var lx = ML + Math.round(ci * cellW);
-          ctx.beginPath(); ctx.moveTo(lx, MT); ctx.lineTo(lx, MT + N); ctx.stroke();
-        }
-      }
-      if (yIsChoice) {
-        for (var ci = 1; ci < yCatVals.length; ci++) {
-          var ly = MT + Math.round(ci * cellH);
-          ctx.beginPath(); ctx.moveTo(ML, ly); ctx.lineTo(ML + N, ly); ctx.stroke();
-        }
-      }
-    });
-  }
-
-  // Draw axis ticks and labels in the margin area
-  [ctxM, ctxS].forEach(function(ctx) {
-    ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-    ctx.lineWidth = 1;
-    var nTicks = 4;
-
-    // X-axis ticks
-    if (xIsChoice) {
-      ctx.textAlign = 'center';
-      var cw = N / xCatVals.length;
-      for (var ci = 0; ci < xCatVals.length; ci++) {
-        var tx = ML + (ci + 0.5) * cw;
-        ctx.beginPath(); ctx.moveTo(tx, MT + N); ctx.lineTo(tx, MT + N + 4); ctx.stroke();
-        ctx.fillText(String(params[axX].values[ci]), tx, MT + N + 15);
-      }
-    } else {
-      ctx.textAlign = 'center';
-      var xRange = paramBounds[axX][1] - paramBounds[axX][0];
-      for (var ti = 0; ti <= nTicks; ti++) {
-        var tv = paramBounds[axX][0] + xRange * ti / nTicks;
-        var tx = ML + ti * N / nTicks;
-        ctx.beginPath(); ctx.moveTo(tx, MT + N); ctx.lineTo(tx, MT + N + 4); ctx.stroke();
-        ctx.fillText(Ax.viz.formatParamValue(tv, params[axX]), tx, MT + N + 15);
-      }
-    }
-
-    // X-axis label
-    ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.fillText(paramNames[axX], ML + N / 2, MT + N + 30);
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
-
-    // Y-axis ticks
-    if (yIsChoice) {
-      ctx.textAlign = 'right';
-      var ch = N / yCatVals.length;
-      for (var ci = 0; ci < yCatVals.length; ci++) {
-        var ty = MT + (yCatVals.length - 1 - ci + 0.5) * ch;
-        ctx.beginPath(); ctx.moveTo(ML - 4, ty); ctx.lineTo(ML, ty); ctx.stroke();
-        ctx.fillText(String(params[axY].values[ci]), ML - 6, ty + 3);
-      }
-    } else {
-      ctx.textAlign = 'right';
-      var yRange = paramBounds[axY][1] - paramBounds[axY][0];
-      for (var ti = 0; ti <= nTicks; ti++) {
-        var tv = paramBounds[axY][0] + yRange * ti / nTicks;
-        var ty = MT + (1 - ti / nTicks) * N;
-        ctx.beginPath(); ctx.moveTo(ML - 4, ty); ctx.lineTo(ML, ty); ctx.stroke();
-        ctx.fillText(Ax.viz.formatParamValue(tv, params[axY]), ML - 6, ty + 3);
-      }
-    }
-
-    // Y-axis label (rotated)
-    ctx.save();
-    ctx.translate(12, MT + N / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.fillText(paramNames[axY], 0, 0);
-    ctx.restore();
-    ctx.textAlign = 'start'; // reset
-  });
-
-  document.getElementById('mlo').textContent = meanMin.toFixed(2);
-  document.getElementById('mhi').textContent = meanMax.toFixed(2);
-  document.getElementById('shi').textContent = stdMax.toFixed(2);
-  Ax.viz.drawColorbar('cbM', Ax.viz.viridis);
-  Ax.viz.drawColorbar('cbS', Ax.viz.plasma);
-  // Preserve pinned state across re-renders — draw overlays with active pin
-  drawOverlays(undefined, undefined, -1, pinnedTrainIdx);
-}
-
-var pinnedTrainIdx = -1; // pinned training point index (-1 = none)
-var hoverNeighborIdx = -1; // hover-based neighbor highlight (-1 = none)
-
-function drawOverlays(hx, hy, hoveredIdx, neighborActiveIdx) {
-  [ctxOM, ctxOS].forEach(function(ctx) {
-    ctx.clearRect(0, 0, CW, CH);
-    if (hx !== undefined) {
-      ctx.beginPath(); ctx.moveTo(hx, MT); ctx.lineTo(hx, MT + N);
-      ctx.moveTo(ML, hy); ctx.lineTo(ML + N, hy);
-      ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 0.5; ctx.stroke();
-    }
-
-    if (fixture) {
-      var td = predictor.getTrainingData(selectedOutcome);
-      if (td.X.length > 0) {
-        var activePt = (neighborActiveIdx >= 0 && neighborActiveIdx < td.X.length)
-          ? td.X[neighborActiveIdx] : null;
-
-        // If in neighbor mode, pre-compute relative scaling
-        var neighborRels = null, neighborMax = 0;
-        if (activePt) {
-          neighborRels = [];
-          for (var ni = 0; ni < td.X.length; ni++) {
-            if (ni === neighborActiveIdx) { neighborRels.push(1); continue; }
-            var nr = predictor.kernelCorrelation(td.X[ni], activePt, selectedOutcome);
-            neighborRels.push(nr);
-            if (nr > neighborMax) neighborMax = nr;
-          }
-        }
-
-        td.X.forEach(function(pt, i) {
-          var fillAlpha;
-          if (activePt) {
-            if (i === neighborActiveIdx) {
-              fillAlpha = 0.95;
-            } else {
-              // Relative scaling: nearest neighbor is bright, others fade
-              var relNorm = neighborMax > 0 ? neighborRels[i] / neighborMax : 0;
-              fillAlpha = Math.max(0.08, Math.min(0.90, Math.sqrt(relNorm)));
-            }
-          } else {
-            fillAlpha = 0.95;
-          }
-          var ppx = axisToPixel(axX, pt[axX]);
-          var ppy = axisToPixel(axY, pt[axY]);
-          var isActive = (i === neighborActiveIdx);
-          var isHovered = (i === hoveredIdx);
-          var outerR = (isActive || isHovered) ? 7.5 : 5;
-          var innerR = (isActive || isHovered) ? 4 : 2.5;
-          ctx.beginPath(); ctx.arc(ppx, ppy, outerR, 0, 2 * Math.PI);
-          ctx.strokeStyle = isActive ? 'rgba(255,255,255,1)'
-            : 'rgba(255,255,255,' + Math.max(0.15, fillAlpha * 0.6).toFixed(3) + ')';
-          ctx.lineWidth = isActive ? 2.5 : (isHovered ? 2 : 1.5); ctx.stroke();
-          ctx.beginPath(); ctx.arc(ppx, ppy, innerR, 0, 2 * Math.PI);
-          ctx.fillStyle = (isActive || isHovered)
-            ? 'rgba(255,110,110,1)'
-            : 'rgba(255,60,60,' + fillAlpha.toFixed(3) + ')';
-          ctx.fill();
-        });
-      }
-    }
+  var container = document.getElementById('plotContainer');
+  container.innerHTML = '';
+  Ax.viz.renderResponseSurface(container, predictor, {
+    interactive: true,
+    width: 460,
+    height: 460
   });
 }
 
-var HOVER_R = 9;
-function nearestTrainPoint(canvasPx, canvasPy) {
-  if (!fixture) return -1;
-  var trainX = predictor.getTrainingData(selectedOutcome).X;
-  if (!trainX.length) return -1;
-  var best = -1, bestD = HOVER_R;
-  trainX.forEach(function(pt, i) {
-    var dx = axisToPixel(axX, pt[axX]) - canvasPx;
-    var dy = axisToPixel(axY, pt[axY]) - canvasPy;
-    var d = Math.sqrt(dx * dx + dy * dy);
-    if (d < bestD) { bestD = d; best = i; }
-  });
-  return best;
-}
-
-['cvM', 'cvS'].forEach(function(id) {
-  var cv = document.getElementById(id);
-  cv.addEventListener('mousemove', function(e) {
-    var rect = cv.getBoundingClientRect();
-    var px = e.clientX - rect.left, py = e.clientY - rect.top;
-    var xv = pixelToValue(axX, px);
-    var yv = pixelToValue(axY, py);
-
-    var hitIdx = nearestTrainPoint(px, py);
-    var tt = document.getElementById('tooltip');
-    var ttTitle = document.getElementById('tt-title');
-    var ttBody = document.getElementById('tt-body');
-
-    // Determine which point drives neighbor highlighting
-    var activeIdx = pinnedTrainIdx;
-    if (activeIdx === -1 && hitIdx >= 0) {
-      activeIdx = hitIdx;
-      hoverNeighborIdx = hitIdx;
-    } else if (activeIdx === -1) {
-      hoverNeighborIdx = -1;
-    }
-
-    if (hitIdx >= 0) {
-      var td = predictor.getTrainingData(selectedOutcome);
-      var tpt = td.X[hitIdx];
-      var yVal = td.Y[hitIdx];
-      ttTitle.textContent = 'training point #' + (hitIdx + 1);
-      ttBody.innerHTML = '<span class="tt-val">y = ' + yVal.toFixed(4) + '</span><br>' +
-        paramNames.map(function(name, j) {
-          return '<span class="tt-coord">' + name + '</span> = ' + Ax.viz.formatParamValue(tpt[j], params[j]);
-        }).join('<br>');
-      tt.style.display = 'block';
-      tt.style.left = (e.clientX + 16) + 'px';
-      tt.style.top = (e.clientY - 10) + 'px';
-
-      document.getElementById('statline').innerHTML =
-        'point #' + (hitIdx + 1) + ' &nbsp; y = <span>' + yVal.toFixed(4) + '</span>';
-      cv.style.cursor = 'pointer';
-    } else {
-      var pt = fixedValues.slice(); pt[axX] = xv; pt[axY] = yv;
-      var p = predictAt([pt]);
-      var mu = p.mean[0], std = Math.sqrt(p.variance[0]);
-      document.getElementById('statline').innerHTML =
-        paramNames[axX] + ' = <span>' + Ax.viz.formatParamValue(xv, params[axX]) + '</span>  ' +
-        paramNames[axY] + ' = <span>' + Ax.viz.formatParamValue(yv, params[axY]) + '</span>  ' +
-        'μ = <span>' + mu.toFixed(4) + '</span>  ' +
-        'σ = <span>' + std.toFixed(4) + '</span>';
-      ttTitle.textContent = '';
-      ttBody.innerHTML = 'μ = ' + mu.toFixed(4) + '<br>σ = ' + std.toFixed(4);
-      tt.style.display = 'block';
-      tt.style.left = (e.clientX + 16) + 'px';
-      tt.style.top = (e.clientY - 10) + 'px';
-      cv.style.cursor = 'crosshair';
-    }
-
-    drawOverlays(px, py, hitIdx, activeIdx);
-  });
-
-  cv.addEventListener('click', function(e) {
-    var rect = cv.getBoundingClientRect();
-    var px = e.clientX - rect.left, py = e.clientY - rect.top;
-    var hitIdx = nearestTrainPoint(px, py);
-    if (hitIdx >= 0) {
-      if (pinnedTrainIdx === hitIdx) {
-        pinnedTrainIdx = -1;
-      } else {
-        pinnedTrainIdx = hitIdx;
-        // Snap sliders to clicked point's coordinates
-        var td = predictor.getTrainingData(selectedOutcome);
-        var clickedPt = td.X[hitIdx];
-        for (var j = 0; j < fixedValues.length; j++) fixedValues[j] = clickedPt[j];
-        buildSliders();
-        render();
-        return; // render rebuilds everything including overlays
-      }
-    } else {
-      pinnedTrainIdx = -1;
-    }
-    var activeIdx = pinnedTrainIdx >= 0 ? pinnedTrainIdx : hoverNeighborIdx;
-    drawOverlays(px, py, hitIdx, activeIdx);
-  });
-
-  cv.addEventListener('mouseleave', function() {
-    document.getElementById('tooltip').style.display = 'none';
-    hoverNeighborIdx = -1;
-    drawOverlays(undefined, undefined, -1, pinnedTrainIdx);
-    document.getElementById('statline').innerHTML =
-      pinnedTrainIdx >= 0
-        ? 'pinned point #' + (pinnedTrainIdx + 1) + ' — click elsewhere to unpin'
-        : 'hover over either map to inspect · red dots = training points';
-  });
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  var file = e.target.files[0]; if (!file) return;
+  file.text().then(function(text) { loadFixtureData(JSON.parse(text)); });
 });
 
-// Auto-load
 loadFixtureData(__DEFAULT_FIXTURE__);
 </script>
 </body>

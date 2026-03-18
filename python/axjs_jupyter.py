@@ -57,21 +57,10 @@ def _render(client_or_state: Any, viz_code: str,
     ax_js, viz_js = _load_bundles()
     cid = f"axjs_{uuid.uuid4().hex[:8]}"
 
-    # Override nbconvert/Jupyter CSS that blocks slider drag interaction
-    style_fix = (
-        f'<style>'
-        f'#{cid} input[type="range"]{{-webkit-appearance:auto;appearance:auto;'
-        f'pointer-events:auto!important;user-select:auto!important;'
-        f'touch-action:none;-webkit-user-drag:none;position:relative;z-index:10}}'
-        f'#{cid} select{{pointer-events:auto!important;cursor:pointer}}'
-        f'#{cid} *{{pointer-events:auto}}'
-        f'</style>'
-    )
     return (
-        f'{style_fix}'
         f'<div id="{cid}" style="width:{width};min-height:{height};'
         f'position:relative;background:#0f0f11;border-radius:8px;'
-        f'overflow:visible;padding:12px;pointer-events:auto"></div>'
+        f'overflow:visible;padding:12px;pointer-events:auto;touch-action:none"></div>'
         f'<script>(function(){{'
         f'if(!window.Ax){{{ax_js}\n{viz_js}}}'
         f'var c=document.getElementById("{cid}");'
@@ -107,7 +96,7 @@ def slice_plot(client_or_state: Any, *, outcome: Optional[str] = None) -> None:
     """
     _show(_render(client_or_state,
                   f"Ax.viz.renderSlicePlot(c,p,{{{_opts(outcome)}}});",
-                  height="600px"))
+                  height="auto"))
 
 
 def response_surface(client_or_state: Any, *, outcome: Optional[str] = None) -> None:
@@ -118,8 +107,8 @@ def response_surface(client_or_state: Any, *, outcome: Optional[str] = None) -> 
         outcome: Default outcome to display.
     """
     _show(_render(client_or_state,
-                  f"Ax.viz.renderResponseSurface(c,p,{{{_opts(outcome, 'width:460,height:460')}}});",
-                  width="500px", height="520px"))
+                  f"Ax.viz.renderResponseSurface(c,p,{{{_opts(outcome, 'width:800,height:380')}}});",
+                  width="860px", height="500px"))
 
 
 def feature_importance(client_or_state: Any, *, outcome: Optional[str] = None) -> None:
@@ -131,7 +120,7 @@ def feature_importance(client_or_state: Any, *, outcome: Optional[str] = None) -
     """
     _show(_render(client_or_state,
                   f"Ax.viz.renderFeatureImportance(c,p,{{{_opts(outcome)}}});",
-                  width="500px", height="280px"))
+                  width="500px", height="auto"))
 
 
 def cross_validation(client_or_state: Any, *, outcome: Optional[str] = None) -> None:

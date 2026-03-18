@@ -31,25 +31,30 @@ def _generate_experiment_state():
     """Run a real Ax experiment and export the state."""
     from ax.api import Client
     from ax.api.configs import RangeParameterConfig
-    from botorch.test_functions import Branin
+    from botorch.test_functions.multi_objective import DTLZ2
     import torch
 
+    dim = 5
     client = Client()
     client.configure_experiment(
-        name="branin_demo",
+        name="dtlz2_demo",
         parameters=[
-            RangeParameterConfig(name="x1", parameter_type="float", bounds=(-5.0, 10.0)),
-            RangeParameterConfig(name="x2", parameter_type="float", bounds=(0.0, 15.0)),
+            RangeParameterConfig(name=f"x{i+1}", parameter_type="float", bounds=(0.0, 1.0))
+            for i in range(dim)
         ],
     )
-    client.configure_optimization(objective="branin")
+    client.configure_optimization(objective="f0, f1")
 
-    branin = Branin(negate=True)
-    for i in range(25):
+    fn = DTLZ2(dim=dim, num_objectives=2, negate=True)
+    for i in range(30):
         trials = client.get_next_trials(max_trials=1)
         for trial_index, params in trials.items():
-            y = branin(torch.tensor([[params["x1"], params["x2"]]])).item()
-            client.complete_trial(trial_index=trial_index, raw_data={"branin": y})
+            x = torch.tensor([[params[f"x{j+1}"] for j in range(dim)]])
+            y = fn(x).squeeze()
+            client.complete_trial(trial_index=trial_index, raw_data={
+                "f0": y[0].item(),
+                "f1": y[1].item(),
+            })
 
     from axjs_export import export_client
     return export_client(client)
@@ -63,9 +68,11 @@ def _viz_cell(code, state, viz_code, **kw):
 
 
 def build_notebook():
-    print("Running Ax experiment (25 trials)...")
+    print("Running Ax experiment (30 DTLZ2 5D MOO trials)...")
     state = _generate_experiment_state()
-    print(f"Exported: {len(state['model_state']['train_X'])} training points")
+    ms = state['model_state']
+    n_train = len(ms.get('train_X', ms.get('models', [{}])[0].get('train_X', [])))
+    print(f"Exported: {n_train} training points, {ms['model_type']}")
 
     nb = new_notebook()
     nb.metadata.kernelspec = {
@@ -74,7 +81,7 @@ def build_notebook():
 
     nb.cells.append(new_markdown_cell(
         "# ax-js Jupyter Demo\n\n"
-        "Interactive GP diagnostics from a Branin BO experiment (25 trials).\n"
+        "Interactive GP diagnostics from a DTLZ2 multi-objective experiment (5D, 2 objectives, 30 trials).\n"
         "Pre-populated outputs — no execution needed. Or re-run to see live results."
     ))
 
@@ -82,27 +89,29 @@ def build_notebook():
     nb.cells.append(new_code_cell(
         "from ax.api import Client\n"
         "from ax.api.configs import RangeParameterConfig\n"
-        "from botorch.test_functions import Branin\n"
+        "from botorch.test_functions.multi_objective import DTLZ2\n"
         "import torch\n"
         "\n"
+        "dim = 5\n"
         "client = Client()\n"
         "client.configure_experiment(\n"
-        "    name='branin_demo',\n"
+        "    name='dtlz2_demo',\n"
         "    parameters=[\n"
-        "        RangeParameterConfig(name='x1', parameter_type='float', bounds=(-5.0, 10.0)),\n"
-        "        RangeParameterConfig(name='x2', parameter_type='float', bounds=(0.0, 15.0)),\n"
+        "        RangeParameterConfig(name=f'x{i+1}', parameter_type='float', bounds=(0.0, 1.0))\n"
+        "        for i in range(dim)\n"
         "    ],\n"
         ")\n"
-        "client.configure_optimization(objective='branin')\n"
+        "client.configure_optimization(objective='f0, f1')\n"
         "\n"
-        "branin = Branin(negate=True)\n"
-        "for i in range(25):\n"
+        "fn = DTLZ2(dim=dim, num_objectives=2, negate=True)\n"
+        "for i in range(30):\n"
         "    trials = client.get_next_trials(max_trials=1)\n"
         "    for trial_index, params in trials.items():\n"
-        "        y = branin(torch.tensor([[params['x1'], params['x2']]])).item()\n"
-        "        client.complete_trial(trial_index=trial_index, raw_data={'branin': y})\n"
+        "        x = torch.tensor([[params[f'x{j+1}'] for j in range(dim)]])\n"
+        "        y = fn(x).squeeze()\n"
+        "        client.complete_trial(trial_index=trial_index, raw_data={'f0': y[0].item(), 'f1': y[1].item()})\n"
         "\n"
-        "print(f'Completed 25 trials')"
+        "print(f'Completed 30 trials')"
     ))
 
     # Import cell
@@ -118,19 +127,19 @@ def build_notebook():
     nb.cells.append(_viz_cell(
         "slice_plot(client)", state,
         'Ax.viz.renderSlicePlot(c,p,{interactive:true});',
-        height="500px"))
+        height="auto"))
 
     nb.cells.append(new_markdown_cell("## 2D Response Surface"))
     nb.cells.append(_viz_cell(
         "response_surface(client)", state,
-        'Ax.viz.renderResponseSurface(c,p,{interactive:true,width:460,height:460});',
-        width="500px", height="520px"))
+        'Ax.viz.renderResponseSurface(c,p,{interactive:true,width:800,height:380});',
+        width="860px", height="500px"))
 
     nb.cells.append(new_markdown_cell("## Feature Importance"))
     nb.cells.append(_viz_cell(
         "feature_importance(client)", state,
         'Ax.viz.renderFeatureImportance(c,p,{interactive:true});',
-        width="500px", height="280px"))
+        width="500px", height="auto"))
 
     nb.cells.append(new_markdown_cell("## Leave-One-Out Cross-Validation"))
     nb.cells.append(_viz_cell(
@@ -146,7 +155,7 @@ def build_notebook():
 
     nb.cells.append(new_markdown_cell(
         "---\nFive one-liners from Ax Client to interactive plots. "
-        "All rendering is client-side JavaScript."))
+        "5D DTLZ2 MOO exercises outcome selectors, sliders, importance rankings, and axis selectors."))
 
     return nb
 

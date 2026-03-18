@@ -16,6 +16,7 @@ export const vizBundle = readFileSync(join(root, 'dist/ax-viz.js'), 'utf8');
 export const braninFixture = readFileSync(join(root, 'test/fixtures/branin_matern25.json'), 'utf8');
 export const hartmannMixedFixture = readFileSync(join(root, 'test/fixtures/hartmann_mixed.json'), 'utf8');
 export const penicillinFixture = readFileSync(join(root, 'test/fixtures/penicillin_modellist.json'), 'utf8');
+export const branincurrinFixture = readFileSync(join(root, 'test/fixtures/branincurrin_modellist.json'), 'utf8');
 
 /** Inline the main ax-js library. Exposes Ax.Predictor, Ax.loadModel, etc. */
 export function libraryScript() {
