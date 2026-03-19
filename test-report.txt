@@ -1,8 +1,8 @@
 ax-js Test Report
 ============================================================
-Date: 2026-03-17
+Date: 2026-03-19
 
-Result: ALL PASSED (437/437 tests)
+Result: ALL PASSED (495/495 tests)
 
 ------------------------------------------------------------
 Category                         Tests  Status
@@ -19,8 +19,9 @@ Models                               9  9 passed
 Transforms                          40  40 passed
 IO / Deserialization                 6  6 passed
 Acquisition Functions               43  43 passed
+Other                               58  58 passed
 ------------------------------------------------------------
-Total                              437  ALL PASSED
+Total                              495  ALL PASSED
 
 Detailed Breakdown
 ============================================================
@@ -118,6 +119,11 @@ Detailed Breakdown
   4/4  normalCdf
   1/1  logNormalPdf
   4/4  logNormalCdf
+
+[Other]
+  27/27  sensitivity
+  30/30  kernelCorrelation invariants
+  1/1  kernelCorrelation with warp
 
 ------------------------------------------------------------
 Parity fixture details are printed to console during test run.
