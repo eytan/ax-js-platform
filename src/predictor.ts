@@ -11,12 +11,23 @@ import type {
   TrainingData,
   LOOCVResult,
   DimensionImportance,
+  SensitivityIndices,
   AnyModelState,
   GPModelState,
+  MultiTaskGPModelState,
+  EnsembleGPModelState,
   KernelState,
   OutcomeTransformState,
 } from "./models/types.js";
+import { computeSobolIndices } from "./sensitivity.js";
+import {
+  extractKernelComponents,
+  computeAnalyticSobolIndices,
+  computeEnsembleAnalyticSobol,
+} from "./sensitivity_analytic.js";
+import type { EnsembleSubModelInfo } from "./sensitivity_analytic.js";
 import { SingleTaskGP } from "./models/single_task.js";
+import { EnsembleGP } from "./models/ensemble_gp.js";
 import {
   LogUntransform,
   BilogUntransform,
@@ -52,6 +63,7 @@ export class Predictor {
   private model: AnyModel;
   private _state: ExperimentState;
   private adapterUntransforms: Map<string, OutcomeUntransform> | null;
+  private sensitivityCache: Map<string, SensitivityIndices> = new Map();
 
   constructor(exported: ExperimentState) {
     this._state = exported;
@@ -336,6 +348,202 @@ export class Predictor {
   }
 
   /**
+   * Compute Sobol' sensitivity indices for variance decomposition.
+   *
+   * Tries analytic computation first (exact, O(d×n²), no MC noise) when
+   * the kernel is decomposable (RBF, Matérn, Product(RBF|Matérn, Categorical),
+   * or Additive with disjoint active_dims). Falls back to Saltelli's MC
+   * estimator for PairwiseGP or models with nonlinear outcome/adapter
+   * transforms.
+   *
+   * @param outcomeName - Which outcome to analyze (default: first)
+   * @param options - numSamples (default 512) and seed (default 42) for MC fallback
+   * @returns First-order and total-order indices per dimension
+   */
+  computeSensitivity(
+    outcomeName?: string,
+    options?: { numSamples?: number; seed?: number },
+  ): SensitivityIndices {
+    const name = outcomeName ?? this.outcomeNames[0];
+    const numSamples = options?.numSamples ?? 512;
+    const seed = options?.seed ?? 42;
+    const cacheKey = `${name}:${numSamples}:${seed}`;
+
+    const cached = this.sensitivityCache.get(cacheKey);
+    if (cached) return cached;
+
+    // Try analytic computation (exact, no MC noise)
+    const analyticResult = this.tryAnalyticSobol(name);
+    if (analyticResult) {
+      // Cache under the default MC key so repeated calls are fast
+      this.sensitivityCache.set(cacheKey, analyticResult);
+      return analyticResult;
+    }
+
+    // Fall back to MC (Saltelli's estimator)
+    const predictFn = (points: number[][]): Float64Array => {
+      const preds = this.predict(points);
+      return preds[name].mean;
+    };
+
+    const result = computeSobolIndices(predictFn, this.paramSpecs, {
+      numSamples,
+      seed,
+    });
+    this.sensitivityCache.set(cacheKey, result);
+    return result;
+  }
+
+  /**
+   * Attempt analytic Sobol' computation. Returns null if not supported,
+   * causing the caller to fall back to MC.
+   */
+  private tryAnalyticSobol(outcomeName: string): SensitivityIndices | null {
+    const ms = this._state.model_state;
+
+    // PairwiseGP: Laplace posterior, not standard GP form
+    if (ms.model_type === "PairwiseGP") return null;
+
+    // Check for nonlinear adapter transforms that would change Sobol indices
+    if (this.hasNonlinearAdapterTransforms(outcomeName)) return null;
+
+    if (ms.model_type === "EnsembleGP") {
+      return this.tryAnalyticSobolEnsemble(ms);
+    }
+
+    if (ms.model_type === "MultiTaskGP") {
+      return this.tryAnalyticSobolMultiTask(outcomeName, ms);
+    }
+
+    // SingleTaskGP, FixedNoiseGP, or ModelListGP → get the relevant sub-model
+    const sub = getSubModel(ms, this.outcomeNames, outcomeName) as GPModelState;
+    return this.tryAnalyticSobolSingle(sub, outcomeName);
+  }
+
+  private tryAnalyticSobolSingle(
+    sub: GPModelState,
+    outcomeName: string,
+  ): SensitivityIndices | null {
+    // Check for nonlinear model-level outcome transforms
+    if (hasNonlinearOutcomeTransform(sub.outcome_transform)) return null;
+
+    // Analytic integrals assume trainXNorm is in [0,1]. Without input_transform,
+    // trainXNorm is in raw parameter space → integrals silently produce zeros.
+    if (!sub.input_transform) return null;
+
+    const components = extractKernelComponents(
+      sub.kernel,
+      this.paramSpecs,
+      sub.input_warp,
+    );
+    if (!components) return null;
+
+    // Get model internals (alpha, trainXNorm)
+    let internals;
+    if (this.model instanceof ModelListGP) {
+      const idx = this.outcomeNames.indexOf(outcomeName);
+      if (idx < 0) return null;
+      internals = this.model.getInternals(idx);
+    } else if (this.model instanceof SingleTaskGP) {
+      internals = this.model.getInternals();
+    } else {
+      return null;
+    }
+
+    return computeAnalyticSobolIndices(
+      internals.alpha,
+      internals.trainXNorm,
+      components,
+      internals.meanConstant,
+      this.paramNames,
+    );
+  }
+
+  private tryAnalyticSobolMultiTask(
+    outcomeName: string,
+    ms: MultiTaskGPModelState,
+  ): SensitivityIndices | null {
+    if (hasNonlinearOutcomeTransform(ms.outcome_transform)) return null;
+
+    // Analytic integrals assume trainXNorm is in [0,1]. Without input_transform,
+    // trainXNorm is in raw parameter space → integrals silently produce zeros.
+    if (!ms.input_transform) return null;
+
+    const components = extractKernelComponents(
+      ms.data_kernel,
+      this.paramSpecs,
+      ms.input_warp,
+    );
+    if (!components) return null;
+
+    if (!(this.model instanceof MultiTaskGP)) return null;
+    const taskIdx = this.outcomeNames.indexOf(outcomeName);
+    if (taskIdx < 0) return null;
+
+    const internals = this.model.getInternals(taskIdx);
+
+    return computeAnalyticSobolIndices(
+      internals.alpha,
+      internals.trainXNorm,
+      components,
+      internals.meanConstant,
+      this.paramNames,
+    );
+  }
+
+  private tryAnalyticSobolEnsemble(
+    ms: EnsembleGPModelState,
+  ): SensitivityIndices | null {
+    if (!(this.model instanceof EnsembleGP)) return null;
+
+    // All sub-models must have RBF or Matérn kernels and linear transforms
+    const subModels: EnsembleSubModelInfo[] = [];
+    for (let mi = 0; mi < ms.models.length; mi++) {
+      const sub = ms.models[mi];
+      if (hasNonlinearOutcomeTransform(sub.outcome_transform)) return null;
+      if (!sub.input_transform) return null;
+
+      // Extract lengthscales and outputscale from kernel
+      const ls = findLengthscales(sub.kernel);
+      if (!ls) return null;
+      const kernelInfo = extractKernelOutputscale(sub.kernel);
+      if (!kernelInfo || (kernelInfo.baseType !== "RBF" && kernelInfo.baseType !== "Matern")) return null;
+
+      // Extract nu for Matérn kernels
+      const nu = findMaternNu(sub.kernel);
+
+      const internals = this.model.getInternals(mi);
+
+      subModels.push({
+        alpha: internals.alpha,
+        trainXNorm: internals.trainXNorm,
+        meanConstant: internals.meanConstant,
+        lengthscales: ls,
+        outputscale: kernelInfo.outputscale,
+        warpParams: sub.input_warp,
+        kernelType: kernelInfo.baseType as "RBF" | "Matern",
+        nu: nu as 0.5 | 1.5 | 2.5 | undefined,
+      });
+    }
+
+    return computeEnsembleAnalyticSobol(subModels, this.paramNames);
+  }
+
+  /** Check if there are nonlinear adapter transforms for this outcome. */
+  private hasNonlinearAdapterTransforms(outcomeName: string): boolean {
+    const transforms = this._state.adapter_transforms;
+    if (!transforms) return false;
+    for (const tf of transforms) {
+      if (tf.type === "StandardizeY") continue; // linear → OK
+      // LogY, BilogY, PowerTransformY are nonlinear
+      const metrics =
+        "metrics" in tf && tf.metrics ? tf.metrics : this.outcomeNames;
+      if (metrics.includes(outcomeName)) return true;
+    }
+    return false;
+  }
+
+  /**
    * Untransform raw train_Y to original data space.
    *
    * IMPORTANT: model_state.train_Y is NOT in the original data space.
@@ -502,6 +710,47 @@ function findLengthscales(k: KernelState | undefined): number[] | null {
     }
   }
   return null;
+}
+
+/** Recursively find Matérn nu parameter in a kernel tree. */
+function findMaternNu(k: KernelState | undefined): number | undefined {
+  if (!k) return undefined;
+  if (k.type === "Matern" && k.nu !== undefined) return k.nu;
+  if (k.base_kernel) return findMaternNu(k.base_kernel);
+  if (k.kernels) {
+    for (const sub of k.kernels) {
+      const r = findMaternNu(sub);
+      if (r !== undefined) return r;
+    }
+  }
+  return undefined;
+}
+
+/** Check if an outcome transform is nonlinear (Log, Bilog, Power). */
+function hasNonlinearOutcomeTransform(
+  tf: OutcomeTransformState | undefined,
+): boolean {
+  if (!tf) return false;
+  if ("type" in tf) {
+    if (tf.type === "Log" || tf.type === "Bilog" || tf.type === "Power")
+      return true;
+    if (tf.type === "Chained") {
+      return tf.transforms.some(hasNonlinearOutcomeTransform);
+    }
+  }
+  // Standardize (has mean/std but type is optional) → linear
+  return false;
+}
+
+/** Extract outputscale and base kernel type from a kernel state. */
+function extractKernelOutputscale(
+  k: KernelState,
+): { outputscale: number; baseType: string } | null {
+  if (k.type === "Scale" && k.base_kernel) {
+    return { outputscale: k.outputscale ?? 1, baseType: k.base_kernel.type };
+  }
+  // Legacy format: outputscale on the kernel itself
+  return { outputscale: k.outputscale ?? 1, baseType: k.type };
 }
 
 /** Un-standardize Y values using the outcome transform mean/std. */

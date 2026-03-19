@@ -8,7 +8,7 @@ import { buildOutcomeUntransform } from "../transforms/build_outcome.js";
 import { buildKernel } from "../kernels/build.js";
 import { MultitaskKernel } from "../kernels/multitask.js";
 import { kernelDiag } from "../kernels/composite.js";
-import type { MultiTaskGPModelState, PredictionResult } from "./types.js";
+import type { GPInternals, MultiTaskGPModelState, PredictionResult } from "./types.js";
 
 /**
  * Multi-task GP using ICM (Intrinsic Coregionalization Model).
@@ -110,6 +110,50 @@ export class MultiTaskGP {
       residuals.data[i] = trainY.get(i, 0) - this.meanConstants[taskIdx];
     }
     this.alpha = solveCholesky(this.L, residuals);
+  }
+
+  /**
+   * Expose GP internals for analytic Sobol', for a specific task.
+   *
+   * For task t, the effective alpha folds in the task covariance:
+   *   α_eff_i = α_i × B[t, task_i]
+   *
+   * Returns data-dimension-only training inputs (task column removed).
+   */
+  getInternals(taskIndex: number): GPInternals {
+    const tf =
+      this.taskFeature < 0
+        ? this.trainXFull.cols + this.taskFeature
+        : this.taskFeature;
+    const n = this.trainXFull.rows;
+    const B = this.kernel.indexKernel.taskCovar;
+
+    // Build effective alpha: α_i × B[t, task_i]
+    const alphaEff = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      const ti = Math.round(this.trainXFull.get(i, tf));
+      alphaEff[i] = this.alpha.get(i, 0) * B.get(taskIndex, ti);
+    }
+
+    // Extract data-only columns (remove task column)
+    const dataCols: number[] = [];
+    for (let j = 0; j < this.trainXFull.cols; j++) {
+      if (j !== tf) dataCols.push(j);
+    }
+    const trainXData: number[][] = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const row = new Array(dataCols.length);
+      for (let j = 0; j < dataCols.length; j++) {
+        row[j] = this.trainXFull.get(i, dataCols[j]);
+      }
+      trainXData[i] = row;
+    }
+
+    return {
+      alpha: alphaEff,
+      trainXNorm: trainXData,
+      meanConstant: this.meanConstants[taskIndex],
+    };
   }
 
   private applyTransforms(X: Matrix): Matrix {

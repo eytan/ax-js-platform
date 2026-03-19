@@ -1,4 +1,4 @@
-import { libraryScript, vizScript, axHomeLink, axFavicon } from '../shared.js';
+import { libraryScript, vizScript, fixtureScript, axHomeLink, axFavicon, vsipFixture } from '../shared.js';
 
 export default function() {
 return `<!DOCTYPE html>
@@ -68,7 +68,7 @@ button:hover { background: #f0f0f0; }
 }
 .param-row .imp-bar {
   position: absolute; right: 0; top: 1px; bottom: 1px; border-radius: 2px;
-  z-index: -1; opacity: 0.35;
+  z-index: -1;
 }
 .param-row input[type=range] {
   flex: 1; height: 4px; -webkit-appearance: none; appearance: none;
@@ -153,28 +153,23 @@ button:hover { background: #f0f0f0; }
 
 ${libraryScript()}
 ${vizScript()}
+${fixtureScript('__DEFAULT_FIXTURE__', vsipFixture)}
 
 <script>
 (function() {
 var Predictor = Ax.Predictor;
 var relativize = Ax.relativize;
 
-// ── VSIP test problem ──
-var NDIM = 7, NRESP = 9;
-var BOUNDS = [
-  [0.5, 1.5], [0.45, 1.35], [0.5, 1.5], [0.5, 1.5],
-  [0.875, 2.625], [0.4, 1.2], [0.4, 1.2]
-];
-var PARAM_NAMES = [
-  'bpillar_inner', 'bpillar_outer', 'floor_side_inner', 'cross_member',
-  'door_beam', 'door_belt_line', 'roof_rail'
-];
-var OUTCOME_NAMES = [
-  'weight', 'acceleration', 'intrusion', 'door_velocity', 'bpillar_top_vel',
-  'bpillar_mid_vel', 'pubic_force', 'viscous_criterion', 'abdomen_load'
-];
+// ── Batch color palette ──
+var QUALITATIVE_PALETTE = ['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#a65628'];
+function batchColor(batchIdx) {
+  if (batchIdx < QUALITATIVE_PALETTE.length) return QUALITATIVE_PALETTE[batchIdx];
+  var hue = (batchIdx * 137.5) % 360;
+  return 'hsl(' + Math.round(hue) + ', 55%, 45%)';
+}
 
-var OPTIMIZATION_CONFIG = {
+// ── Default VSIP optimization config (used when fixture lacks one) ──
+var DEFAULT_VSIP_OPT_CONFIG = {
   objectives: [
     { name: 'weight', minimize: true },
     { name: 'acceleration', minimize: true },
@@ -193,198 +188,220 @@ var OPTIMIZATION_CONFIG = {
   ]
 };
 
-// Build lookup maps for quick constraint/objective checks
-var objectiveSet = {};
-OPTIMIZATION_CONFIG.objectives.forEach(function(o) { objectiveSet[o.name] = o; });
-var constraintMap = {};
-OPTIMIZATION_CONFIG.outcome_constraints.forEach(function(c) { constraintMap[c.name] = c; });
-var thresholdMap = {};
-OPTIMIZATION_CONFIG.objective_thresholds.forEach(function(t) { thresholdMap[t.name] = t; });
-
-// ── Pre-baked fixture data (Sobol X/Y, qEHVI X/Y, candidate X) ──
-// Generated once via Pareto front computation: qEHVI and candidates are
-// non-dominated feasible points with farthest-point diversity sampling.
-// Y values include fixed observation noise (5% of outcome range).
-var FIXTURE_SOBOL_X = [
-    [0.5625,1.2500,1.1400,0.6633,2.1477,0.8923,0.7765],
-    [1.0625,0.4833,1.3400,0.8061,2.3068,0.9538,0.8235],
-    [0.8125,0.7833,0.5800,0.9490,2.4659,1.0154,0.8706],
-    [1.3125,1.0833,0.7800,1.0918,0.8895,1.0769,0.9176],
-    [0.6875,0.5833,0.9800,1.2347,1.0486,1.1385,0.9647],
-    [1.1875,0.8833,1.1800,1.3776,1.2076,0.4047,1.0118],
-    [0.9375,1.1833,1.3800,0.5408,1.3667,0.4663,1.0588],
-    [1.4375,0.6833,0.6200,0.6837,1.5258,0.5278,1.1059]
-  ];
-var FIXTURE_SOBOL_Y = [
-    [29.5496,5.4892,8.5507,28.3582,26.0185,26.2259,3.2436,0.2818,0.8739],
-    [29.2600,5.1300,8.4058,27.8960,26.1785,24.9238,3.6024,0.2726,0.8065],
-    [25.6585,5.3183,9.1263,28.8464,25.1950,27.3283,3.4238,0.2665,0.8980],
-    [29.7914,5.2132,9.4320,27.9999,26.4629,26.8687,3.3774,0.2971,0.8961],
-    [24.2727,5.5389,10.9718,31.8968,32.6158,29.9938,3.9865,0.3538,0.9835],
-    [33.1458,4.9696,9.1446,29.4231,26.9569,27.4349,3.8075,0.2991,0.8537],
-    [33.2413,5.4213,9.2514,28.0020,27.1778,25.5626,3.3805,0.3053,0.8740],
-    [24.8074,5.2685,9.1002,27.2805,24.8371,25.7834,3.7158,0.2706,0.8775]
-  ];
-var FIXTURE_EHVI_X = [
-    [0.8977,0.4721,0.5763,0.9214,2.0778,0.5625,0.4565],
-    [1.4786,1.1985,1.3328,1.4923,2.2859,1.1770,0.9106],
-    [1.3023,0.9103,0.8629,1.0084,2.5418,0.4166,0.5110],
-    [1.4764,1.0423,1.4425,0.6113,2.5930,0.6108,0.4731],
-    [1.4481,0.4849,0.5495,1.1153,2.1376,0.5178,0.5030]
-  ];
-var FIXTURE_EHVI_Y = [
-    [21.8226,5.4237,9.3519,29.0098,29.0883,29.1847,3.9634,0.2866,0.9162],
-    [39.2751,4.5225,7.0370,24.6250,20.5152,22.6175,2.8427,0.2187,0.6612],
-    [31.4873,4.8815,6.9996,25.6185,22.6654,23.3159,3.4192,0.2268,0.7566],
-    [33.0052,4.8042,6.3046,24.7057,21.1043,21.3162,3.0901,0.2087,0.6608],
-    [25.4617,4.8249,8.3307,26.7621,24.5719,25.0565,3.7961,0.2804,0.8138]
-  ];
-var FIXTURE_CAND_X = [
-    [1.3332,0.4936,0.7389,1.1505,2.6214,0.9114,0.9670],
-    [1.4441,0.9909,1.4170,1.3217,2.5846,0.4849,0.4528],
-    [0.5527,0.5337,0.5425,0.8523,2.3115,0.6893,0.5857],
-    [1.0700,0.8376,0.5748,0.5486,2.6172,0.5669,0.4811],
-    [1.3720,0.6039,1.3478,1.0967,2.5110,0.4433,0.6792]
-  ];
-
-// ── Batch color palette ──
-// Each batch gets a distinct color. Shapes distinguish completed (circle) vs candidate (star).
-// First 6 batches use ColorBrewer Set1 for perceptual distinctness.
-// Beyond 6, we generate evenly-spaced HSL hues so any number of batches works.
-var QUALITATIVE_PALETTE = ['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#a65628'];
-function batchColor(batchIdx) {
-  if (batchIdx < QUALITATIVE_PALETTE.length) return QUALITATIVE_PALETTE[batchIdx];
-  // Sequential: evenly-spaced hues, moderate saturation, enough lightness to read on white
-  var hue = (batchIdx * 137.5) % 360; // golden-angle spacing for max separation
-  return 'hsl(' + Math.round(hue) + ', 55%, 45%)';
-}
-
-// ── Real VSIP hyperparameters (from BoTorch-fitted fixture) ──
-var HP = [
-  { ls: [1.6267,1.2128,1.2446,1.6253,3.608,8.932,1.7659],   mc: 0.0791, ot_mean: 29.7373, ot_std: 2.8713 },
-  { ls: [1.307,1.3154,1.8387,1.2458,2.389,8.2335,7.9159],    mc:-0.1650, ot_mean: 5.0977,  ot_std: 0.2551 },
-  { ls: [1.4428,1.6983,1.999,10.2398,2.1422,1.8556,10.6526], mc: 0.0363, ot_mean: 8.6801,  ot_std: 0.8495 },
-  { ls: [1.3759,1.6135,3.3776,11.3655,2.2074,2.4952,10.4684],mc: 0.1406, ot_mean: 28.1566, ot_std: 1.6130 },
-  { ls: [1.2147,1.3802,18.3456,15.5716,2.5602,14.1023,13.642],mc:0.0335, ot_mean: 25.9059, ot_std: 2.2715 },
-  { ls: [1.1935,1.3005,1.8258,11.2485,2.4421,11.1151,10.2955],mc:0.0119, ot_mean: 26.2324, ot_std: 1.5737 },
-  { ls: [1.1141,0.9713,14.616,11.7787,1.987,1.3989,11.441],  mc: 0.2721, ot_mean: 3.4712,  ot_std: 0.2693 },
-  { ls: [1.3767,1.5675,17.9047,15.4862,2.4013,13.9189,13.9475],mc:0.0696, ot_mean: 0.2780, ot_std: 0.0324 },
-  { ls: [1.1656,1.2878,1.6227,9.9579,2.3484,9.793,9.4348],   mc: 0.0302, ot_mean: 0.8563,  ot_std: 0.0629 }
-];
-
-var INPUT_TF = {
-  offset: BOUNDS.map(function(b) { return b[0]; }),
-  coefficient: BOUNDS.map(function(b) { return b[1] - b[0]; })
-};
-var SEARCH_SPACE = {
-  parameters: PARAM_NAMES.map(function(name, i) {
-    return { name: name, type: 'range', bounds: BOUNDS[i] };
-  })
-};
-
-// Observation noise SD per outcome (5% of outcome range, pre-computed)
-var NOISE_SD = [0.8838,0.0648,0.2429,0.4783,0.5892,0.5083,0.0546,0.0069,0.0243];
-
 // ── Arm data model ──
 var arms = [];
 var candidates = [];
 var nextCandidateId = 1;
 var predictor = null;
 var sqIdx = 0;
+var nDims = 0;
+var outcomeNames = [];
+var paramNames = [];
+var paramBounds = [];
+var OPTIMIZATION_CONFIG = DEFAULT_VSIP_OPT_CONFIG;
 
-function buildFromFixture(sobolX, sobolY, ehviX, ehviY, candX) {
+// Build lookup maps for quick constraint/objective checks
+var objectiveSet = {};
+var constraintMap = {};
+var thresholdMap = {};
+
+function rebuildOptConfigMaps() {
+  objectiveSet = {};
+  constraintMap = {};
+  thresholdMap = {};
+  if (OPTIMIZATION_CONFIG.objectives) {
+    OPTIMIZATION_CONFIG.objectives.forEach(function(o) { objectiveSet[o.name] = o; });
+  }
+  if (OPTIMIZATION_CONFIG.outcome_constraints) {
+    OPTIMIZATION_CONFIG.outcome_constraints.forEach(function(c) { constraintMap[c.name] = c; });
+  }
+  if (OPTIMIZATION_CONFIG.objective_thresholds) {
+    OPTIMIZATION_CONFIG.objective_thresholds.forEach(function(t) { thresholdMap[t.name] = t; });
+  }
+}
+
+function loadExperimentState(rawData) {
+  // Normalize fixture format (handles {experiment: ...} wrapper)
+  var data = Ax.viz.normalizeFixture(rawData);
+
+  // Build predictor from ExperimentState
+  var experimentState = {
+    search_space: data.search_space,
+    model_state: data.model_state
+  };
+  if (data.outcome_names) experimentState.outcome_names = data.outcome_names;
+  if (data.adapter_transforms) experimentState.adapter_transforms = data.adapter_transforms;
+
+  // Extract parameter info
+  var params = data.search_space.parameters;
+  paramNames = params.map(function(p) { return p.name; });
+  paramBounds = params.map(function(p) { return p.bounds || [0, 1]; });
+  nDims = paramNames.length;
+
+  // Determine outcome names
+  outcomeNames = data.outcome_names || [];
+  if (outcomeNames.length === 0 && data.model_state.outcome_names) {
+    outcomeNames = data.model_state.outcome_names;
+  }
+  if (outcomeNames.length === 0 && data.model_state.models) {
+    outcomeNames = data.model_state.models.map(function(_, i) { return 'y' + i; });
+  }
+  if (outcomeNames.length === 0) outcomeNames = ['y'];
+
+  // Set optimization config (fixture > default)
+  if (data.optimization_config) {
+    OPTIMIZATION_CONFIG = data.optimization_config;
+  } else {
+    // Check if fixture names match VSIP — use default config only for VSIP
+    var isVsip = outcomeNames.indexOf('weight') >= 0 && outcomeNames.indexOf('intrusion') >= 0;
+    OPTIMIZATION_CONFIG = isVsip ? DEFAULT_VSIP_OPT_CONFIG : {
+      objectives: outcomeNames.slice(0, Math.min(2, outcomeNames.length)).map(function(n) {
+        return { name: n, minimize: true };
+      }),
+      outcome_constraints: [],
+      objective_thresholds: []
+    };
+  }
+  rebuildOptConfigMaps();
+
+  // Build arms from training data
   arms = [];
   candidates = [];
   nextCandidateId = 1;
-  var armIdx = 0;
 
-  // Batch 0: Sobol (COMPLETED)
-  sobolX.forEach(function(pt, i) {
-    arms.push({
-      idx: armIdx, armName: 'arm_0_' + i, params: pt, evals: sobolY[i],
-      trialIndex: i, batchIndex: 0, trialStatus: 'COMPLETED', generationMethod: 'Sobol'
+  if (data.observations && data.observations.length > 0) {
+    // Fixture has explicit observations
+    data.observations.forEach(function(obs, i) {
+      var pt = obs.point || obs.parameters || [];
+      // If observations use named parameters, convert to positional array
+      if (!Array.isArray(pt)) {
+        pt = paramNames.map(function(n) { return pt[n] || 0; });
+      }
+      var evals = [];
+      outcomeNames.forEach(function(name) {
+        evals.push(obs.values ? (obs.values[name] || 0) : 0);
+      });
+      arms.push({
+        idx: i, armName: obs.arm_name || ('arm_0_' + i), params: pt, evals: evals,
+        trialIndex: obs.trial_index != null ? obs.trial_index : i,
+        batchIndex: obs.batch_index != null ? obs.batch_index : 0,
+        trialStatus: 'COMPLETED', generationMethod: obs.generation_method || 'unknown'
+      });
     });
-    armIdx++;
-  });
-
-  // Batch 1: qEHVI (COMPLETED)
-  ehviX.forEach(function(pt, i) {
-    arms.push({
-      idx: armIdx, armName: 'arm_1_' + i, params: pt, evals: ehviY[i],
-      trialIndex: sobolX.length + i, batchIndex: 1, trialStatus: 'COMPLETED', generationMethod: 'qEHVI'
-    });
-    armIdx++;
-  });
-
-  // Build GP model from completed arms
-  var trainX = arms.map(function(a) { return a.params; });
-  var subModels = [];
-  for (var k = 0; k < NRESP; k++) {
-    var hp = HP[k];
-    var noiseVar = NOISE_SD[k] * NOISE_SD[k];
-    var trainY = arms.map(function(a) { return (a.evals[k] - hp.ot_mean) / hp.ot_std; });
-    var stdNoiseVar = noiseVar / (hp.ot_std * hp.ot_std);
-    var trainYvar = arms.map(function() { return stdNoiseVar; });
-
-    subModels.push({
-      model_type: 'SingleTaskGP',
-      train_X: trainX,
-      train_Y: trainY,
-      kernel: { type: 'RBF', lengthscale: hp.ls },
-      mean_constant: hp.mc,
-      noise_variance: trainYvar,
-      input_transform: INPUT_TF,
-      outcome_transform: { type: 'Standardize', mean: hp.ot_mean, std: hp.ot_std }
-    });
+  } else {
+    // Synthesize arms from model_state train_X + train_Y
+    var ms = data.model_state;
+    var trainX;
+    if (ms.models && ms.models.length > 0) {
+      trainX = ms.models[0].train_X;
+    } else {
+      trainX = ms.train_X || [];
+    }
+    if (trainX && trainX.length > 0) {
+      // Gather Y values per arm across all sub-models/outcomes
+      trainX.forEach(function(pt, i) {
+        var evals = [];
+        outcomeNames.forEach(function(name, k) {
+          var sub = ms.models ? ms.models[k] : ms;
+          var rawY = sub.train_Y ? sub.train_Y[i] : 0;
+          // Untransform: if outcome_transform has mean/std, undo standardization
+          var ot = sub.outcome_transform;
+          if (ot && ot.mean !== undefined && ot.std !== undefined) {
+            evals.push(ot.mean + ot.std * rawY);
+          } else {
+            evals.push(rawY);
+          }
+        });
+        arms.push({
+          idx: i, armName: 'arm_0_' + i, params: pt.slice(), evals: evals,
+          trialIndex: i, batchIndex: 0, trialStatus: 'COMPLETED',
+          generationMethod: 'unknown'
+        });
+      });
+    }
   }
 
-  // SQ = arm closest to center of bounds
-  var center = BOUNDS.map(function(b) { return (b[0]+b[1])/2; });
-  var bestD = Infinity;
-  sqIdx = 0;
-  arms.forEach(function(arm, i) {
-    var d = 0;
-    for (var j = 0; j < NDIM; j++) {
-      var rng = BOUNDS[j][1] - BOUNDS[j][0] || 1;
-      d += Math.pow((arm.params[j] - center[j]) / rng, 2);
-    }
-    if (d < bestD) { bestD = d; sqIdx = i; }
-  });
+  // Status quo: from fixture or arm closest to center
+  var sqPoint = null;
+  if (data.status_quo && data.status_quo.point) {
+    sqPoint = data.status_quo.point;
+    // Find matching arm
+    sqIdx = 0;
+    var bestMatch = Infinity;
+    arms.forEach(function(arm, i) {
+      var d = 0;
+      for (var j = 0; j < nDims; j++) d += Math.pow(arm.params[j] - sqPoint[j], 2);
+      if (d < bestMatch) { bestMatch = d; sqIdx = i; }
+    });
+  } else {
+    // Pick arm closest to center of bounds
+    var center = paramBounds.map(function(b) { return (b[0]+b[1])/2; });
+    var bestD = Infinity;
+    sqIdx = 0;
+    arms.forEach(function(arm, i) {
+      var d = 0;
+      for (var j = 0; j < nDims; j++) {
+        var rng = paramBounds[j][1] - paramBounds[j][0] || 1;
+        d += Math.pow((arm.params[j] - center[j]) / rng, 2);
+      }
+      if (d < bestD) { bestD = d; sqIdx = i; }
+    });
+    sqPoint = arms.length > 0 ? arms[sqIdx].params : center;
+  }
 
-  predictor = new Predictor({
-    search_space: SEARCH_SPACE,
-    model_state: {
-      model_type: 'ModelListGP',
-      outcome_names: OUTCOME_NAMES,
-      models: subModels
-    },
-    optimization_config: OPTIMIZATION_CONFIG,
-    status_quo: { point: arms[sqIdx].params }
-  });
+  experimentState.status_quo = { point: sqPoint };
+  experimentState.optimization_config = OPTIMIZATION_CONFIG;
+  experimentState.outcome_names = outcomeNames;
+
+  // Synthesize input_transform from search_space bounds for sub-models that
+  // lack one. Without input_transform, the analytic Sobol path can't run
+  // (integrals assume [0,1] normalized space). The Normalize transform maps
+  // [lower, upper] → [0, 1] via offset=lower, coefficient=upper-lower.
+  var synthInputTf = {
+    offset: paramBounds.map(function(b) { return b[0]; }),
+    coefficient: paramBounds.map(function(b) { return b[1] - b[0]; })
+  };
+  var ms = experimentState.model_state;
+  if (ms.models) {
+    ms.models.forEach(function(sub) {
+      if (!sub.input_transform) sub.input_transform = synthInputTf;
+    });
+  } else if (!ms.input_transform) {
+    ms.input_transform = synthInputTf;
+  }
+
+  sobolCache = {};
+  paramSignCache = {};
+  predictor = new Predictor(experimentState);
 
   // Precompute predictions for completed arms
   arms.forEach(function(arm) {
     arm.preds = predictor.predict([arm.params]);
   });
 
-  // Batch 2: qEHVI candidates (CANDIDATE — pending, editable)
-  candX.forEach(function(pt, i) {
-    candidates.push({
-      id: nextCandidateId++, armName: 'arm_2_' + i, params: pt.slice(),
-      trialIndex: arms.length + i, batchIndex: 2, trialStatus: 'CANDIDATE',
-      generationMethod: 'qEHVI', edited: false,
-      preds: null, relData: null
+  // Load candidates from fixture if present
+  if (data.candidates && data.candidates.length > 0) {
+    var maxBatch = 0;
+    arms.forEach(function(a) { if (a.batchIndex > maxBatch) maxBatch = a.batchIndex; });
+    data.candidates.forEach(function(cand, i) {
+      var pt = cand.point || cand.parameters || [];
+      if (!Array.isArray(pt)) {
+        pt = paramNames.map(function(n) { return pt[n] || 0; });
+      }
+      candidates.push({
+        id: nextCandidateId++, armName: cand.arm_name || ('cand_' + i),
+        params: pt.slice(),
+        trialIndex: arms.length + i, batchIndex: maxBatch + 1,
+        trialStatus: 'CANDIDATE',
+        generationMethod: cand.generation_method || 'suggested',
+        edited: false, preds: null, relData: null
+      });
     });
-  });
+  }
 }
 
-buildFromFixture(FIXTURE_SOBOL_X, FIXTURE_SOBOL_Y, FIXTURE_EHVI_X, FIXTURE_EHVI_Y, FIXTURE_CAND_X);
-
-var nArms = arms.length;
-var nDims = NDIM;
-var outcomeNames = OUTCOME_NAMES;
-var paramNames = PARAM_NAMES;
-var paramBounds = BOUNDS;
+// Load default fixture
+loadExperimentState(__DEFAULT_FIXTURE__);
 
 // ── Relativize all arms vs SQ ──
 var CI_Z = { c99: 2.576, c95: 1.960, c75: 1.150 };
@@ -512,15 +529,52 @@ var hoveredItem = null;
 var sliderOutcome = null; // outcome name controlling slider order, or null for default
 var sliderDimOrder = null; // array of dim indices sorted by importance, or null for default
 
+// Cache for Sobol' sensitivity results per outcome (lazy: computed on first click)
+var sobolCache = {};
+
+function getSobolForOutcome(outcomeName) {
+  if (sobolCache[outcomeName]) return sobolCache[outcomeName];
+  if (!predictor || !predictor.computeSensitivity) return null;
+  var sens = predictor.computeSensitivity(outcomeName, { numSamples: 128 });
+  sobolCache[outcomeName] = sens;
+  return sens;
+}
+
+// PiYG-derived sign colors for Sobol' importance bars.
+// Must match SOBOL_COLORS in src/viz/plots/importance.ts.
+var SIGN_COLORS = {
+  pos: { first: '#7fbc41', interaction: '#b8e186' },
+  neg: { first: '#c51b7d', interaction: '#de77ae' }
+};
+
+// Cache for per-outcome param sign directions
+var paramSignCache = {};
+
+function getParamSigns(outcomeName) {
+  if (paramSignCache[outcomeName]) return paramSignCache[outcomeName];
+  if (!predictor) return null;
+  var result = Ax.viz.computeParamSigns(predictor, outcomeName);
+  paramSignCache[outcomeName] = result;
+  return result;
+}
+
 function computeDimOrderForOutcome(outcomeName) {
-  var oi = outcomeNames.indexOf(outcomeName);
-  if (oi < 0 || oi >= HP.length) return null;
-  var ls = HP[oi].ls;
-  // Sort dimensions by ascending lengthscale (shortest = most important first)
-  var dims = [];
-  for (var j = 0; j < NDIM; j++) dims.push({ dim: j, ls: ls[j] });
-  dims.sort(function(a, b) { return a.ls - b.ls; });
-  return dims.map(function(d) { return d.dim; });
+  var sens = getSobolForOutcome(outcomeName);
+  if (sens && sens.firstOrder.length > 0) {
+    // Sort by first-order descending (direct variance explained)
+    var dims = [];
+    for (var j = 0; j < sens.firstOrder.length; j++) dims.push({ dim: j, s: sens.firstOrder[j], st: sens.totalOrder[j] });
+    dims.sort(function(a, b) { var df = b.s - a.s; return Math.abs(df) > 0.005 ? df : b.st - a.st; });
+    return dims.map(function(d) { return d.dim; });
+  }
+  // Fallback to lengthscale
+  if (!predictor) return null;
+  var ls = predictor.getLengthscales(outcomeName);
+  if (!ls) return null;
+  var dims2 = [];
+  for (var j = 0; j < nDims; j++) dims2.push({ dim: j, ls: ls[j] || 1 });
+  dims2.sort(function(a, b) { return a.ls - b.ls; });
+  return dims2.map(function(d) { return d.dim; });
 }
 
 function setSliderOutcome(outcomeName) {
@@ -598,6 +652,30 @@ rpBars.addEventListener('mousemove', function(e) {
   }
 });
 rpBars.addEventListener('mouseleave', function() {
+  deltoidTip.style.display = 'none';
+});
+
+// Tooltip for Sobol' importance bars in the slider panel
+rpSliders.addEventListener('mouseover', function(e) {
+  var el = e.target;
+  while (el && el !== rpSliders) {
+    var tip = el.getAttribute && el.getAttribute('data-tip');
+    if (tip) {
+      deltoidTip.textContent = tip;
+      deltoidTip.style.display = 'block';
+      return;
+    }
+    el = el.parentNode;
+  }
+  deltoidTip.style.display = 'none';
+});
+rpSliders.addEventListener('mousemove', function(e) {
+  if (deltoidTip.style.display === 'block') {
+    deltoidTip.style.left = (e.clientX + 14) + 'px';
+    deltoidTip.style.top = (e.clientY - 8) + 'px';
+  }
+});
+rpSliders.addEventListener('mouseleave', function() {
   deltoidTip.style.display = 'none';
 });
 
@@ -833,33 +911,38 @@ function euclideanRelevance(pt, ref) {
   var d2 = 0;
   for (var j = 0; j < ref.length; j++) {
     var diff = pt[j] - ref[j];
-    var coeff = INPUT_TF.coefficient[j];
-    var scaled = diff / coeff;
+    var rng = paramBounds[j][1] - paramBounds[j][0] || 1;
+    var scaled = diff / rng;
     d2 += scaled * scaled;
   }
   return Math.exp(-0.5 * d2);
 }
 
 function biObjectiveKernelRelevance(pt, ref) {
+  if (!predictor) return euclideanRelevance(pt, ref);
   var indices = [xOutIdx, yOutIdx];
   var logSum = 0;
+  var count = 0;
   for (var k = 0; k < indices.length; k++) {
-    var oi = indices[k];
-    if (oi >= HP.length) continue;
-    var raw = Ax.viz.pointRelevance(pt, ref, [], HP[oi].ls, INPUT_TF);
-    logSum += Math.log(Math.max(raw, 1e-300));
+    var name = outcomeNames[indices[k]];
+    if (!name) continue;
+    var corr = predictor.kernelCorrelation(pt, ref, name);
+    logSum += Math.log(Math.max(corr, 1e-300));
+    count++;
   }
-  var geoMean = Math.exp(logSum / indices.length);
+  if (count === 0) return euclideanRelevance(pt, ref);
+  var geoMean = Math.exp(logSum / count);
   return geoMean * geoMean * geoMean;
 }
 
 function allKernelRelevance(pt, ref) {
+  if (!predictor) return euclideanRelevance(pt, ref);
   var logSum = 0;
-  for (var k = 0; k < HP.length; k++) {
-    var raw = Ax.viz.pointRelevance(pt, ref, [], HP[k].ls, INPUT_TF);
-    logSum += Math.log(Math.max(raw, 1e-300));
+  for (var k = 0; k < outcomeNames.length; k++) {
+    var corr = predictor.kernelCorrelation(pt, ref, outcomeNames[k]);
+    logSum += Math.log(Math.max(corr, 1e-300));
   }
-  var geoMean = Math.exp(logSum / HP.length);
+  var geoMean = Math.exp(logSum / outcomeNames.length);
   return geoMean * geoMean * geoMean;
 }
 
@@ -942,7 +1025,7 @@ function normCDF(z) {
 // Product of per-constraint P(feasible) using Gaussian CDF
 function probFeasible(preds) {
   if (!preds) return null;
-  var constraints = OPTIMIZATION_CONFIG.outcome_constraints;
+  var constraints = OPTIMIZATION_CONFIG.outcome_constraints || [];
   if (constraints.length === 0) return 1;
   var pof = 1;
   for (var i = 0; i < constraints.length; i++) {
@@ -1048,14 +1131,14 @@ function showDeltoid(item) {
   // For a fixed bound (zero uncertainty): relBound = (bound - sqMean) / |sqMean| * 100
   var sqPred = arms[sqIdx].preds;
   var relConstraintBounds = {};
-  OPTIMIZATION_CONFIG.outcome_constraints.forEach(function(c) {
+  (OPTIMIZATION_CONFIG.outcome_constraints || []).forEach(function(c) {
     var sqMean = sqPred[c.name].mean[0];
     var absSqMean = Math.abs(sqMean);
     if (absSqMean > 1e-10) {
       relConstraintBounds[c.name] = { rel: (c.bound - sqMean) / absSqMean * 100, op: c.op };
     }
   });
-  OPTIMIZATION_CONFIG.objective_thresholds.forEach(function(t) {
+  (OPTIMIZATION_CONFIG.objective_thresholds || []).forEach(function(t) {
     var sqMean = sqPred[t.name].mean[0];
     var absSqMean = Math.abs(sqMean);
     if (absSqMean > 1e-10) {
@@ -1481,47 +1564,88 @@ function renderSliders() {
   }
   html += '</div>';
 
-  // Compute importance bars: 1/lengthscale, normalized to [0,1]
-  var impScores = new Array(nDims);
+  // Compute importance bars from Sobol' first-order and total-order indices
+  var impFirst = new Array(nDims);
+  var impTotal = new Array(nDims);
   var maxImp = 0;
   if (sliderOutcome) {
-    // Single outcome: use that outcome's LS
-    var oi = outcomeNames.indexOf(sliderOutcome);
-    if (oi >= 0 && oi < HP.length) {
+    var sens = getSobolForOutcome(sliderOutcome);
+    if (sens && sens.totalOrder.length >= nDims) {
       for (var d = 0; d < nDims; d++) {
-        impScores[d] = 1.0 / HP[oi].ls[d];
-        if (impScores[d] > maxImp) maxImp = impScores[d];
+        impFirst[d] = sens.firstOrder[d];
+        impTotal[d] = sens.totalOrder[d];
+        if (impTotal[d] > maxImp) maxImp = impTotal[d];
+      }
+    } else {
+      // Fallback to lengthscale
+      var ls = predictor ? predictor.getLengthscales(sliderOutcome) : null;
+      if (ls) {
+        for (var d = 0; d < nDims; d++) {
+          impFirst[d] = 1.0 / (ls[d] || 1);
+          impTotal[d] = impFirst[d];
+          if (impTotal[d] > maxImp) maxImp = impTotal[d];
+        }
       }
     }
-    html += '<div style="font-size:10px;color:#4872f9;margin-bottom:6px">Sorted by ' + sliderOutcome + ' importance</div>';
+    html += '<div style="font-size:10px;color:#888;margin-bottom:6px">Sorted by parameter importances for ' + sliderOutcome + '</div>';
   } else {
-    // No outcome selected: geometric mean of 1/LS across all outcomes
     for (var d = 0; d < nDims; d++) {
-      var logSum = 0;
-      for (var oi = 0; oi < HP.length; oi++) {
-        logSum += Math.log(1.0 / HP[oi].ls[d]);
+      var sumS1 = 0, sumST = 0, count = 0;
+      for (var oi = 0; oi < outcomeNames.length; oi++) {
+        var sens = getSobolForOutcome(outcomeNames[oi]);
+        if (sens && sens.totalOrder.length >= nDims) {
+          sumS1 += sens.firstOrder[d];
+          sumST += sens.totalOrder[d];
+          count++;
+        }
       }
-      impScores[d] = Math.exp(logSum / HP.length);
-      if (impScores[d] > maxImp) maxImp = impScores[d];
+      impFirst[d] = count > 0 ? sumS1 / count : 0;
+      impTotal[d] = count > 0 ? sumST / count : 0;
+      if (impTotal[d] > maxImp) maxImp = impTotal[d];
     }
   }
 
   // Use importance-ordered dims if an outcome is selected, else default order
   var dimOrder = sliderDimOrder || Array.from({length: nDims}, function(_, i) { return i; });
 
+  // Compute param signs once for the selected outcome (or first outcome)
+  var signOutcome = sliderOutcome || outcomeNames[0];
+  var paramSigns = getParamSigns(signOutcome);
+
   for (var di = 0; di < dimOrder.length; di++) {
     var j = dimOrder[di];
     var bLo = paramBounds[j][0], bHi = paramBounds[j][1];
     var val = params[j];
     var step = (bHi - bLo) / 200;
-    var impFrac = maxImp > 0 ? impScores[j] / maxImp : 0;
-    var barW = Math.round(impFrac * 96); // max 96px within 100px label
-    var barColor = sliderOutcome ? '#4872f9' : '#636EFA';
+
+    // Stacked bars: total-order bar (lighter) with first-order overlay (darker).
+    // Clamp first-order to [0, total-order] — MC noise can push S₁ > Sᵀ
+    var s1 = Math.max(0, Math.min(impFirst[j] || 0, impTotal[j] || 0));
+    var st = Math.max(0, impTotal[j] || 0);
+    var totalW = maxImp > 0 ? Math.round((st / maxImp) * 96) : 0;
+    var firstW = st > 0 ? Math.round((s1 / st) * totalW) : totalW;
+    // Ensure interaction portion is visible (min 4px) if any interaction exists
+    if (st > s1 && totalW > 6 && totalW - firstW < 4) firstW = totalW - 4;
+    var totalPct = ((impTotal[j] || 0) * 100).toFixed(1);
+    var firstPct = ((s1 || 0) * 100).toFixed(1);
+    var tipText = paramNames[j] + ' explains ' + totalPct + '% of the total variance in ' + signOutcome +
+      ' (' + firstPct + '% main effect)';
+
     html += '<div class="param-row">';
-    var labelStyle = isEditable ? ' style="color:#333"' : '';
-    html += '<label' + labelStyle + '>' + paramNames[j];
-    if (barW > 2) {
-      html += '<span class="imp-bar" style="width:' + barW + 'px;background:' + barColor + '"></span>';
+    var labelStyle = isEditable ? 'color:#333' : '';
+    html += '<label style="' + labelStyle + '" data-tip="' + tipText + '">' + paramNames[j];
+    var dimSign = paramSigns ? paramSigns[j] : 1;
+    var cols = dimSign >= 0 ? SIGN_COLORS.pos : SIGN_COLORS.neg;
+    var interW = totalW - firstW;
+    if (totalW > 1) {
+      // First-order bar (darker) flush right
+      if (firstW > 0) {
+        html += '<span class="imp-bar" style="right:0;width:' + firstW + 'px;background:' + cols.first + ';opacity:0.7"></span>';
+      }
+      // Interaction bar (lighter) adjacent to the left of first-order
+      if (interW > 0) {
+        html += '<span class="imp-bar" style="right:' + firstW + 'px;width:' + interW + 'px;background:' + cols.interaction + ';opacity:0.7"></span>';
+      }
     }
     html += '</label>';
     html += '<input type="range" min="' + bLo + '" max="' + bHi + '" step="' + step +
@@ -1746,38 +1870,58 @@ selDistMode.addEventListener('change', function() { updateOpacities(); });
 // createNewCandidate is available programmatically (e.g. from clone or import)
 document.getElementById('btnExport').addEventListener('click', exportCandidates);
 
-// Import candidates from JSON
+// Import ExperimentState or candidates from JSON
 document.getElementById('fileInput').addEventListener('change', function(e) {
   var file = e.target.files[0];
   if (!file) return;
   file.text().then(function(text) {
     try {
       var data = JSON.parse(text);
-      if (!Array.isArray(data)) { alert('Expected a JSON array of candidates'); return; }
-      // Clear existing candidates
-      candidates = [];
-      nextCandidateId = 1;
-      var maxBatch = 0;
-      arms.forEach(function(a) { if (a.batchIndex > maxBatch) maxBatch = a.batchIndex; });
-      data.forEach(function(item, i) {
-        var pt = paramNames.map(function(p) { return item.parameters[p] || 0; });
-        candidates.push({
-          id: nextCandidateId++,
-          armName: item.arm_name || ('imported_' + i),
-          params: pt,
-          trialIndex: arms.length + i,
-          batchIndex: maxBatch + 1,
-          trialStatus: 'CANDIDATE',
-          generationMethod: item.generation_method || 'imported',
-          edited: false, preds: null, relData: null
+      // Detect ExperimentState (has model_state or experiment wrapper)
+      if (data.experiment || data.model_state || data.search_space) {
+        // Full fixture reload
+        loadExperimentState(data);
+        computeAllRelData();
+        computePanelRange();
+        customMetricOrder = computeDefaultMetricOrder();
+        rebuildDropdownOrder();
+        populateSQDropdown();
+        selectedItem = arms.length > 0 ? { type: 'arm', idx: 0 } : null;
+        sliderOutcome = outcomeNames.length > 0 ? outcomeNames[0] : null;
+        sliderDimOrder = sliderOutcome ? computeDimOrderForOutcome(sliderOutcome) : null;
+        renderLegend();
+        updateSubtitle();
+        renderScatter();
+        showDeltoid(selectedItem);
+        renderSliders();
+      } else if (Array.isArray(data)) {
+        // Candidate array import
+        candidates = [];
+        nextCandidateId = 1;
+        var maxBatch = 0;
+        arms.forEach(function(a) { if (a.batchIndex > maxBatch) maxBatch = a.batchIndex; });
+        data.forEach(function(item, i) {
+          var pt = paramNames.map(function(p) { return item.parameters[p] || 0; });
+          candidates.push({
+            id: nextCandidateId++,
+            armName: item.arm_name || ('imported_' + i),
+            params: pt,
+            trialIndex: arms.length + i,
+            batchIndex: maxBatch + 1,
+            trialStatus: 'CANDIDATE',
+            generationMethod: item.generation_method || 'imported',
+            edited: false, preds: null, relData: null
+          });
         });
-      });
-      computeAllRelData();
-      computePanelRange();
-      buildLegend();
-      updateSubtitle();
-      renderScatter();
-      showDeltoid(null);
+        computeAllRelData();
+        computePanelRange();
+        renderLegend();
+        updateSubtitle();
+        renderScatter();
+        showDeltoid(null);
+      } else {
+        alert('Expected an ExperimentState JSON or an array of candidates');
+      }
     } catch(err) { alert('Failed to parse JSON: ' + err.message); }
   });
   e.target.value = ''; // allow re-import of same file
@@ -1787,8 +1931,8 @@ document.getElementById('fileInput').addEventListener('change', function(e) {
 function updateSubtitle() {
   var completed = arms.filter(function(a) { return a.trialStatus === 'COMPLETED'; }).length;
   var candCount = candidates.length;
-  var nObj = OPTIMIZATION_CONFIG.objectives.length;
-  var nCon = OPTIMIZATION_CONFIG.outcome_constraints.length;
+  var nObj = OPTIMIZATION_CONFIG.objectives ? OPTIMIZATION_CONFIG.objectives.length : 0;
+  var nCon = OPTIMIZATION_CONFIG.outcome_constraints ? OPTIMIZATION_CONFIG.outcome_constraints.length : 0;
   // Count distinct batches
   var batches = {};
   arms.forEach(function(a) { batches[a.batchIndex] = true; });

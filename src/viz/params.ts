@@ -1,4 +1,5 @@
-import type { ParamSpec, DimensionRanker } from "./types";
+import type { ParamSpec, DimensionRanker, RenderPredictor } from "./types";
+import { Rng } from "../acquisition/sample_mvn.js";
 
 /** Returns true if the parameter is a choice parameter. */
 export function isChoice(p: ParamSpec): boolean {
@@ -66,14 +67,35 @@ export function normalizeFixture(data: any): any {
 }
 
 /**
- * Compute dimension display order, sorted by importance (shortest lengthscale first).
- * Falls back to natural order if no importance data is available.
+ * Compute dimension display order, sorted by importance.
+ * When `useSobol` is true and the predictor supports it, sorts by first-order
+ * Sobol' index descending (direct variance explained). Otherwise falls back
+ * to shortest lengthscale first.
  */
 export function computeDimOrder(
   predictor: DimensionRanker,
   nDim: number,
   selectedOutcome?: string,
+  useSobol?: boolean,
 ): number[] {
+  if (useSobol && predictor.computeSensitivity) {
+    const sens = predictor.computeSensitivity(selectedOutcome);
+    if (sens && sens.totalOrder.length > 0) {
+      const dims = sens.firstOrder.map((s, i) => ({ idx: i, s, st: sens.totalOrder[i] }));
+      dims.sort((a, b) => {
+        const df = b.s - a.s;
+        return Math.abs(df) > 0.005 ? df : b.st - a.st;
+      });
+      const order = dims.map((d) => d.idx);
+      if (order.length < nDim) {
+        const inOrder = new Set(order);
+        for (let i = 0; i < nDim; i++) {
+          if (!inOrder.has(i)) order.push(i);
+        }
+      }
+      return order;
+    }
+  }
   const ranked = predictor.rankDimensionsByImportance(selectedOutcome);
   if (!ranked || ranked.length === 0) {
     return Array.from({ length: nDim }, (_, i) => i);
@@ -134,4 +156,49 @@ export function pointRelevance(
     d2 += scaled * scaled;
   }
   return Math.exp(-0.5 * d2);
+}
+
+/**
+ * Compute the average sign of ∂μ/∂x_j for each parameter.
+ * Positive (+1) = increasing the param increases the prediction.
+ * Negative (-1) = increasing the param decreases the prediction.
+ *
+ * Uses finite differences at deterministically seeded random base points.
+ * Choice params are skipped (default to +1).
+ */
+export function computeParamSigns(
+  predictor: Pick<RenderPredictor, "predict" | "paramBounds" | "paramSpecs" | "paramNames">,
+  outcome: string,
+): number[] {
+  const d = predictor.paramNames.length;
+  const bounds = predictor.paramBounds;
+  const specs = predictor.paramSpecs;
+  const K = 20;
+  const rng = new Rng(0xA15);
+  const signs = new Float64Array(d);
+
+  const allPts: number[][] = [];
+  for (let trial = 0; trial < K; trial++) {
+    const base = bounds.map(([lo, hi]) => lo + rng.uniform() * (hi - lo));
+    for (let j = 0; j < d; j++) {
+      if (specs && specs[j].type === "choice") {
+        allPts.push(base, base);
+        continue;
+      }
+      const [lo, hi] = bounds[j];
+      const ptLo = base.slice(); ptLo[j] = lo;
+      const ptHi = base.slice(); ptHi[j] = hi;
+      allPts.push(ptLo, ptHi);
+    }
+  }
+
+  const preds = predictor.predict(allPts)[outcome].mean;
+  for (let trial = 0; trial < K; trial++) {
+    for (let j = 0; j < d; j++) {
+      const idx = (trial * d + j) * 2;
+      signs[j] += Math.sign(preds[idx + 1] - preds[idx]);
+    }
+  }
+
+  return Array.from(signs).map((s) => (s >= 0 ? 1 : -1));
 }

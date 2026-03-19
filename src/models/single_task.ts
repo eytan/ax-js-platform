@@ -1,6 +1,6 @@
 import { Matrix } from "../linalg/matrix.js";
 import { ExactGP } from "./gp.js";
-import type { GPModelState, PredictionResult } from "./types.js";
+import type { GPInternals, GPModelState, PredictionResult } from "./types.js";
 import { ConstantMean } from "../means/constant.js";
 import { InputNormalize } from "../transforms/normalize.js";
 import { InputWarp } from "../transforms/warp.js";
@@ -55,6 +55,11 @@ export class SingleTaskGP {
       outcomeTransform,
       inputWarp,
     );
+  }
+
+  /** Expose GP internals for analytic Sobol' computation. */
+  getInternals(): GPInternals {
+    return this.gp.getInternals();
   }
 
   predict(testPoints: number[][]): PredictionResult {

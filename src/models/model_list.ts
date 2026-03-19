@@ -1,5 +1,5 @@
 import { SingleTaskGP } from "./single_task.js";
-import type { ModelListState, PredictionResult } from "./types.js";
+import type { GPInternals, ModelListState, PredictionResult } from "./types.js";
 
 export class ModelListGP {
   readonly outcomeNames: string[];
@@ -8,6 +8,11 @@ export class ModelListGP {
   constructor(state: ModelListState) {
     this.outcomeNames = state.outcome_names;
     this.models = state.models.map((s) => new SingleTaskGP(s));
+  }
+
+  /** Expose GP internals for a specific sub-model. */
+  getInternals(index: number): GPInternals {
+    return this.models[index].getInternals();
   }
 
   predict(testPoints: number[][]): PredictionResult[] {

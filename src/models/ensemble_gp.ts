@@ -1,6 +1,7 @@
 import { SingleTaskGP } from "./single_task.js";
 import type {
   EnsembleGPModelState,
+  GPInternals,
   GPModelState,
   PredictionResult,
 } from "./types.js";
@@ -25,6 +26,16 @@ export class EnsembleGP {
       throw new Error("EnsembleGP requires at least one model");
     }
     this.models = state.models.map((ms) => new SingleTaskGP(ms));
+  }
+
+  /** Number of ensemble members. */
+  get numModels(): number {
+    return this.models.length;
+  }
+
+  /** Expose GP internals for a specific ensemble member. */
+  getInternals(index: number): GPInternals {
+    return this.models[index].getInternals();
   }
 
   predict(testPoints: number[][]): PredictionResult {

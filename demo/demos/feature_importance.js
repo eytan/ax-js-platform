@@ -23,14 +23,17 @@ ${axFavicon}
 </head>
 <body>
 <h1>${axHomeLink}Feature Importance</h1>
-<div class="subtitle" id="subtitle">Relative importance from GP kernel lengthscales</div>
+<div class="subtitle" id="subtitle">Parameter importance via GP kernel analysis</div>
 <div class="controls">
   <label>File: <input type="file" id="fileInput" accept=".json"></label>
 </div>
 <div id="chart"></div>
-<div class="explanation">
-  Bars show <b>1 / lengthscale</b> — shorter kernel lengthscales mean the model is more
-  sensitive to that parameter. Importance is relative (normalized to the most important dimension).
+<div class="explanation" id="explanation">
+  <b>Lengthscale mode:</b> Bars show <b>1 / lengthscale</b> — shorter kernel lengthscales mean the model
+  is more sensitive to that parameter. Fast but not range-aware.<br><br>
+  <b>Sobol\u2019 mode:</b> Bars show variance decomposition via Saltelli\u2019s estimator on the GP posterior mean.
+  Solid blue = first-order effect (S<sub>i</sub>), light blue = interaction with other parameters (ST<sub>i</sub> \u2212 S<sub>i</sub>).
+  Range-aware and detects interactions, but requires ~500\u00D7(d+2) GP evaluations.
 </div>
 ${libraryScript()}
 ${fixtureScript('__DEFAULT_FIXTURE__', penicillinFixture)}
@@ -43,7 +46,7 @@ function loadFixtureData(data) {
   fixture = Ax.viz.normalizeFixture(data);
   predictor = new Predictor(fixture);
   document.getElementById('subtitle').textContent =
-    (fixture.metadata.name || 'Fixture') + ' — ' + predictor.paramNames.length + ' parameters, ' +
+    (fixture.metadata.name || 'Fixture') + ' \\u2014 ' + predictor.paramNames.length + ' parameters, ' +
     predictor.outcomeNames.length + ' outcome' + (predictor.outcomeNames.length > 1 ? 's' : '');
   render();
 }
@@ -51,7 +54,7 @@ function loadFixtureData(data) {
 function render() {
   var chart = document.getElementById('chart');
   chart.innerHTML = '';
-  Ax.viz.renderFeatureImportance(chart, predictor, { interactive: true });
+  Ax.viz.renderFeatureImportance(chart, predictor, { interactive: true, mode: 'sobol' });
 }
 
 Ax.viz.setupFileUpload('fileInput', function(data) { loadFixtureData(data); });

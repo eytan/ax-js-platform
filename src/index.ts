@@ -44,6 +44,17 @@ export {
 } from "./transforms/relativize.js";
 export type { RelativizeResult, RelativizeOptions } from "./transforms/relativize.js";
 
+// Sensitivity analysis
+export { computeSobolIndices, haltonSequence } from "./sensitivity.js";
+export type { SaltelliOptions } from "./sensitivity.js";
+export {
+  computeAnalyticSobolIndices,
+  computeEnsembleAnalyticSobol,
+} from "./sensitivity_analytic.js";
+
+// Math utilities
+export { erf, normalCdf } from "./math.js";
+
 // Types — schema, config, and data interfaces
 export type {
   ExperimentState,
@@ -61,4 +72,6 @@ export type {
   TrainingData,
   LOOCVResult,
   DimensionImportance,
+  SensitivityIndices,
+  GPInternals,
 } from "./models/types.js";

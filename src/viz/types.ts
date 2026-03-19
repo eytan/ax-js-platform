@@ -21,6 +21,8 @@ export interface RenderPredictor {
   loocv(outcomeName?: string): { observed: number[]; mean: number[]; variance: number[] };
   rankDimensionsByImportance(outcomeName?: string): { dimIndex: number; paramName: string; lengthscale: number }[];
   kernelCorrelation(point: number[], refPoint: number[], outcomeName?: string): number;
+  computeSensitivity?(outcomeName?: string, options?: { numSamples?: number; seed?: number }):
+    { firstOrder: number[]; totalOrder: number[]; paramNames: string[]; numEvaluations: number };
 }
 
 /** Info tracked for each visible training dot in an SVG plot. */
@@ -45,6 +47,10 @@ export interface FeatureImportanceOptions {
   outcome?: string;
   interactive?: boolean;
   backgroundColor?: string;
+  /** Importance mode. Default: "lengthscale". */
+  mode?: "lengthscale" | "sobol";
+  /** Number of Saltelli samples for Sobol' mode. Default: 512. */
+  sobolSamples?: number;
 }
 
 /** Options for renderCrossValidation. */
@@ -95,6 +101,8 @@ export interface DimensionRanker {
   rankDimensionsByImportance(
     outcome?: string,
   ): { dimIndex: number }[] | null;
+  computeSensitivity?(outcomeName?: string):
+    { firstOrder: number[]; totalOrder: number[]; paramNames: string[] };
 }
 
 /** Minimal predictor shape accepted by embedding helpers. */

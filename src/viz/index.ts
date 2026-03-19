@@ -34,6 +34,7 @@ export {
   formatParamValue,
   normalizeFixture,
   computeDimOrder,
+  computeParamSigns,
   pointRelevance,
 } from "./params";
 

@@ -7,7 +7,7 @@ import { ConstantMean } from "../means/constant.js";
 import { InputNormalize } from "../transforms/normalize.js";
 import { InputWarp } from "../transforms/warp.js";
 import type { OutcomeUntransform } from "../transforms/outcome.js";
-import type { PredictionResult } from "./types.js";
+import type { GPInternals, PredictionResult } from "./types.js";
 
 /**
  * Core ExactGP with Cholesky-based posterior.
@@ -74,6 +74,25 @@ export class ExactGP {
       residuals.data[i] = trainY.get(i, 0) - meanVals.data[i];
     }
     this.alpha = solveCholesky(this.L, residuals);
+  }
+
+  /** Expose GP internals for analytic Sobol' computation. */
+  getInternals(): GPInternals {
+    const n = this.alpha.rows;
+    const d = this.trainXNorm.cols;
+    const alphaArr = new Float64Array(n);
+    for (let i = 0; i < n; i++) alphaArr[i] = this.alpha.get(i, 0);
+    const trainXArr: number[][] = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const row = new Array(d);
+      for (let j = 0; j < d; j++) row[j] = this.trainXNorm.get(i, j);
+      trainXArr[i] = row;
+    }
+    return {
+      alpha: alphaArr,
+      trainXNorm: trainXArr,
+      meanConstant: this.mean.constant,
+    };
   }
 
   /** Transform test inputs through normalize + warp pipeline. */

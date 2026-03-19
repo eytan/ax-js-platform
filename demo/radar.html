@@ -163,8 +163,14 @@ var Ax = (() => {
   __export(src_exports, {
     Predictor: () => Predictor,
     boundsInputTransform: () => boundsInputTransform,
+    computeAnalyticSobolIndices: () => computeAnalyticSobolIndices,
+    computeEnsembleAnalyticSobol: () => computeEnsembleAnalyticSobol,
+    computeSobolIndices: () => computeSobolIndices,
+    erf: () => erf,
+    haltonSequence: () => haltonSequence,
     identityInputTransform: () => identityInputTransform,
     loadModel: () => loadModel,
+    normalCdf: () => normalCdf,
     relativize: () => relativize,
     relativizePredictions: () => relativizePredictions,
     unrelativize: () => unrelativize
@@ -434,6 +440,24 @@ var Ax = (() => {
         residuals.data[i] = trainY.get(i, 0) - meanVals.data[i];
       }
       this.alpha = solveCholesky(this.L, residuals);
+    }
+    /** Expose GP internals for analytic Sobol' computation. */
+    getInternals() {
+      const n = this.alpha.rows;
+      const d = this.trainXNorm.cols;
+      const alphaArr = new Float64Array(n);
+      for (let i = 0; i < n; i++) alphaArr[i] = this.alpha.get(i, 0);
+      const trainXArr = new Array(n);
+      for (let i = 0; i < n; i++) {
+        const row = new Array(d);
+        for (let j = 0; j < d; j++) row[j] = this.trainXNorm.get(i, j);
+        trainXArr[i] = row;
+      }
+      return {
+        alpha: alphaArr,
+        trainXNorm: trainXArr,
+        meanConstant: this.mean.constant
+      };
     }
     /** Transform test inputs through normalize + warp pipeline. */
     transformInputs(testX) {
@@ -1071,6 +1095,10 @@ var Ax = (() => {
         inputWarp
       );
     }
+    /** Expose GP internals for analytic Sobol' computation. */
+    getInternals() {
+      return this.gp.getInternals();
+    }
     predict(testPoints) {
       if (testPoints.length === 0) {
         throw new Error("testPoints must not be empty");
@@ -1108,6 +1136,10 @@ var Ax = (() => {
     constructor(state) {
       this.outcomeNames = state.outcome_names;
       this.models = state.models.map((s) => new SingleTaskGP(s));
+    }
+    /** Expose GP internals for a specific sub-model. */
+    getInternals(index) {
+      return this.models[index].getInternals();
     }
     predict(testPoints) {
       return this.models.map((m) => m.predict(testPoints));
@@ -1521,6 +1553,41 @@ var Ax = (() => {
       }
       this.alpha = solveCholesky(this.L, residuals);
     }
+    /**
+     * Expose GP internals for analytic Sobol', for a specific task.
+     *
+     * For task t, the effective alpha folds in the task covariance:
+     *   α_eff_i = α_i × B[t, task_i]
+     *
+     * Returns data-dimension-only training inputs (task column removed).
+     */
+    getInternals(taskIndex) {
+      const tf = this.taskFeature < 0 ? this.trainXFull.cols + this.taskFeature : this.taskFeature;
+      const n = this.trainXFull.rows;
+      const B = this.kernel.indexKernel.taskCovar;
+      const alphaEff = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        const ti = Math.round(this.trainXFull.get(i, tf));
+        alphaEff[i] = this.alpha.get(i, 0) * B.get(taskIndex, ti);
+      }
+      const dataCols = [];
+      for (let j = 0; j < this.trainXFull.cols; j++) {
+        if (j !== tf) dataCols.push(j);
+      }
+      const trainXData = new Array(n);
+      for (let i = 0; i < n; i++) {
+        const row = new Array(dataCols.length);
+        for (let j = 0; j < dataCols.length; j++) {
+          row[j] = this.trainXFull.get(i, dataCols[j]);
+        }
+        trainXData[i] = row;
+      }
+      return {
+        alpha: alphaEff,
+        trainXNorm: trainXData,
+        meanConstant: this.meanConstants[taskIndex]
+      };
+    }
     applyTransforms(X) {
       const tf = this.taskFeature < 0 ? X.cols + this.taskFeature : this.taskFeature;
       const dataCols = [];
@@ -1659,6 +1726,14 @@ var Ax = (() => {
       }
       this.models = state.models.map((ms) => new SingleTaskGP(ms));
     }
+    /** Number of ensemble members. */
+    get numModels() {
+      return this.models.length;
+    }
+    /** Expose GP internals for a specific ensemble member. */
+    getInternals(index) {
+      return this.models[index].getInternals();
+    }
     predict(testPoints) {
       if (testPoints.length === 0) {
         throw new Error("testPoints must not be empty");
@@ -1756,6 +1831,1001 @@ var Ax = (() => {
     }
   }
 
+  // src/acquisition/sample_mvn.ts
+  var Rng = class {
+    s;
+    constructor(seed = 42) {
+      this.s = new Uint32Array(4);
+      for (let i = 0; i < 4; i++) {
+        seed += 2654435769;
+        let t = seed;
+        t = Math.imul(t ^ t >>> 16, 569420461);
+        t = Math.imul(t ^ t >>> 15, 1935289751);
+        this.s[i] = (t ^ t >>> 15) >>> 0;
+      }
+    }
+    /** Uniform [0, 1) */
+    uniform() {
+      const result = this.s[0] + this.s[3];
+      const t = this.s[1] << 9;
+      this.s[2] ^= this.s[0];
+      this.s[3] ^= this.s[1];
+      this.s[1] ^= this.s[2];
+      this.s[0] ^= this.s[3];
+      this.s[2] ^= t;
+      this.s[3] = this.s[3] << 11 | this.s[3] >>> 21;
+      return (result >>> 0) / 4294967296;
+    }
+    /** Standard normal via Box-Muller transform. */
+    randn() {
+      const u1 = this.uniform();
+      const u2 = this.uniform();
+      return Math.sqrt(-2 * Math.log(u1 + 1e-300)) * Math.cos(2 * Math.PI * u2);
+    }
+    /** Fill a Float64Array with standard normal samples. */
+    randnArray(n) {
+      const arr = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        arr[i] = this.randn();
+      }
+      return arr;
+    }
+  };
+
+  // src/sensitivity.ts
+  var PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71];
+  function haltonSequence(n, d, rng) {
+    if (d > PRIMES.length) {
+      throw new Error(`haltonSequence supports up to ${PRIMES.length} dimensions, got ${d}`);
+    }
+    const r = rng ?? new Rng(42);
+    const result = [];
+    const permutations = [];
+    for (let dim = 0; dim < d; dim++) {
+      const base = PRIMES[dim];
+      const dimPerms = [];
+      for (let digitPos = 0; digitPos < 20; digitPos++) {
+        const perm = [];
+        for (let k = 0; k < base; k++) perm.push(k);
+        for (let k = base - 1; k > 0; k--) {
+          const j = Math.floor(r.uniform() * (k + 1));
+          const tmp = perm[k];
+          perm[k] = perm[j];
+          perm[j] = tmp;
+        }
+        dimPerms.push(perm);
+      }
+      permutations.push(dimPerms);
+    }
+    for (let i = 0; i < n; i++) {
+      const point = new Array(d);
+      for (let dim = 0; dim < d; dim++) {
+        const base = PRIMES[dim];
+        let val = 0;
+        let denom = 1;
+        let idx = i + 1;
+        let digitPos = 0;
+        while (idx > 0) {
+          denom *= base;
+          const digit = idx % base;
+          const scrambled = permutations[dim][digitPos % 20][digit];
+          val += scrambled / denom;
+          idx = Math.floor(idx / base);
+          digitPos++;
+        }
+        point[dim] = val;
+      }
+      result.push(point);
+    }
+    return result;
+  }
+  function splitDimensions(paramSpecs) {
+    const contDims = [];
+    const catDims = [];
+    for (let i = 0; i < paramSpecs.length; i++) {
+      if (paramSpecs[i].type === "choice") {
+        catDims.push(i);
+      } else {
+        contDims.push(i);
+      }
+    }
+    return { contDims, catDims };
+  }
+  function scaleValue(u, spec) {
+    const [lo, hi] = spec.bounds ?? [0, 1];
+    const v = lo + u * (hi - lo);
+    return spec.parameter_type === "int" ? Math.round(v) : v;
+  }
+  function categoricalCombinations(paramSpecs, catDims, maxCombinations, rng) {
+    if (catDims.length === 0) return [[]];
+    const valueSets = catDims.map((d) => {
+      const vals = paramSpecs[d].values;
+      if (!vals) return [0];
+      return vals.map((_, i) => i);
+    });
+    let totalCombos = 1;
+    for (const vs of valueSets) {
+      totalCombos *= vs.length;
+      if (totalCombos > maxCombinations) break;
+    }
+    if (totalCombos <= maxCombinations) {
+      const combos2 = [[]];
+      for (const vs of valueSets) {
+        const next = [];
+        for (const combo of combos2) {
+          for (const v of vs) {
+            next.push([...combo, v]);
+          }
+        }
+        combos2.length = 0;
+        combos2.push(...next);
+      }
+      return combos2;
+    }
+    const combos = [];
+    for (let i = 0; i < maxCombinations; i++) {
+      const combo = valueSets.map((vs) => vs[Math.floor(rng.uniform() * vs.length)]);
+      combos.push(combo);
+    }
+    return combos;
+  }
+  function buildPoint(contValues, catValues, contDims, catDims, totalDims) {
+    const pt = new Array(totalDims);
+    for (let i = 0; i < contDims.length; i++) {
+      pt[contDims[i]] = contValues[i];
+    }
+    for (let i = 0; i < catDims.length; i++) {
+      pt[catDims[i]] = catValues[i];
+    }
+    return pt;
+  }
+  var MAX_BATCH = 4096;
+  function computeSobolIndices(predictFn, paramSpecs, options) {
+    const N = options?.numSamples ?? 512;
+    const seed = options?.seed ?? 42;
+    const rng = new Rng(seed);
+    const { contDims, catDims } = splitDimensions(paramSpecs);
+    const dCont = contDims.length;
+    if (dCont === 0) {
+      return {
+        firstOrder: [],
+        totalOrder: [],
+        paramNames: [],
+        numEvaluations: 0
+      };
+    }
+    const A = [];
+    const B = [];
+    for (let i = 0; i < N; i++) {
+      const rowA = [];
+      const rowB = [];
+      for (let j = 0; j < dCont; j++) {
+        rowA.push(scaleValue(rng.uniform(), paramSpecs[contDims[j]]));
+        rowB.push(scaleValue(rng.uniform(), paramSpecs[contDims[j]]));
+      }
+      A.push(rowA);
+      B.push(rowB);
+    }
+    const catCombos = categoricalCombinations(paramSpecs, catDims, 50, rng);
+    const nCatCombos = catCombos.length;
+    const totalDims = paramSpecs.length;
+    const nMatrices = dCont + 2;
+    const pointsPerCombo = N * nMatrices;
+    const totalPoints = pointsPerCombo * nCatCombos;
+    const allPoints = new Array(totalPoints);
+    let pIdx = 0;
+    for (let cc = 0; cc < nCatCombos; cc++) {
+      const catVals = catCombos[cc];
+      for (let i = 0; i < N; i++) {
+        allPoints[pIdx++] = buildPoint(A[i], catVals, contDims, catDims, totalDims);
+      }
+      for (let i = 0; i < N; i++) {
+        allPoints[pIdx++] = buildPoint(B[i], catVals, contDims, catDims, totalDims);
+      }
+      for (let j = 0; j < dCont; j++) {
+        for (let i = 0; i < N; i++) {
+          const ab = A[i].slice();
+          ab[j] = B[i][j];
+          allPoints[pIdx++] = buildPoint(ab, catVals, contDims, catDims, totalDims);
+        }
+      }
+    }
+    const allY = new Float64Array(totalPoints);
+    for (let start = 0; start < totalPoints; start += MAX_BATCH) {
+      const end = Math.min(start + MAX_BATCH, totalPoints);
+      const chunk = allPoints.slice(start, end);
+      const chunkY = predictFn(chunk);
+      allY.set(chunkY, start);
+    }
+    const fA = new Float64Array(N);
+    const fB = new Float64Array(N);
+    const fAB = [];
+    for (let j = 0; j < dCont; j++) fAB.push(new Float64Array(N));
+    for (let cc = 0; cc < nCatCombos; cc++) {
+      const base = cc * pointsPerCombo;
+      for (let i = 0; i < N; i++) {
+        fA[i] += allY[base + i] / nCatCombos;
+        fB[i] += allY[base + N + i] / nCatCombos;
+      }
+      for (let j = 0; j < dCont; j++) {
+        const abBase = base + (2 + j) * N;
+        for (let i = 0; i < N; i++) {
+          fAB[j][i] += allY[abBase + i] / nCatCombos;
+        }
+      }
+    }
+    let sumY = 0;
+    let sumY2 = 0;
+    for (let i = 0; i < N; i++) {
+      sumY += fA[i];
+      sumY2 += fA[i] * fA[i];
+      sumY += fB[i];
+      sumY2 += fB[i] * fB[i];
+    }
+    const totalN = 2 * N;
+    const meanY = sumY / totalN;
+    const varY = sumY2 / totalN - meanY * meanY;
+    const firstOrder = new Array(dCont);
+    const totalOrder = new Array(dCont);
+    if (varY < 1e-30) {
+      for (let j = 0; j < dCont; j++) {
+        firstOrder[j] = 0;
+        totalOrder[j] = 0;
+      }
+    } else {
+      for (let j = 0; j < dCont; j++) {
+        let numS = 0;
+        let numST = 0;
+        for (let i = 0; i < N; i++) {
+          numS += fB[i] * (fAB[j][i] - fA[i]);
+          const diff = fA[i] - fAB[j][i];
+          numST += diff * diff;
+        }
+        firstOrder[j] = Math.max(0, numS / (N * varY));
+        totalOrder[j] = Math.max(0, numST / (2 * N * varY));
+      }
+    }
+    const allFirstOrder = [];
+    const allTotalOrder = [];
+    const allParamNames = [];
+    let contIdx = 0;
+    for (let i = 0; i < paramSpecs.length; i++) {
+      if (paramSpecs[i].type === "choice") {
+        if (catDims.length > 0 && nCatCombos > 1) {
+          const catSens = computeCategoricalSensitivity(
+            i,
+            catDims,
+            catCombos,
+            allY,
+            N,
+            pointsPerCombo,
+            nCatCombos,
+            varY
+          );
+          allFirstOrder.push(catSens);
+          allTotalOrder.push(catSens);
+        } else {
+          allFirstOrder.push(0);
+          allTotalOrder.push(0);
+        }
+        allParamNames.push(paramSpecs[i].name);
+      } else {
+        allFirstOrder.push(firstOrder[contIdx]);
+        allTotalOrder.push(totalOrder[contIdx]);
+        allParamNames.push(paramSpecs[i].name);
+        contIdx++;
+      }
+    }
+    return {
+      firstOrder: allFirstOrder,
+      totalOrder: allTotalOrder,
+      paramNames: allParamNames,
+      numEvaluations: totalPoints
+    };
+  }
+  function computeCategoricalSensitivity(dimIdx, catDims, catCombos, allY, N, pointsPerCombo, nCatCombos, varY) {
+    if (varY < 1e-30) return 0;
+    const catPos = catDims.indexOf(dimIdx);
+    if (catPos < 0) return 0;
+    const groups = /* @__PURE__ */ new Map();
+    for (let cc = 0; cc < nCatCombos; cc++) {
+      const val = catCombos[cc][catPos];
+      if (!groups.has(val)) groups.set(val, []);
+      groups.get(val).push(cc);
+    }
+    if (groups.size <= 1) return 0;
+    const condMeans = [];
+    const condWeights = [];
+    for (const [, combos] of groups) {
+      let sum = 0;
+      let count = 0;
+      for (const cc of combos) {
+        const base = cc * pointsPerCombo;
+        for (let i = 0; i < N; i++) {
+          sum += allY[base + i];
+        }
+        count += N;
+      }
+      condMeans.push(sum / count);
+      condWeights.push(combos.length / nCatCombos);
+    }
+    let grandMean = 0;
+    for (let k = 0; k < condMeans.length; k++) {
+      grandMean += condWeights[k] * condMeans[k];
+    }
+    let condVar = 0;
+    for (let k = 0; k < condMeans.length; k++) {
+      const diff = condMeans[k] - grandMean;
+      condVar += condWeights[k] * diff * diff;
+    }
+    return Math.max(0, condVar / varY);
+  }
+
+  // src/math.ts
+  function erf(x) {
+    const a1 = 0.254829592;
+    const a2 = -0.284496736;
+    const a3 = 1.421413741;
+    const a4 = -1.453152027;
+    const a5 = 1.061405429;
+    const p = 0.3275911;
+    const sign = x < 0 ? -1 : 1;
+    const ax = Math.abs(x);
+    const t = 1 / (1 + p * ax);
+    const y = 1 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-ax * ax);
+    return sign * y;
+  }
+  function normalCdf(x) {
+    return 0.5 * (1 + erf(x / Math.SQRT2));
+  }
+
+  // src/sensitivity_analytic.ts
+  function rbfMarginal(c, ell) {
+    return ell * Math.sqrt(2 * Math.PI) * (normalCdf((1 - c) / ell) - normalCdf(-c / ell));
+  }
+  function rbfGeneralizedCross(a, b, ell1, ell2) {
+    const s2 = ell1 * ell1 + ell2 * ell2;
+    const sigma = ell1 * ell2 / Math.sqrt(s2);
+    const mu = (a * ell2 * ell2 + b * ell1 * ell1) / s2;
+    const diff = a - b;
+    return Math.exp(-(diff * diff) / (2 * s2)) * sigma * Math.sqrt(2 * Math.PI) * (normalCdf((1 - mu) / sigma) - normalCdf(-mu / sigma));
+  }
+  var RbfDimIntegrator = class {
+    constructor(ell) {
+      this.ell = ell;
+    }
+    marginal(c) {
+      return rbfMarginal(c, this.ell);
+    }
+    cross(a, b) {
+      return rbfGeneralizedCross(a, b, this.ell, this.ell);
+    }
+  };
+  function maternKernel1D(nu, ell) {
+    if (nu === 0.5) {
+      return (x, c) => Math.exp(-Math.abs(x - c) / ell);
+    } else if (nu === 1.5) {
+      const sqrt3 = Math.sqrt(3);
+      return (x, c) => {
+        const r = Math.abs(x - c) / ell;
+        const sr = sqrt3 * r;
+        return (1 + sr) * Math.exp(-sr);
+      };
+    } else {
+      const sqrt5 = Math.sqrt(5);
+      return (x, c) => {
+        const d = x - c;
+        const r = Math.abs(d) / ell;
+        const sr = sqrt5 * r;
+        return (1 + sr + 5 * d * d / (3 * ell * ell)) * Math.exp(-sr);
+      };
+    }
+  }
+  var MaternDimIntegrator = class {
+    integrator;
+    constructor(nu, ell, nNodes = 128) {
+      this.integrator = new QuadratureDimIntegrator(
+        maternKernel1D(nu, ell),
+        nNodes
+      );
+    }
+    marginal(c) {
+      return this.integrator.marginal(c);
+    }
+    cross(a, b) {
+      return this.integrator.cross(a, b);
+    }
+  };
+  var CategoricalDimIntegrator = class {
+    nCategories;
+    expNeg;
+    // exp(-1/(d·ℓ))
+    /**
+     * @param nCategories Number of category values for this dimension
+     * @param lengthscale ARD lengthscale for this categorical dimension
+     * @param numCatDims Total number of categorical dimensions in the kernel
+     */
+    constructor(nCategories, lengthscale, numCatDims) {
+      this.nCategories = nCategories;
+      this.expNeg = Math.exp(-1 / (numCatDims * lengthscale));
+    }
+    marginal(_c) {
+      const K = this.nCategories;
+      return (1 + (K - 1) * this.expNeg) / K;
+    }
+    cross(a, b) {
+      const K = this.nCategories;
+      const e2 = this.expNeg * this.expNeg;
+      if (Math.abs(a - b) < 1e-8) {
+        return (1 + (K - 1) * e2) / K;
+      }
+      return (2 * this.expNeg + (K - 2) * e2) / K;
+    }
+  };
+  function gaussLegendre01(n) {
+    const nodes = new Float64Array(n);
+    const weights = new Float64Array(n);
+    const m = Math.ceil(n / 2);
+    for (let i = 0; i < m; i++) {
+      let x = Math.cos(Math.PI * (i + 0.75) / (n + 0.5));
+      for (let iter = 0; iter < 50; iter++) {
+        let p02 = 1;
+        let p12 = x;
+        for (let j2 = 2; j2 <= n; j2++) {
+          const p2 = ((2 * j2 - 1) * x * p12 - (j2 - 1) * p02) / j2;
+          p02 = p12;
+          p12 = p2;
+        }
+        const dp2 = n * (p02 - x * p12) / (1 - x * x);
+        const dx = p12 / dp2;
+        x -= dx;
+        if (Math.abs(dx) < 1e-15) break;
+      }
+      let p0 = 1;
+      let p1 = x;
+      for (let j2 = 2; j2 <= n; j2++) {
+        const p2 = ((2 * j2 - 1) * x * p1 - (j2 - 1) * p0) / j2;
+        p0 = p1;
+        p1 = p2;
+      }
+      const dp = n * p0 / (1 - x * x);
+      const w = 2 / ((1 - x * x) * dp * dp);
+      const j = n - 1 - i;
+      nodes[i] = (1 - x) / 2;
+      nodes[j] = (1 + x) / 2;
+      weights[i] = w / 2;
+      weights[j] = w / 2;
+    }
+    return { nodes, weights };
+  }
+  var QuadratureDimIntegrator = class {
+    kernelFn;
+    nodes;
+    weights;
+    constructor(kernelFn, nNodes = 32) {
+      this.kernelFn = kernelFn;
+      const gl = gaussLegendre01(nNodes);
+      this.nodes = gl.nodes;
+      this.weights = gl.weights;
+    }
+    marginal(c) {
+      let sum = 0;
+      for (let i = 0; i < this.nodes.length; i++) {
+        sum += this.weights[i] * this.kernelFn(this.nodes[i], c);
+      }
+      return sum;
+    }
+    cross(a, b) {
+      let sum = 0;
+      for (let i = 0; i < this.nodes.length; i++) {
+        const x = this.nodes[i];
+        sum += this.weights[i] * this.kernelFn(x, a) * this.kernelFn(x, b);
+      }
+      return sum;
+    }
+  };
+  function extractKernelComponents(kernelState, paramSpecs, warpParams) {
+    let outputscale = 1;
+    let baseKernel = kernelState;
+    if (kernelState.type === "Scale" && kernelState.base_kernel) {
+      outputscale = kernelState.outputscale ?? 1;
+      baseKernel = kernelState.base_kernel;
+    }
+    if (baseKernel.type === "Additive" && baseKernel.kernels) {
+      const components = [];
+      for (const sub of baseKernel.kernels) {
+        const comp2 = extractSingleComponent(
+          sub,
+          paramSpecs,
+          warpParams,
+          outputscale
+        );
+        if (!comp2) return null;
+        components.push(comp2);
+      }
+      const seen = /* @__PURE__ */ new Set();
+      for (const comp2 of components) {
+        for (const d of comp2.activeDims) {
+          if (seen.has(d)) return null;
+          seen.add(d);
+        }
+      }
+      return components;
+    }
+    const comp = extractSingleComponent(
+      baseKernel,
+      paramSpecs,
+      warpParams,
+      outputscale
+    );
+    if (!comp) return null;
+    return [comp];
+  }
+  function extractSingleComponent(kernelState, paramSpecs, warpParams, parentOutputscale) {
+    let outputscale = parentOutputscale;
+    let baseKernel = kernelState;
+    if (kernelState.type === "Scale" && kernelState.base_kernel) {
+      outputscale *= kernelState.outputscale ?? 1;
+      baseKernel = kernelState.base_kernel;
+    } else if (kernelState.type !== "Scale" && kernelState.outputscale !== void 0) {
+      outputscale *= kernelState.outputscale;
+    }
+    const d = paramSpecs.length;
+    const warpIndicesSet = warpParams?.indices ? new Set(warpParams.indices) : null;
+    const hasWarp = !!warpParams;
+    if (baseKernel.type === "RBF" || baseKernel.type === "Matern") {
+      const ls = baseKernel.lengthscale;
+      if (!ls) return null;
+      const activeDims = baseKernel.active_dims ?? Array.from({ length: d }, (_, i) => i);
+      const integrators = [];
+      const nu = baseKernel.nu;
+      for (let k = 0; k < activeDims.length; k++) {
+        const j = activeDims[k];
+        const ell = ls[k];
+        if (isWarpedDim(j, hasWarp, warpIndicesSet)) {
+          if (baseKernel.type === "Matern" && nu !== void 0) {
+            integrators.push(
+              makeWarpedMaternIntegrator(j, nu, ell, warpParams)
+            );
+          } else {
+            integrators.push(
+              makeWarpedRbfIntegrator(j, ell, warpParams)
+            );
+          }
+        } else {
+          if (baseKernel.type === "Matern" && nu !== void 0) {
+            integrators.push(new MaternDimIntegrator(nu, ell));
+          } else {
+            integrators.push(new RbfDimIntegrator(ell));
+          }
+        }
+      }
+      return { activeDims, integrators, outputscale };
+    }
+    if (baseKernel.type === "Product" && baseKernel.kernels) {
+      const activeDims = [];
+      const integrators = [];
+      for (const sub of baseKernel.kernels) {
+        let subKernel = sub;
+        if (sub.type === "Scale" && sub.base_kernel) {
+          outputscale *= sub.outputscale ?? 1;
+          subKernel = sub.base_kernel;
+        } else if (sub.type !== "Scale" && sub.outputscale !== void 0) {
+          outputscale *= sub.outputscale;
+        }
+        if (subKernel.type === "RBF" || subKernel.type === "Matern") {
+          const ls = subKernel.lengthscale;
+          if (!ls) return null;
+          const dims = subKernel.active_dims ?? sub.active_dims ?? Array.from({ length: ls.length }, (_, i) => i);
+          const nu = subKernel.nu;
+          for (let k = 0; k < dims.length; k++) {
+            const j = dims[k];
+            const ell = ls[k];
+            activeDims.push(j);
+            if (isWarpedDim(j, hasWarp, warpIndicesSet)) {
+              if (subKernel.type === "Matern" && nu !== void 0) {
+                integrators.push(
+                  makeWarpedMaternIntegrator(j, nu, ell, warpParams)
+                );
+              } else {
+                integrators.push(
+                  makeWarpedRbfIntegrator(j, ell, warpParams)
+                );
+              }
+            } else {
+              if (subKernel.type === "Matern" && nu !== void 0) {
+                integrators.push(new MaternDimIntegrator(nu, ell));
+              } else {
+                integrators.push(new RbfDimIntegrator(ell));
+              }
+            }
+          }
+        } else if (subKernel.type === "Categorical") {
+          const dims = subKernel.active_dims ?? sub.active_dims ?? [];
+          const numCatDims = dims.length;
+          const ls = subKernel.lengthscale ?? [1];
+          for (let k = 0; k < dims.length; k++) {
+            const j = dims[k];
+            const spec = paramSpecs[j];
+            const nCats = spec.values?.length ?? 2;
+            const ell = ls.length > 1 ? ls[k] : ls[0];
+            activeDims.push(j);
+            integrators.push(
+              new CategoricalDimIntegrator(nCats, ell, numCatDims)
+            );
+          }
+        } else {
+          return null;
+        }
+      }
+      return { activeDims, integrators, outputscale };
+    }
+    return null;
+  }
+  function isWarpedDim(dim, hasWarp, warpIndicesSet) {
+    if (!hasWarp) return false;
+    if (warpIndicesSet === null) return true;
+    return warpIndicesSet.has(dim);
+  }
+  function makeWarpedMaternIntegrator(dim, nu, ell, warpParams) {
+    const wIdx = warpParams.indices ? warpParams.indices.indexOf(dim) : dim;
+    const a = warpParams.concentration1[wIdx];
+    const b = warpParams.concentration0[wIdx];
+    const eps = 1e-7;
+    const range = 1 - 2 * eps;
+    const kFn = maternKernel1D(nu, ell);
+    return new QuadratureDimIntegrator((x, c) => {
+      const xn = Math.max(eps, Math.min(1 - eps, x * range + eps));
+      const warped = 1 - Math.pow(1 - Math.pow(xn, a), b);
+      return kFn(warped, c);
+    });
+  }
+  function makeWarpedRbfIntegrator(dim, ell, warpParams) {
+    const wIdx = warpParams.indices ? warpParams.indices.indexOf(dim) : dim;
+    const a = warpParams.concentration1[wIdx];
+    const b = warpParams.concentration0[wIdx];
+    const eps = 1e-7;
+    const range = 1 - 2 * eps;
+    return new QuadratureDimIntegrator((x, c) => {
+      const xn = Math.max(eps, Math.min(1 - eps, x * range + eps));
+      const warped = 1 - Math.pow(1 - Math.pow(xn, a), b);
+      const diff = warped - c;
+      return Math.exp(-0.5 * diff * diff / (ell * ell));
+    });
+  }
+  function computeAnalyticSobolIndices(alpha, trainX, components, meanConstant, paramNames) {
+    const n = alpha.length;
+    const d = paramNames.length;
+    const dimToComp = new Int32Array(d).fill(-1);
+    const dimToLocalIdx = new Int32Array(d).fill(-1);
+    for (let ci = 0; ci < components.length; ci++) {
+      const comp = components[ci];
+      for (let li = 0; li < comp.activeDims.length; li++) {
+        dimToComp[comp.activeDims[li]] = ci;
+        dimToLocalIdx[comp.activeDims[li]] = li;
+      }
+    }
+    const compData = components.map((comp) => {
+      const nDims = comp.activeDims.length;
+      const os = comp.outputscale;
+      const w = new Array(nDims);
+      for (let li = 0; li < nDims; li++) {
+        const gj = comp.activeDims[li];
+        w[li] = new Float64Array(n);
+        for (let i = 0; i < n; i++) {
+          w[li][i] = comp.integrators[li].marginal(trainX[i][gj]);
+        }
+      }
+      const W = new Array(nDims);
+      for (let li = 0; li < nDims; li++) {
+        const gj = comp.activeDims[li];
+        W[li] = new Float64Array(n * n);
+        for (let i = 0; i < n; i++) {
+          for (let k = i; k < n; k++) {
+            const val = comp.integrators[li].cross(
+              trainX[i][gj],
+              trainX[k][gj]
+            );
+            W[li][i * n + k] = val;
+            W[li][k * n + i] = val;
+          }
+        }
+      }
+      const productW = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        let prod = 1;
+        for (let li = 0; li < nDims; li++) prod *= w[li][i];
+        productW[i] = prod;
+      }
+      let sumAlphaM = 0;
+      for (let i = 0; i < n; i++) sumAlphaM += alpha[i] * os * productW[i];
+      let crossSum = 0;
+      for (let i = 0; i < n; i++) {
+        for (let k = 0; k < n; k++) {
+          let prod = 1;
+          for (let li = 0; li < nDims; li++) prod *= W[li][i * n + k];
+          crossSum += alpha[i] * alpha[k] * prod;
+        }
+      }
+      const varA = os * os * crossSum - sumAlphaM * sumAlphaM;
+      return { w, W, productW, sumAlphaM, varA, os, nDims };
+    });
+    let emu = meanConstant;
+    for (let ci = 0; ci < components.length; ci++) {
+      emu += compData[ci].sumAlphaM;
+    }
+    let varMu = 0;
+    for (let ci = 0; ci < components.length; ci++) {
+      varMu += compData[ci].varA;
+    }
+    if (varMu < 1e-30) {
+      return {
+        firstOrder: new Array(d).fill(0),
+        totalOrder: new Array(d).fill(0),
+        paramNames,
+        numEvaluations: 0
+      };
+    }
+    const firstOrder = new Array(d).fill(0);
+    const totalOrder = new Array(d).fill(0);
+    for (let gj = 0; gj < d; gj++) {
+      const ci = dimToComp[gj];
+      if (ci < 0) {
+        continue;
+      }
+      const li = dimToLocalIdx[gj];
+      const comp = components[ci];
+      const cd = compData[ci];
+      const os = cd.os;
+      const beta = new Float64Array(n);
+      for (let m = 0; m < n; m++) {
+        const wDim = cd.w[li][m];
+        if (Math.abs(wDim) < 1e-300) {
+          beta[m] = 0;
+        } else {
+          beta[m] = os * alpha[m] * cd.productW[m] / wDim;
+        }
+      }
+      let crossS = 0;
+      for (let m = 0; m < n; m++) {
+        for (let p = 0; p < n; p++) {
+          crossS += beta[m] * beta[p] * cd.W[li][m * n + p];
+        }
+      }
+      firstOrder[gj] = Math.max(
+        0,
+        (crossS - cd.sumAlphaM * cd.sumAlphaM) / varMu
+      );
+      const gamma = new Float64Array(n);
+      for (let m = 0; m < n; m++) {
+        gamma[m] = os * alpha[m] * cd.w[li][m];
+      }
+      let crossT = 0;
+      for (let m = 0; m < n; m++) {
+        for (let p = 0; p < n; p++) {
+          let prod = 1;
+          for (let lk = 0; lk < cd.nDims; lk++) {
+            if (lk !== li) prod *= cd.W[lk][m * n + p];
+          }
+          crossT += gamma[m] * gamma[p] * prod;
+        }
+      }
+      let sumGammaW = 0;
+      for (let m = 0; m < n; m++) {
+        let prod = 1;
+        for (let lk = 0; lk < cd.nDims; lk++) {
+          if (lk !== li) prod *= cd.w[lk][m];
+        }
+        sumGammaW += gamma[m] * prod;
+      }
+      const varReduced = crossT - sumGammaW * sumGammaW;
+      let vNotI = varReduced;
+      for (let bj = 0; bj < components.length; bj++) {
+        if (bj !== ci) vNotI += compData[bj].varA;
+      }
+      totalOrder[gj] = Math.max(0, 1 - vNotI / varMu);
+    }
+    return { firstOrder, totalOrder, paramNames, numEvaluations: 0 };
+  }
+  function computeEnsembleAnalyticSobol(models, paramNames) {
+    const M = models.length;
+    const d = paramNames.length;
+    const basis = [];
+    let meanEns = 0;
+    for (let mi = 0; mi < M; mi++) {
+      const m = models[mi];
+      meanEns += m.meanConstant / M;
+      for (let i = 0; i < m.alpha.length; i++) {
+        basis.push({
+          center: m.trainXNorm[i],
+          coeff: m.outputscale / M * m.alpha[i],
+          lengthscales: m.lengthscales,
+          modelIdx: mi
+        });
+      }
+    }
+    const N = basis.length;
+    if (N > 2e3) return null;
+    const hasAnyWarp = models.some((m) => !!m.warpParams);
+    let glNodes = null;
+    let glWeights = null;
+    if (hasAnyWarp) {
+      const gl = gaussLegendre01(32);
+      glNodes = gl.nodes;
+      glWeights = gl.weights;
+    }
+    const warpFns = models.map((m) => {
+      if (!m.warpParams) return new Array(d).fill(null);
+      const wp = m.warpParams;
+      const indices = wp.indices ?? Array.from({ length: d }, (_, i) => i);
+      const indicesSet = new Set(indices);
+      const eps = 1e-7;
+      const range = 1 - 2 * eps;
+      return Array.from({ length: d }, (_, j) => {
+        if (!indicesSet.has(j)) return null;
+        const wIdx = wp.indices ? wp.indices.indexOf(j) : j;
+        const a = wp.concentration1[wIdx];
+        const b = wp.concentration0[wIdx];
+        return (x) => {
+          const xn = Math.max(eps, Math.min(1 - eps, x * range + eps));
+          return 1 - Math.pow(1 - Math.pow(xn, a), b);
+        };
+      });
+    });
+    const hasAnyMatern = models.some((m) => m.kernelType === "Matern");
+    if (hasAnyMatern && !glNodes) {
+      const gl = gaussLegendre01(32);
+      glNodes = gl.nodes;
+      glWeights = gl.weights;
+    }
+    function modelKernel1D(mi, j) {
+      const m = models[mi];
+      const ell = m.lengthscales[j];
+      if (m.kernelType === "Matern" && m.nu !== void 0) {
+        return maternKernel1D(m.nu, ell);
+      }
+      return (x, c) => Math.exp(-0.5 * (x - c) * (x - c) / (ell * ell));
+    }
+    function marginal1D(i, j) {
+      const mi = basis[i].modelIdx;
+      const wFn = warpFns[mi][j];
+      const isMatern = models[mi].kernelType === "Matern";
+      if (!wFn && !isMatern) {
+        return rbfMarginal(basis[i].center[j], basis[i].lengthscales[j]);
+      }
+      const c = basis[i].center[j];
+      const kFn = modelKernel1D(mi, j);
+      let sum = 0;
+      for (let q = 0; q < glNodes.length; q++) {
+        const x = glNodes[q];
+        const w2 = wFn ? wFn(x) : x;
+        sum += glWeights[q] * kFn(w2, c);
+      }
+      return sum;
+    }
+    function cross1D(i, k, j) {
+      const mi_i = basis[i].modelIdx;
+      const mi_k = basis[k].modelIdx;
+      const wFn_i = warpFns[mi_i][j];
+      const wFn_k = warpFns[mi_k][j];
+      const isMatern_i = models[mi_i].kernelType === "Matern";
+      const isMatern_k = models[mi_k].kernelType === "Matern";
+      if (!wFn_i && !wFn_k && !isMatern_i && !isMatern_k) {
+        return rbfGeneralizedCross(
+          basis[i].center[j],
+          basis[k].center[j],
+          basis[i].lengthscales[j],
+          basis[k].lengthscales[j]
+        );
+      }
+      const a = basis[i].center[j];
+      const b = basis[k].center[j];
+      const kFn_i = modelKernel1D(mi_i, j);
+      const kFn_k = modelKernel1D(mi_k, j);
+      let sum = 0;
+      for (let q = 0; q < glNodes.length; q++) {
+        const x = glNodes[q];
+        const wi = wFn_i ? wFn_i(x) : x;
+        const wk = wFn_k ? wFn_k(x) : x;
+        sum += glWeights[q] * kFn_i(wi, a) * kFn_k(wk, b);
+      }
+      return sum;
+    }
+    const w = new Array(N);
+    const productW = new Float64Array(N);
+    for (let i = 0; i < N; i++) {
+      w[i] = new Array(d);
+      let prod = 1;
+      for (let j = 0; j < d; j++) {
+        w[i][j] = marginal1D(i, j);
+        prod *= w[i][j];
+      }
+      productW[i] = prod;
+    }
+    const crossCache = new Array(d);
+    for (let j = 0; j < d; j++) {
+      crossCache[j] = new Float64Array(N * N);
+      for (let i = 0; i < N; i++) {
+        for (let k = i; k < N; k++) {
+          const val = cross1D(i, k, j);
+          crossCache[j][i * N + k] = val;
+          crossCache[j][k * N + i] = val;
+        }
+      }
+    }
+    let emu = meanEns;
+    for (let i = 0; i < N; i++) {
+      emu += basis[i].coeff * productW[i];
+    }
+    const emuMinusMean = emu - meanEns;
+    let varMu = -emuMinusMean * emuMinusMean;
+    for (let i = 0; i < N; i++) {
+      for (let k = 0; k < N; k++) {
+        let prod = 1;
+        for (let j = 0; j < d; j++) {
+          prod *= crossCache[j][i * N + k];
+        }
+        varMu += basis[i].coeff * basis[k].coeff * prod;
+      }
+    }
+    if (varMu < 1e-30) {
+      return {
+        firstOrder: new Array(d).fill(0),
+        totalOrder: new Array(d).fill(0),
+        paramNames,
+        numEvaluations: 0
+      };
+    }
+    const firstOrder = new Array(d).fill(0);
+    const totalOrder = new Array(d).fill(0);
+    for (let dim = 0; dim < d; dim++) {
+      const beta = new Float64Array(N);
+      for (let i = 0; i < N; i++) {
+        const wDim = w[i][dim];
+        if (Math.abs(wDim) < 1e-300) {
+          beta[i] = 0;
+        } else {
+          beta[i] = basis[i].coeff * productW[i] / wDim;
+        }
+      }
+      let crossS = 0;
+      for (let i = 0; i < N; i++) {
+        for (let k = 0; k < N; k++) {
+          crossS += beta[i] * beta[k] * crossCache[dim][i * N + k];
+        }
+      }
+      firstOrder[dim] = Math.max(
+        0,
+        (crossS - emuMinusMean * emuMinusMean) / varMu
+      );
+      const gamma = new Float64Array(N);
+      for (let i = 0; i < N; i++) {
+        gamma[i] = basis[i].coeff * w[i][dim];
+      }
+      let crossT = 0;
+      for (let i = 0; i < N; i++) {
+        for (let k = 0; k < N; k++) {
+          let prod = 1;
+          for (let j = 0; j < d; j++) {
+            if (j !== dim) prod *= crossCache[j][i * N + k];
+          }
+          crossT += gamma[i] * gamma[k] * prod;
+        }
+      }
+      let sumGammaW = 0;
+      for (let i = 0; i < N; i++) {
+        let prod = 1;
+        for (let j = 0; j < d; j++) {
+          if (j !== dim) prod *= w[i][j];
+        }
+        sumGammaW += gamma[i] * prod;
+      }
+      const vNotDim = crossT - sumGammaW * sumGammaW;
+      totalOrder[dim] = Math.max(0, 1 - vNotDim / varMu);
+    }
+    return { firstOrder, totalOrder, paramNames, numEvaluations: 0 };
+  }
+
   // src/predictor.ts
   var Predictor = class {
     /** Ordered metric/outcome names (matches sub-model order for ModelListGP). */
@@ -1771,6 +2841,7 @@ var Ax = (() => {
     model;
     _state;
     adapterUntransforms;
+    sensitivityCache = /* @__PURE__ */ new Map();
     constructor(exported) {
       this._state = exported;
       this.model = loadModel(exported.model_state);
@@ -2022,6 +3093,144 @@ var Ax = (() => {
       return Math.exp(-0.5 * d2);
     }
     /**
+     * Compute Sobol' sensitivity indices for variance decomposition.
+     *
+     * Tries analytic computation first (exact, O(d×n²), no MC noise) when
+     * the kernel is decomposable (RBF, Matérn, Product(RBF|Matérn, Categorical),
+     * or Additive with disjoint active_dims). Falls back to Saltelli's MC
+     * estimator for PairwiseGP or models with nonlinear outcome/adapter
+     * transforms.
+     *
+     * @param outcomeName - Which outcome to analyze (default: first)
+     * @param options - numSamples (default 512) and seed (default 42) for MC fallback
+     * @returns First-order and total-order indices per dimension
+     */
+    computeSensitivity(outcomeName, options) {
+      const name = outcomeName ?? this.outcomeNames[0];
+      const numSamples = options?.numSamples ?? 512;
+      const seed = options?.seed ?? 42;
+      const cacheKey = `${name}:${numSamples}:${seed}`;
+      const cached = this.sensitivityCache.get(cacheKey);
+      if (cached) return cached;
+      const analyticResult = this.tryAnalyticSobol(name);
+      if (analyticResult) {
+        this.sensitivityCache.set(cacheKey, analyticResult);
+        return analyticResult;
+      }
+      const predictFn = (points) => {
+        const preds = this.predict(points);
+        return preds[name].mean;
+      };
+      const result = computeSobolIndices(predictFn, this.paramSpecs, {
+        numSamples,
+        seed
+      });
+      this.sensitivityCache.set(cacheKey, result);
+      return result;
+    }
+    /**
+     * Attempt analytic Sobol' computation. Returns null if not supported,
+     * causing the caller to fall back to MC.
+     */
+    tryAnalyticSobol(outcomeName) {
+      const ms = this._state.model_state;
+      if (ms.model_type === "PairwiseGP") return null;
+      if (this.hasNonlinearAdapterTransforms(outcomeName)) return null;
+      if (ms.model_type === "EnsembleGP") {
+        return this.tryAnalyticSobolEnsemble(ms);
+      }
+      if (ms.model_type === "MultiTaskGP") {
+        return this.tryAnalyticSobolMultiTask(outcomeName, ms);
+      }
+      const sub = getSubModel(ms, this.outcomeNames, outcomeName);
+      return this.tryAnalyticSobolSingle(sub, outcomeName);
+    }
+    tryAnalyticSobolSingle(sub, outcomeName) {
+      if (hasNonlinearOutcomeTransform(sub.outcome_transform)) return null;
+      if (!sub.input_transform) return null;
+      const components = extractKernelComponents(
+        sub.kernel,
+        this.paramSpecs,
+        sub.input_warp
+      );
+      if (!components) return null;
+      let internals;
+      if (this.model instanceof ModelListGP) {
+        const idx = this.outcomeNames.indexOf(outcomeName);
+        if (idx < 0) return null;
+        internals = this.model.getInternals(idx);
+      } else if (this.model instanceof SingleTaskGP) {
+        internals = this.model.getInternals();
+      } else {
+        return null;
+      }
+      return computeAnalyticSobolIndices(
+        internals.alpha,
+        internals.trainXNorm,
+        components,
+        internals.meanConstant,
+        this.paramNames
+      );
+    }
+    tryAnalyticSobolMultiTask(outcomeName, ms) {
+      if (hasNonlinearOutcomeTransform(ms.outcome_transform)) return null;
+      if (!ms.input_transform) return null;
+      const components = extractKernelComponents(
+        ms.data_kernel,
+        this.paramSpecs,
+        ms.input_warp
+      );
+      if (!components) return null;
+      if (!(this.model instanceof MultiTaskGP)) return null;
+      const taskIdx = this.outcomeNames.indexOf(outcomeName);
+      if (taskIdx < 0) return null;
+      const internals = this.model.getInternals(taskIdx);
+      return computeAnalyticSobolIndices(
+        internals.alpha,
+        internals.trainXNorm,
+        components,
+        internals.meanConstant,
+        this.paramNames
+      );
+    }
+    tryAnalyticSobolEnsemble(ms) {
+      if (!(this.model instanceof EnsembleGP)) return null;
+      const subModels = [];
+      for (let mi = 0; mi < ms.models.length; mi++) {
+        const sub = ms.models[mi];
+        if (hasNonlinearOutcomeTransform(sub.outcome_transform)) return null;
+        if (!sub.input_transform) return null;
+        const ls = findLengthscales(sub.kernel);
+        if (!ls) return null;
+        const kernelInfo = extractKernelOutputscale(sub.kernel);
+        if (!kernelInfo || kernelInfo.baseType !== "RBF" && kernelInfo.baseType !== "Matern") return null;
+        const nu = findMaternNu(sub.kernel);
+        const internals = this.model.getInternals(mi);
+        subModels.push({
+          alpha: internals.alpha,
+          trainXNorm: internals.trainXNorm,
+          meanConstant: internals.meanConstant,
+          lengthscales: ls,
+          outputscale: kernelInfo.outputscale,
+          warpParams: sub.input_warp,
+          kernelType: kernelInfo.baseType,
+          nu
+        });
+      }
+      return computeEnsembleAnalyticSobol(subModels, this.paramNames);
+    }
+    /** Check if there are nonlinear adapter transforms for this outcome. */
+    hasNonlinearAdapterTransforms(outcomeName) {
+      const transforms = this._state.adapter_transforms;
+      if (!transforms) return false;
+      for (const tf of transforms) {
+        if (tf.type === "StandardizeY") continue;
+        const metrics = "metrics" in tf && tf.metrics ? tf.metrics : this.outcomeNames;
+        if (metrics.includes(outcomeName)) return true;
+      }
+      return false;
+    }
+    /**
      * Untransform raw train_Y to original data space.
      *
      * IMPORTANT: model_state.train_Y is NOT in the original data space.
@@ -2136,6 +3345,35 @@ var Ax = (() => {
       }
     }
     return null;
+  }
+  function findMaternNu(k) {
+    if (!k) return void 0;
+    if (k.type === "Matern" && k.nu !== void 0) return k.nu;
+    if (k.base_kernel) return findMaternNu(k.base_kernel);
+    if (k.kernels) {
+      for (const sub of k.kernels) {
+        const r = findMaternNu(sub);
+        if (r !== void 0) return r;
+      }
+    }
+    return void 0;
+  }
+  function hasNonlinearOutcomeTransform(tf) {
+    if (!tf) return false;
+    if ("type" in tf) {
+      if (tf.type === "Log" || tf.type === "Bilog" || tf.type === "Power")
+        return true;
+      if (tf.type === "Chained") {
+        return tf.transforms.some(hasNonlinearOutcomeTransform);
+      }
+    }
+    return false;
+  }
+  function extractKernelOutputscale(k) {
+    if (k.type === "Scale" && k.base_kernel) {
+      return { outputscale: k.outputscale ?? 1, baseType: k.base_kernel.type };
+    }
+    return { outputscale: k.outputscale ?? 1, baseType: k.type };
   }
   function unstandardizeY(trainY, outTf) {
     if (!outTf) return trainY.slice();
@@ -2308,6 +3546,7 @@ var Ax;
     clearDotHighlight: () => clearDotHighlight,
     computeDimOrder: () => computeDimOrder,
     computeKernelRels: () => computeKernelRels,
+    computeParamSigns: () => computeParamSigns,
     createOutcomeSelector: () => createOutcomeSelector,
     createParamSliders: () => createParamSliders,
     defaultParamValue: () => defaultParamValue,
@@ -2533,6 +3772,47 @@ var Ax;
     ctx.fill();
   }
 
+  // src/acquisition/sample_mvn.ts
+  var Rng = class {
+    s;
+    constructor(seed = 42) {
+      this.s = new Uint32Array(4);
+      for (let i = 0; i < 4; i++) {
+        seed += 2654435769;
+        let t = seed;
+        t = Math.imul(t ^ t >>> 16, 569420461);
+        t = Math.imul(t ^ t >>> 15, 1935289751);
+        this.s[i] = (t ^ t >>> 15) >>> 0;
+      }
+    }
+    /** Uniform [0, 1) */
+    uniform() {
+      const result = this.s[0] + this.s[3];
+      const t = this.s[1] << 9;
+      this.s[2] ^= this.s[0];
+      this.s[3] ^= this.s[1];
+      this.s[1] ^= this.s[2];
+      this.s[0] ^= this.s[3];
+      this.s[2] ^= t;
+      this.s[3] = this.s[3] << 11 | this.s[3] >>> 21;
+      return (result >>> 0) / 4294967296;
+    }
+    /** Standard normal via Box-Muller transform. */
+    randn() {
+      const u1 = this.uniform();
+      const u2 = this.uniform();
+      return Math.sqrt(-2 * Math.log(u1 + 1e-300)) * Math.cos(2 * Math.PI * u2);
+    }
+    /** Fill a Float64Array with standard normal samples. */
+    randnArray(n) {
+      const arr = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        arr[i] = this.randn();
+      }
+      return arr;
+    }
+  };
+
   // src/viz/params.ts
   function isChoice(p) {
     return p.type === "choice";
@@ -2578,7 +3858,25 @@ var Ax;
     }
     return data;
   }
-  function computeDimOrder(predictor, nDim, selectedOutcome) {
+  function computeDimOrder(predictor, nDim, selectedOutcome, useSobol) {
+    if (useSobol && predictor.computeSensitivity) {
+      const sens = predictor.computeSensitivity(selectedOutcome);
+      if (sens && sens.totalOrder.length > 0) {
+        const dims = sens.firstOrder.map((s, i) => ({ idx: i, s, st: sens.totalOrder[i] }));
+        dims.sort((a, b) => {
+          const df = b.s - a.s;
+          return Math.abs(df) > 5e-3 ? df : b.st - a.st;
+        });
+        const order2 = dims.map((d) => d.idx);
+        if (order2.length < nDim) {
+          const inOrder = new Set(order2);
+          for (let i = 0; i < nDim; i++) {
+            if (!inOrder.has(i)) order2.push(i);
+          }
+        }
+        return order2;
+      }
+    }
     const ranked = predictor.rankDimensionsByImportance(selectedOutcome);
     if (!ranked || ranked.length === 0) {
       return Array.from({ length: nDim }, (_, i) => i);
@@ -2623,6 +3921,38 @@ var Ax;
       d2 += scaled * scaled;
     }
     return Math.exp(-0.5 * d2);
+  }
+  function computeParamSigns(predictor, outcome) {
+    const d = predictor.paramNames.length;
+    const bounds = predictor.paramBounds;
+    const specs = predictor.paramSpecs;
+    const K = 20;
+    const rng = new Rng(2581);
+    const signs = new Float64Array(d);
+    const allPts = [];
+    for (let trial = 0; trial < K; trial++) {
+      const base = bounds.map(([lo, hi]) => lo + rng.uniform() * (hi - lo));
+      for (let j = 0; j < d; j++) {
+        if (specs && specs[j].type === "choice") {
+          allPts.push(base, base);
+          continue;
+        }
+        const [lo, hi] = bounds[j];
+        const ptLo = base.slice();
+        ptLo[j] = lo;
+        const ptHi = base.slice();
+        ptHi[j] = hi;
+        allPts.push(ptLo, ptHi);
+      }
+    }
+    const preds = predictor.predict(allPts)[outcome].mean;
+    for (let trial = 0; trial < K; trial++) {
+      for (let j = 0; j < d; j++) {
+        const idx = (trial * d + j) * 2;
+        signs[j] += Math.sign(preds[idx + 1] - preds[idx]);
+      }
+    }
+    return Array.from(signs).map((s) => s >= 0 ? 1 : -1);
   }
 
   // src/viz/widgets.ts
@@ -2911,10 +4241,26 @@ var Ax;
 
   // src/viz/plots/importance.ts
   var CTRL_CSS = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
+  var SEG_CSS = "display:inline-flex;border:1px solid #d0d0d0;border-radius:6px;overflow:hidden;font-size:11px";
+  var SEG_BTN = "padding:3px 10px;cursor:pointer;border:none;outline:none;background:#fff;color:#555";
+  var SEG_BTN_ACTIVE = "padding:3px 10px;cursor:pointer;border:none;outline:none;background:#4872f9;color:#fff";
+  var SOBOL_COLORS = {
+    pos: { first: "#7fbc41", interaction: "#b8e186" },
+    // green = positive effect
+    neg: { first: "#c51b7d", interaction: "#de77ae" },
+    // pink = negative effect
+    neutral: { first: "#4872f9", interaction: "#a8c4ff" }
+    // blue = categorical / no directional main effect
+  };
   function renderFeatureImportance(container, predictor, options) {
     const interactive = options?.interactive !== false;
+    const initialMode = options?.mode ?? "lengthscale";
     if (!interactive) {
-      renderFeatureImportanceStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0]);
+      if (initialMode === "sobol" && predictor.computeSensitivity) {
+        renderSobolStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0], options?.sobolSamples);
+      } else {
+        renderLengthscaleStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0]);
+      }
       return;
     }
     if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
@@ -2922,6 +4268,8 @@ var Ax;
     container.innerHTML = "";
     injectScopedStyles(container);
     let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
+    let mode = initialMode;
+    const sobolSamples = options?.sobolSamples;
     const tooltip = createTooltipDiv(container.id);
     const controlsDiv = document.createElement("div");
     controlsDiv.style.cssText = CTRL_CSS;
@@ -2936,13 +4284,44 @@ var Ax;
       });
       controlsDiv.appendChild(wrapper);
     }
+    if (predictor.computeSensitivity) {
+      let updateSegStyle2 = function() {
+        btnLs.style.cssText = mode === "lengthscale" ? SEG_BTN_ACTIVE : SEG_BTN;
+        btnSobol.style.cssText = mode === "sobol" ? SEG_BTN_ACTIVE : SEG_BTN;
+      };
+      var updateSegStyle = updateSegStyle2;
+      const segDiv = document.createElement("div");
+      segDiv.style.cssText = SEG_CSS;
+      const btnLs = document.createElement("button");
+      btnLs.textContent = "Lengthscale";
+      const btnSobol = document.createElement("button");
+      btnSobol.textContent = "Sobol\u2019";
+      updateSegStyle2();
+      btnLs.addEventListener("click", () => {
+        mode = "lengthscale";
+        updateSegStyle2();
+        redraw();
+      });
+      btnSobol.addEventListener("click", () => {
+        mode = "sobol";
+        updateSegStyle2();
+        redraw();
+      });
+      segDiv.appendChild(btnLs);
+      segDiv.appendChild(btnSobol);
+      controlsDiv.appendChild(segDiv);
+    }
     function redraw() {
       plotsDiv.innerHTML = "";
-      renderFeatureImportanceStatic(plotsDiv, predictor, selectedOutcome, tooltip, container);
+      if (mode === "sobol" && predictor.computeSensitivity) {
+        renderSobolStatic(plotsDiv, predictor, selectedOutcome, sobolSamples, tooltip, container);
+      } else {
+        renderLengthscaleStatic(plotsDiv, predictor, selectedOutcome, tooltip, container);
+      }
     }
     redraw();
   }
-  function renderFeatureImportanceStatic(target, predictor, outcome, tooltip, tooltipContainer) {
+  function renderLengthscaleStatic(target, predictor, outcome, tooltip, tooltipContainer) {
     const ranked = predictor.rankDimensionsByImportance(outcome);
     if (!ranked || ranked.length === 0) {
       target.textContent = "No lengthscale data";
@@ -3020,6 +4399,120 @@ var Ax;
           "pointer-events": "none"
         }), { textContent: `ls=${dim.lengthscale.toFixed(3)}` })
       );
+    });
+    target.appendChild(svg);
+  }
+  function signColors(sign) {
+    return sign >= 0 ? SOBOL_COLORS.pos : SOBOL_COLORS.neg;
+  }
+  function renderSobolStatic(target, predictor, outcome, sobolSamples, tooltip, tooltipContainer) {
+    if (!predictor.computeSensitivity) {
+      target.textContent = "Sobol\u2019 analysis not available";
+      return;
+    }
+    const sens = predictor.computeSensitivity(outcome, sobolSamples ? { numSamples: sobolSamples } : void 0);
+    if (!sens || sens.totalOrder.length === 0) {
+      target.textContent = "No sensitivity data";
+      return;
+    }
+    const signs = computeParamSigns(predictor, outcome);
+    const dims = sens.totalOrder.map((st, i) => ({
+      idx: i,
+      name: sens.paramNames[i],
+      first: sens.firstOrder[i],
+      total: st,
+      interaction: Math.max(0, st - sens.firstOrder[i]),
+      sign: signs[i]
+    }));
+    dims.sort((a, b) => {
+      const df = b.first - a.first;
+      return Math.abs(df) > 5e-3 ? df : b.total - a.total;
+    });
+    const maxST = Math.max(...dims.map((d) => d.total), 0.01);
+    const W = Math.min((tooltipContainer ?? target).clientWidth || 500, 500);
+    const labelW = 130;
+    const barH = 24;
+    const rowGap = 6;
+    const H = dims.length * (barH + rowGap) + 8;
+    const trackW = W - labelW - 10;
+    const svg = svgEl("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+    const defs = svgEl("defs", {});
+    dims.forEach((_, i) => {
+      const clipPath = svgEl("clipPath", { id: `sobol-clip-${i}` });
+      clipPath.appendChild(svgEl("rect", {
+        x: labelW,
+        y: i * (barH + rowGap) + 4,
+        width: trackW,
+        height: barH,
+        rx: 4
+      }));
+      defs.appendChild(clipPath);
+    });
+    svg.appendChild(defs);
+    dims.forEach((dim, i) => {
+      const y = i * (barH + rowGap) + 4;
+      const firstW = Math.max(0, dim.first / maxST * trackW);
+      const interW = Math.max(0, dim.interaction / maxST * trackW);
+      const cols = signColors(dim.sign);
+      svg.appendChild(
+        Object.assign(svgEl("text", {
+          x: labelW - 8,
+          y: y + barH / 2 + 4,
+          fill: "#333",
+          "font-size": 13,
+          "text-anchor": "end"
+        }), { textContent: dim.name })
+      );
+      svg.appendChild(svgEl("rect", {
+        x: labelW,
+        y,
+        width: trackW,
+        height: barH,
+        rx: 4,
+        fill: "#f0f0f0"
+      }));
+      const g = svgEl("g", { "clip-path": `url(#sobol-clip-${i})` });
+      if (firstW > 0) {
+        g.appendChild(svgEl("rect", {
+          x: labelW,
+          y,
+          width: firstW,
+          height: barH,
+          fill: cols.first
+        }));
+      }
+      if (interW > 0) {
+        g.appendChild(svgEl("rect", {
+          x: labelW + firstW,
+          y,
+          width: interW,
+          height: barH,
+          fill: cols.interaction
+        }));
+      }
+      svg.appendChild(g);
+      if (tooltip) {
+        const hoverRect = svgEl("rect", {
+          x: labelW,
+          y,
+          width: trackW,
+          height: barH,
+          fill: "transparent",
+          cursor: "pointer"
+        });
+        hoverRect.addEventListener("mouseenter", (e) => {
+          tooltip.innerHTML = `<b>${dim.name}</b><br>${(dim.first * 100).toFixed(1)}% direct effect<br>${(dim.interaction * 100).toFixed(1)}% via interactions`;
+          tooltip.style.display = "block";
+          positionTooltip(tooltip, e.clientX, e.clientY);
+        });
+        hoverRect.addEventListener("mousemove", (e) => {
+          positionTooltip(tooltip, e.clientX, e.clientY);
+        });
+        hoverRect.addEventListener("mouseleave", () => {
+          tooltip.style.display = "none";
+        });
+        svg.appendChild(hoverRect);
+      }
     });
     target.appendChild(svg);
   }
@@ -3984,6 +5477,13 @@ var Ax;
   }
 
   // src/viz/plots/surface.ts
+  function getParamSpecs2(predictor) {
+    if (predictor.paramSpecs) return predictor.paramSpecs;
+    return predictor.paramBounds.map(([lo, hi]) => ({
+      type: "range",
+      bounds: [lo, hi]
+    }));
+  }
   var CTRL_CSS5 = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
   function renderResponseSurface(container, predictor, options) {
     const interactive = options?.interactive !== false;
@@ -4003,15 +5503,12 @@ var Ax;
     container.innerHTML = "";
     injectScopedStyles(container);
     let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
+    const params = getParamSpecs2(predictor);
     const initOrder = computeDimOrder(predictor, predictor.paramNames.length, selectedOutcome);
-    let selDimX = options?.dimX ?? initOrder[0];
-    let selDimY = options?.dimY ?? (initOrder.length > 1 ? initOrder[1] : 0);
-    const bounds = predictor.paramBounds;
-    const fixedValues = options?.fixedValues?.slice() ?? bounds.map(([lo, hi]) => (lo + hi) / 2);
-    const params = bounds.map(([lo, hi]) => ({
-      type: "range",
-      bounds: [lo, hi]
-    }));
+    const rangeDims = initOrder.filter((d) => !isChoice(params[d]));
+    let selDimX = options?.dimX ?? rangeDims[0] ?? 0;
+    let selDimY = options?.dimY ?? (rangeDims.length > 1 ? rangeDims[1] : 0);
+    const fixedValues = options?.fixedValues?.slice() ?? params.map((p) => defaultParamValue(p));
     const tooltip = createTooltipDiv(container.id);
     const controlsDiv = document.createElement("div");
     controlsDiv.style.cssText = CTRL_CSS5 + "padding:8px 16px;";
@@ -4054,7 +5551,7 @@ var Ax;
     selXEl = makeDimSelect("X axis:", selDimX, (v) => {
       selDimX = v;
       if (selDimX === selDimY) {
-        selDimY = (selDimX + 1) % predictor.paramNames.length;
+        selDimY = (selDimX + 1) % params.length;
         selYEl.value = String(selDimY);
       }
       rebuildSliders();
@@ -4062,7 +5559,7 @@ var Ax;
     selYEl = makeDimSelect("Y axis:", selDimY, (v) => {
       selDimY = v;
       if (selDimX === selDimY) {
-        selDimX = (selDimY + 1) % predictor.paramNames.length;
+        selDimX = (selDimY + 1) % params.length;
         selXEl.value = String(selDimX);
       }
       rebuildSliders();
@@ -4120,21 +5617,32 @@ var Ax;
     ctx.fillText(vMax.toFixed(2), x + w + 3, y + 8);
     ctx.fillText(vMin.toFixed(2), x + w + 3, y + h);
   }
-  function drawAxes(ctx, ML, MT, N, xlo, xhi, ylo, yhi, xName, yName, showYAxis) {
+  function drawAxes(ctx, ML, MT, N, xlo, xhi, ylo, yhi, xName, yName, showYAxis, xLabels, yLabels) {
     ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
     ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.strokeStyle = "rgba(0,0,0,0.15)";
     ctx.lineWidth = 1;
-    const nTicks = 4;
     ctx.textAlign = "center";
-    for (let ti = 0; ti <= nTicks; ti++) {
-      const v = xlo + (xhi - xlo) * ti / nTicks;
-      const tx = ML + ti * N / nTicks;
-      ctx.beginPath();
-      ctx.moveTo(tx, MT + N);
-      ctx.lineTo(tx, MT + N + 4);
-      ctx.stroke();
-      ctx.fillText(v.toFixed(2), tx, MT + N + 15);
+    if (xLabels) {
+      for (let ci = 0; ci < xLabels.length; ci++) {
+        const tx = ML + (ci + 0.5) / xLabels.length * N;
+        ctx.beginPath();
+        ctx.moveTo(tx, MT + N);
+        ctx.lineTo(tx, MT + N + 4);
+        ctx.stroke();
+        ctx.fillText(xLabels[ci], tx, MT + N + 15);
+      }
+    } else {
+      const nTicks = 4;
+      for (let ti = 0; ti <= nTicks; ti++) {
+        const v = xlo + (xhi - xlo) * ti / nTicks;
+        const tx = ML + ti * N / nTicks;
+        ctx.beginPath();
+        ctx.moveTo(tx, MT + N);
+        ctx.lineTo(tx, MT + N + 4);
+        ctx.stroke();
+        ctx.fillText(v.toFixed(2), tx, MT + N + 15);
+      }
     }
     ctx.fillStyle = "rgba(0,0,0,0.6)";
     ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
@@ -4143,14 +5651,26 @@ var Ax;
     ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
     ctx.textAlign = "right";
-    for (let ti = 0; ti <= nTicks; ti++) {
-      const v = ylo + (yhi - ylo) * ti / nTicks;
-      const ty = MT + (1 - ti / nTicks) * N;
-      ctx.beginPath();
-      ctx.moveTo(ML - 4, ty);
-      ctx.lineTo(ML, ty);
-      ctx.stroke();
-      ctx.fillText(v.toFixed(2), ML - 6, ty + 3);
+    if (yLabels) {
+      for (let ci = 0; ci < yLabels.length; ci++) {
+        const ty = MT + (ci + 0.5) / yLabels.length * N;
+        ctx.beginPath();
+        ctx.moveTo(ML - 4, ty);
+        ctx.lineTo(ML, ty);
+        ctx.stroke();
+        ctx.fillText(yLabels[ci], ML - 6, ty + 3);
+      }
+    } else {
+      const nTicks = 4;
+      for (let ti = 0; ti <= nTicks; ti++) {
+        const v = ylo + (yhi - ylo) * ti / nTicks;
+        const ty = MT + (1 - ti / nTicks) * N;
+        ctx.beginPath();
+        ctx.moveTo(ML - 4, ty);
+        ctx.lineTo(ML, ty);
+        ctx.stroke();
+        ctx.fillText(v.toFixed(2), ML - 6, ty + 3);
+      }
     }
     ctx.save();
     ctx.translate(12, MT + N / 2);
@@ -4183,7 +5703,8 @@ var Ax;
     const gridSize = options?.gridSize ?? 80;
     const bounds = predictor.paramBounds;
     const names = predictor.paramNames;
-    const fixedValues = fixedValuesOverride?.slice() ?? options?.fixedValues?.slice() ?? bounds.map(([lo, hi]) => (lo + hi) / 2);
+    const params = getParamSpecs2(predictor);
+    const fixedValues = fixedValuesOverride?.slice() ?? options?.fixedValues?.slice() ?? params.map((p) => defaultParamValue(p));
     const ML = 48;
     const MT = 18;
     const MB = 38;
@@ -4200,14 +5721,18 @@ var Ax;
     const CH = N + MT + MB;
     const [xlo, xhi] = bounds[dimX];
     const [ylo, yhi] = bounds[dimY];
+    const xIsChoice = isChoice(params[dimX]);
+    const yIsChoice = isChoice(params[dimY]);
+    const xVals = xIsChoice ? params[dimX].values.map(Number) : Array.from({ length: gridSize }, (_, i) => xlo + (xhi - xlo) * i / (gridSize - 1));
+    const yVals = yIsChoice ? params[dimY].values.map(Number).reverse() : Array.from({ length: gridSize }, (_, j) => yhi - (yhi - ylo) * j / (gridSize - 1));
+    const nColsX = xVals.length;
+    const nColsY = yVals.length;
     const testPoints = [];
-    for (let gj = 0; gj < gridSize; gj++) {
-      for (let gi = 0; gi < gridSize; gi++) {
-        const xv = xlo + (xhi - xlo) * gi / (gridSize - 1);
-        const yv = yhi - (yhi - ylo) * gj / (gridSize - 1);
+    for (let gj = 0; gj < nColsY; gj++) {
+      for (let gi = 0; gi < nColsX; gi++) {
         const pt = fixedValues.slice();
-        pt[dimX] = xv;
-        pt[dimY] = yv;
+        pt[dimX] = xVals[gi];
+        pt[dimY] = yVals[gj];
         testPoints.push(pt);
       }
     }
@@ -4225,12 +5750,26 @@ var Ax;
     const td = predictor.getTrainingData(outcome);
     const xRange = xhi - xlo || 1;
     const yRange = yhi - ylo || 1;
+    function normX(val) {
+      if (xIsChoice) {
+        const idx = xVals.indexOf(val);
+        return idx >= 0 ? (idx + 0.5) / nColsX : 0;
+      }
+      return (val - xlo) / xRange;
+    }
+    function normY(val) {
+      if (yIsChoice) {
+        const idx = yVals.indexOf(val);
+        return idx >= 0 ? (idx + 0.5) / nColsY : 0;
+      }
+      return 1 - (val - ylo) / yRange;
+    }
     const dotData = [];
     if (td.X.length > 0) {
       for (let i = 0; i < td.X.length; i++) {
         dotData.push({
-          normX: (td.X[i][dimX] - xlo) / xRange,
-          normY: 1 - (td.X[i][dimY] - ylo) / yRange,
+          normXv: normX(td.X[i][dimX]),
+          normYv: normY(td.X[i][dimY]),
           idx: i,
           pt: td.X[i],
           alpha: 0.85
@@ -4245,11 +5784,11 @@ var Ax;
     function buildHeatmap(values, vMin, vMax, colorFn) {
       const img = new ImageData(N, N);
       const range = vMax - vMin || 1;
-      const cellW = N / gridSize;
-      const cellH = N / gridSize;
+      const cellW = N / nColsX;
+      const cellH = N / nColsY;
       for (let k = 0; k < values.length; k++) {
-        const gi = k % gridSize;
-        const gj = Math.floor(k / gridSize);
+        const gi = k % nColsX;
+        const gj = Math.floor(k / nColsX);
         const t = Math.max(0, Math.min(1, (values[k] - vMin) / range));
         const rgb = colorFn(t);
         const x0 = Math.round(gi * cellW);
@@ -4295,7 +5834,9 @@ var Ax;
       ctx.fillText(panel.title, pML + N / 2, 12);
       ctx.putImageData(panel.img, pML, MT);
       drawVerticalColorbar(ctx, pML + N + CB_GAP, MT, CB_W, N, panel.vMin, panel.vMax, panel.colorFn);
-      drawAxes(ctx, pML, MT, N, xlo, xhi, ylo, yhi, names[dimX], names[dimY], isFirst);
+      const xLabels = xIsChoice ? params[dimX].values.map(String) : void 0;
+      const yLabels = yIsChoice ? params[dimY].values.map(String).reverse() : void 0;
+      drawAxes(ctx, pML, MT, N, xlo, xhi, ylo, yhi, names[dimX], names[dimY], isFirst, xLabels, yLabels);
       canvasRefs.push({ canvas, ctx, img: panel.img, ml: pML });
       const col = document.createElement("div");
       col.appendChild(canvas);
@@ -4305,8 +5846,8 @@ var Ax;
       for (const ref of canvasRefs) {
         ref.ctx.putImageData(ref.img, ref.ml, MT);
         const panelDots = dotData.map((d) => ({
-          px: ref.ml + d.normX * N,
-          py: MT + d.normY * N,
+          px: ref.ml + d.normXv * N,
+          py: MT + d.normYv * N,
           idx: d.idx,
           pt: d.pt,
           alpha: d.alpha
@@ -4348,8 +5889,8 @@ var Ax;
         let findHit2 = function(mx, my) {
           let best = -1, bestD = 144;
           for (let i = 0; i < dotData.length; i++) {
-            const dpx = rml + dotData[i].normX * N;
-            const dpy = MT + dotData[i].normY * N;
+            const dpx = rml + dotData[i].normXv * N;
+            const dpy = MT + dotData[i].normYv * N;
             const dx = mx - dpx, dy = my - dpy;
             const d2 = dx * dx + dy * dy;
             if (d2 < bestD) {
@@ -4387,14 +5928,14 @@ var Ax;
               redrawAllDots();
               hoverHighlight = false;
             }
-            const xVal = xlo + (mx - rml) / N * (xhi - xlo);
-            const yVal = yhi - (my - MT) / N * (yhi - ylo);
-            const gi = Math.round((mx - rml) / N * (gridSize - 1));
-            const gj = Math.round((my - MT) / N * (gridSize - 1));
-            const idx = Math.max(0, Math.min(gridSize - 1, gj)) * gridSize + Math.max(0, Math.min(gridSize - 1, gi));
+            const gi = Math.max(0, Math.min(nColsX - 1, Math.round((mx - rml) / N * (nColsX - 1))));
+            const gj = Math.max(0, Math.min(nColsY - 1, Math.round((my - MT) / N * (nColsY - 1))));
+            const xVal = xVals[gi];
+            const yVal = yVals[gj];
+            const idx = gj * nColsX + gi;
             const mu = means[idx] ?? 0;
             const s = stds[idx] ?? 0;
-            tooltip.innerHTML = `<b>${names[dimX]}</b>: ${xVal.toFixed(4)}<br><b>${names[dimY]}</b>: ${yVal.toFixed(4)}<br>\u03BC = ${mu.toFixed(4)}<br>\u03C3 = ${s.toFixed(4)}`;
+            tooltip.innerHTML = `<b>${names[dimX]}</b>: ${formatParamValue(xVal, params[dimX])}<br><b>${names[dimY]}</b>: ${formatParamValue(yVal, params[dimY])}<br>\u03BC = ${mu.toFixed(4)}<br>\u03C3 = ${s.toFixed(4)}`;
             tooltip.style.display = "block";
             positionTooltip(tooltip, e.clientX, e.clientY);
           }

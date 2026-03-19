@@ -305,11 +305,33 @@ export interface LOOCVResult {
   variance: number[];   // LOO predicted variances in original space
 }
 
+/** GP internals needed for analytic Sobol' computation. */
+export interface GPInternals {
+  /** Posterior weights α = (K+σ²I)⁻¹(y - m). */
+  alpha: Float64Array;
+  /** Normalized + warped training inputs (data dims only for MultiTaskGP). */
+  trainXNorm: number[][];
+  /** Constant mean function value. */
+  meanConstant: number;
+}
+
 /** Dimension importance derived from kernel lengthscales. */
 export interface DimensionImportance {
   dimIndex: number;
   paramName: string;
   lengthscale: number;
+}
+
+/** Sobol' sensitivity indices for variance decomposition of GP predictions. */
+export interface SensitivityIndices {
+  /** First-order Sobol' index per dimension. */
+  firstOrder: number[];
+  /** Total-order Sobol' index per dimension. */
+  totalOrder: number[];
+  /** Parameter names corresponding to each index. */
+  paramNames: string[];
+  /** Total number of function evaluations used. */
+  numEvaluations: number;
 }
 
 // ── Candidate arms (round-trip workflow) ──────────────────────────────────
