@@ -17,8 +17,14 @@ body {
 }
 h1 { font-size: 17px; font-weight: 500; color: #111; margin-bottom: 3px; }
 .subtitle { font-size: 12px; color: #666; margin-bottom: 16px; }
+.scatter-controls {
+  display: flex; flex-direction: column; gap: 5px; margin-top: 10px;
+}
 .controls {
-  display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 5px;
+}
+.controls-secondary {
+  display: flex; flex-direction: column; gap: 5px;
 }
 label { font-size: 13px; color: #555; }
 select, button {
@@ -32,7 +38,7 @@ button:hover { background: #f0f0f0; }
 #scatterSvg { display: block; }
 .right-panel {
   background: #fff; border: 0.5px solid #e0e0e0; border-radius: 8px;
-  padding: 14px 16px; flex-shrink: 0;
+  padding: 14px 16px; flex-shrink: 0; min-width: 530px;
 }
 .rp-title {
   font-size: 11px; color: #999; letter-spacing: 0.06em;
@@ -112,32 +118,36 @@ button:hover { background: #f0f0f0; }
 <h1>${axHomeLink}Ax Cockpit</h1>
 <p class="subtitle" id="subtitle"></p>
 
-<div class="controls">
-  <label style="cursor:pointer"><input type="file" id="fileInput" accept=".json" style="display:none">
-    <span style="font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid #d0d0d0;background:#fff;color:#333;cursor:pointer">import</span></label>
-  <button id="btnExport">export</button>
-  <label>X <select id="selX"></select></label>
-  <label>Y <select id="selY"></select></label>
-  <label>SQ <select id="selSQ"></select></label>
-  <label>Distance
-    <select id="selDistMode">
-      <option value="euclidean">euclidean</option>
-      <option value="bi-objective" selected>bi-objective kernel</option>
-      <option value="kernel">kernel</option>
-    </select>
-  </label>
-</div>
-
 <div class="main-area">
-  <div class="scatter-wrap">
-    <svg id="scatterSvg" width="520" height="460"></svg>
-    <div class="legend" id="legend"></div>
-    <div style="margin-top:6px"><button id="btnNewCand">+ candidate</button></div>
-  </div>
   <div class="right-panel" id="rightPanel">
     <div class="rp-title" id="rpTitle">Click an arm to see all outcomes</div>
     <div id="rpBars"></div>
     <div id="rpSliders"></div>
+  </div>
+  <div class="scatter-wrap">
+    <svg id="scatterSvg" width="420" height="400"></svg>
+    <div class="legend" id="legend"></div>
+    <div class="scatter-controls">
+      <div class="controls">
+        <label>X <select id="selX"></select></label>
+        <label>Y <select id="selY"></select></label>
+      </div>
+      <div class="controls-secondary">
+        <label>Control arm <select id="selSQ"></select></label>
+        <label>Distance highlighting
+          <select id="selDistMode">
+            <option value="euclidean">euclidean</option>
+            <option value="bi-objective" selected>bi-objective kernel</option>
+            <option value="kernel">kernel</option>
+          </select>
+        </label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <label style="cursor:pointer"><input type="file" id="fileInput" accept=".json" style="display:none">
+            <span style="font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid #d0d0d0;background:#fff;color:#333;cursor:pointer">import</span></label>
+          <button id="btnExport">export</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -239,9 +249,14 @@ var FIXTURE_CAND_X = [
 
 // ── Batch color palette ──
 // Each batch gets a distinct color. Shapes distinguish completed (circle) vs candidate (star).
-var BATCH_PALETTE = ['#636EFA', '#EF553B', '#00CC96', '#AB63FA', '#FFA15A', '#FF6692', '#19D3F3', '#B6E880'];
+// First 6 batches use ColorBrewer Set1 for perceptual distinctness.
+// Beyond 6, we generate evenly-spaced HSL hues so any number of batches works.
+var QUALITATIVE_PALETTE = ['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#a65628'];
 function batchColor(batchIdx) {
-  return BATCH_PALETTE[batchIdx % BATCH_PALETTE.length];
+  if (batchIdx < QUALITATIVE_PALETTE.length) return QUALITATIVE_PALETTE[batchIdx];
+  // Sequential: evenly-spaced hues, moderate saturation, enough lightness to read on white
+  var hue = (batchIdx * 137.5) % 360; // golden-angle spacing for max separation
+  return 'hsl(' + Math.round(hue) + ', 55%, 45%)';
 }
 
 // ── Real VSIP hyperparameters (from BoTorch-fitted fixture) ──
@@ -490,6 +505,7 @@ var hiddenGenMethods = {};
 
 // ── Selection state ──
 var selectedItem = null; // {type:'arm'|'candidate', idx:number}
+var prevSelectedItem = null;
 var hoveredItem = null;
 
 // ── Slider ordering by outcome importance ──
@@ -585,8 +601,8 @@ rpBars.addEventListener('mouseleave', function() {
   deltoidTip.style.display = 'none';
 });
 
-var W = 520, H = 460;
-var margin = { top: 30, right: 20, bottom: 55, left: 65 };
+var W = 420, H = 400;
+var margin = { top: 24, right: 16, bottom: 46, left: 52 };
 var pw = W - margin.left - margin.right;
 var ph = H - margin.top - margin.bottom;
 
@@ -741,8 +757,8 @@ function renderScatter() {
   }
 
   // Axis labels
-  var xLabel = xName + ' (% vs SQ)';
-  var yLabel = yName + ' (% vs SQ)';
+  var xLabel = xName + ' (% vs Control)';
+  var yLabel = yName + ' (% vs Control)';
   html += '<text x="' + (margin.left + pw/2) + '" y="' + (H - 8) +
           '" text-anchor="middle" fill="#666" font-size="12">' + xLabel + '</text>';
   html += '<text x="14" y="' + (margin.top + ph/2) +
@@ -765,38 +781,37 @@ function renderScatter() {
     // Hit area
     html += '<circle cx="' + cx + '" cy="' + cy + '" r="14" fill="transparent"/>';
 
-    // CI crosshairs — batch color
-    var ciAlpha = isSelected ? 0.6 : (isCandidate ? 0.5 : 0.4);
+    // Selected: filled 2D Gaussian density contours; unselected: dot only
     var xLo95 = sx(p.x - CI_Z.c95 * p.xSem), xHi95 = sx(p.x + CI_Z.c95 * p.xSem);
     var yLo95 = sy(p.y - CI_Z.c95 * p.ySem), yHi95 = sy(p.y + CI_Z.c95 * p.ySem);
-    html += '<line x1="' + xLo95 + '" y1="' + cy + '" x2="' + xHi95 + '" y2="' + cy +
-            '" stroke="' + color + '" stroke-width="1" opacity="' + ciAlpha + '"/>';
-    html += '<line x1="' + cx + '" y1="' + yLo95 + '" x2="' + cx + '" y2="' + yHi95 +
-            '" stroke="' + color + '" stroke-width="1" opacity="' + ciAlpha + '"/>';
     var xLo75 = sx(p.x - CI_Z.c75 * p.xSem), xHi75 = sx(p.x + CI_Z.c75 * p.xSem);
     var yLo75 = sy(p.y - CI_Z.c75 * p.ySem), yHi75 = sy(p.y + CI_Z.c75 * p.ySem);
-    html += '<line x1="' + xLo75 + '" y1="' + cy + '" x2="' + xHi75 + '" y2="' + cy +
-            '" stroke="' + color + '" stroke-width="2.5" opacity="0.7"/>';
-    html += '<line x1="' + cx + '" y1="' + yLo75 + '" x2="' + cx + '" y2="' + yHi75 +
-            '" stroke="' + color + '" stroke-width="2.5" opacity="0.7"/>';
+
+    if (isSelected) {
+      var rx95 = Math.abs(xHi95 - cx);
+      var ry95 = Math.abs(yLo95 - cy);
+      var rx75 = Math.abs(xHi75 - cx);
+      var ry75 = Math.abs(yLo75 - cy);
+      html += '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + rx95 + '" ry="' + ry95 +
+              '" fill="' + color + '" fill-opacity="0.20" stroke="' + color + '" stroke-width="0.75" opacity="0.40"/>';
+      html += '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + rx75 + '" ry="' + ry75 +
+              '" fill="' + color + '" fill-opacity="0.25" stroke="' + color + '" stroke-width="0.75" opacity="0.55"/>';
+    }
 
     if (isSQ) {
-      var s = isSelected ? 9 : 7;
+      var s = isSelected ? 8 : 7;
       html += '<polygon points="' + cx + ',' + (cy-s) + ' ' + (cx+s) + ',' + cy +
               ' ' + cx + ',' + (cy+s) + ' ' + (cx-s) + ',' + cy +
-              '" fill="none" stroke="' + color + '" stroke-width="2"/>';
-      if (isSelected) html += '<polygon points="' + cx + ',' + (cy-s-2) + ' ' + (cx+s+2) + ',' + cy +
-              ' ' + cx + ',' + (cy+s+2) + ' ' + (cx-s-2) + ',' + cy +
-              '" fill="none" stroke="#fff" stroke-width="1" opacity="0.6"/>';
+              '" fill="' + (isSelected ? '#fff' : 'none') + '" stroke="' + color + '" stroke-width="2"/>';
     } else if (isCandidate) {
-      var starR = isSelected ? 9 : 7;
+      var starR = isSelected ? 8 : 7;
       html += '<polygon points="' + starPoints(cx, cy, starR) +
-              '" fill="' + color + '" stroke="' + (isSelected ? '#fff' : color) +
+              '" fill="' + color + '" stroke="' + (isSelected ? '#222' : color) +
               '" stroke-width="' + (isSelected ? 1.5 : 0.5) + '" fill-opacity="0.8"/>';
     } else {
-      var r = isSelected ? 6 : 4.5;
+      var r = isSelected ? 4 : 4.5;
       html += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r +
-              '" fill="' + color + '"' + (isSelected ? ' stroke="#fff" stroke-width="1.5"' : '') + '/>';
+              '" fill="' + color + '" stroke="' + (isSelected ? '#222' : 'none') + '" stroke-width="' + (isSelected ? 1.5 : 0) + '"/>';
     }
     html += '</g>';
   });
@@ -981,7 +996,7 @@ function getItemLabel(item) {
   }
   var arm = arms[item.idx];
   var label = arm.armName + ' \\u2014 ' + arm.generationMethod;
-  if (item.idx === sqIdx) label += ' (SQ)';
+  if (item.idx === sqIdx) label += ' (Control)';
   return label;
 }
 
@@ -1023,7 +1038,7 @@ function showDeltoid(item) {
   }
 
   var titleColor = getItemColor(displayItem);
-  rpTitle.innerHTML = '<span style="color:' + titleColor + '">' + getItemLabel(displayItem) + '</span>' + getItemStatusBadge(displayItem) + ' \\u2014 % vs SQ';
+  rpTitle.innerHTML = '<span style="color:' + titleColor + '">' + getItemLabel(displayItem) + '</span>' + getItemStatusBadge(displayItem) + ' \\u2014 % vs Control';
 
   // Get raw predictions for constraint checking
   var itemPreds = getItemPreds(displayItem);
@@ -1051,7 +1066,7 @@ function showDeltoid(item) {
   // Use persistent custom metric order
   var sortedNames = customMetricOrder;
 
-  var rowH = 30, barH = 11, handleW = 14, labelW = 140, barW = 150, valW = 100, pad = 8;
+  var rowH = 30, barH = 11, handleW = 14, labelW = 140, barW = 220, valW = 100, pad = 8;
   var totalW = handleW + labelW + barW + valW + pad * 3;
   var topPad = 20;
   var totalH = sortedNames.length * rowH + topPad + 8;
@@ -1166,18 +1181,18 @@ function showDeltoid(item) {
       // Determine interval tooltip text
       var intervalTooltip;
       if (cols.isBad) {
-        intervalTooltip = 'Metric regression: ' + r.mean.toFixed(2) + '% vs SQ';
+        intervalTooltip = 'Metric regression: ' + r.mean.toFixed(2) + '% vs Control';
         if (violated && violatedBound !== null) {
           var boundRel = relConstraintBounds[name];
           if (boundRel) {
             intervalTooltip += '\\nFalls ' + (violatedOp === 'LEQ' ? 'above' : 'below') +
-              ' constraint threshold ' + violatedBound + ' (' + boundRel.rel.toFixed(1) + '% vs SQ)';
+              ' constraint threshold ' + violatedBound + ' (' + boundRel.rel.toFixed(1) + '% vs Control)';
           }
         }
       } else if (cols.c75 === '#b8b8b8') {
-        intervalTooltip = 'Likely neutral: ' + r.mean.toFixed(2) + '% vs SQ';
+        intervalTooltip = 'Likely neutral: ' + r.mean.toFixed(2) + '% vs Control';
       } else {
-        intervalTooltip = 'Metric improvement: ' + r.mean.toFixed(2) + '% vs SQ';
+        intervalTooltip = 'Metric improvement: ' + r.mean.toFixed(2) + '% vs Control';
       }
 
       // Red outline halo for constraint-violating intervals
@@ -1217,7 +1232,7 @@ function showDeltoid(item) {
         var bxPos = bx(boundInfo.rel);
         var boundColor = violated ? '#d32f2f' : '#4d9221';
         var opWord = boundInfo.op === 'LEQ' ? 'less' : 'greater';
-        var boundTooltip = name + ' must be ' + opWord + ' than ' + boundInfo.rel.toFixed(1) + '% vs SQ';
+        var boundTooltip = name + ' must be ' + opWord + ' than ' + boundInfo.rel.toFixed(1) + '% vs Control';
         var escapedBound = boundTooltip.replace(/"/g, '&quot;');
         s += '<line data-tip="' + escapedBound + '" x1="' + bxPos + '" y1="' + (cy - barH/2 - 3) + '" x2="' + bxPos +
              '" y2="' + (cy + barH/2 + 3) + '" stroke="' + boundColor +
@@ -1619,8 +1634,13 @@ function createNewCandidate() {
 function deleteCandidate(candIdx) {
   candidates.splice(candIdx, 1);
   if (selectedItem && selectedItem.type === 'candidate') {
-    if (selectedItem.idx === candIdx) selectedItem = null;
-    else if (selectedItem.idx > candIdx) selectedItem.idx--;
+    if (selectedItem.idx === candIdx) {
+      // Revert to previous selection; validate it still exists
+      var fallback = prevSelectedItem;
+      if (fallback && fallback.type === 'candidate' && fallback.idx >= candidates.length) fallback = null;
+      selectedItem = fallback || { type: 'arm', idx: 0 };
+      prevSelectedItem = null;
+    } else if (selectedItem.idx > candIdx) selectedItem.idx--;
   }
   renderLegend();
   renderScatter();
@@ -1685,18 +1705,10 @@ svg.addEventListener('mouseout', function(e) {
 });
 svg.addEventListener('click', function(e) {
   var info = getDotInfo(e.target);
-  if (!info) {
-    selectedItem = null;
-    renderScatter();
-    showDeltoid(null);
-    renderSliders();
-    return;
-  }
-  if (selectedItem && selectedItem.type === info.type && selectedItem.idx === info.idx) {
-    selectedItem = null;
-  } else {
-    selectedItem = { type: info.type, idx: info.idx };
-  }
+  if (!info) return; // clicking empty space keeps current selection
+  if (selectedItem && selectedItem.type === info.type && selectedItem.idx === info.idx) return; // already selected
+  prevSelectedItem = selectedItem;
+  selectedItem = { type: info.type, idx: info.idx };
   renderScatter();
   showDeltoid(null);
   renderSliders();
@@ -1731,7 +1743,7 @@ selDistMode.addEventListener('change', function() { updateOpacities(); });
 
 
 
-document.getElementById('btnNewCand').addEventListener('click', createNewCandidate);
+// createNewCandidate is available programmatically (e.g. from clone or import)
 document.getElementById('btnExport').addEventListener('click', exportCandidates);
 
 // Import candidates from JSON
@@ -1792,8 +1804,10 @@ function updateSubtitle() {
 
 // ── Init ──
 updateSubtitle();
-// Auto-select the first arm so the RHS panel is populated on load
+// Auto-select the first arm and first outcome so panels are fully populated on load
 selectedItem = { type: 'arm', idx: 0 };
+sliderOutcome = outcomeNames[0];
+sliderDimOrder = computeDimOrderForOutcome(outcomeNames[0]);
 renderScatter();
 showDeltoid(selectedItem);
 renderSliders();
