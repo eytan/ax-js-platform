@@ -8,7 +8,7 @@
  */
 
 // ── Types ─────────────────────────────────────────────────────────────────
-export type { RGB, ParamSpec, RenderPredictor, DotInfo } from "./types";
+export type { RGB, ParamSpec, RenderPredictor, DotInfo, ImportanceMethod } from "./types";
 export type {
   FeatureImportanceOptions,
   CrossValidationOptions,
@@ -16,6 +16,15 @@ export type {
   SlicePlotOptions,
   ResponseSurfaceOptions,
 } from "./types";
+
+// ── Sensitivity analysis ─────────────────────────────────────────────────
+export {
+  computeImportance,
+  computeLengthscaleImportance,
+  computeSobolIndices,
+  computeGradientImportance,
+} from "../sensitivity";
+export type { ParameterImportance, SensitivityOptions, SensitivityPredictor } from "../sensitivity";
 
 // ── Styles ────────────────────────────────────────────────────────────────
 export { injectStyles, injectScopedStyles } from "./styles";

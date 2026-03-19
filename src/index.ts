@@ -44,6 +44,20 @@ export {
 } from "./transforms/relativize.js";
 export type { RelativizeResult, RelativizeOptions } from "./transforms/relativize.js";
 
+// Sensitivity analysis (parameter importance)
+export {
+  computeImportance,
+  computeLengthscaleImportance,
+  computeSobolIndices,
+  computeGradientImportance,
+} from "./sensitivity.js";
+export type {
+  ImportanceMethod,
+  ParameterImportance,
+  SensitivityOptions,
+  SensitivityPredictor,
+} from "./sensitivity.js";
+
 // Types — schema, config, and data interfaces
 export type {
   ExperimentState,

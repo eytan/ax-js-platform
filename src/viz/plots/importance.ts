@@ -1,15 +1,25 @@
-import type { RenderPredictor, FeatureImportanceOptions } from "../types";
+import type { RenderPredictor, FeatureImportanceOptions, ImportanceMethod } from "../types";
+import type { ParameterImportance } from "../../sensitivity.js";
+import { computeImportance } from "../../sensitivity.js";
 import { svgEl } from "./_svg";
 import { createOutcomeSelector, createTooltipDiv, positionTooltip, removeTooltip, makeSelectEl } from "../widgets";
 import { injectScopedStyles } from "../styles";
 
 const CTRL_CSS = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
 
+const METHOD_LABELS: Record<ImportanceMethod, string> = {
+  lengthscale: "Lengthscale",
+  sobol: "Sobol Indices",
+  gradient: "Gradient (DGSM)",
+};
+
 /**
  * Render a horizontal bar chart of feature importance into a container.
  *
- * Each bar shows `1 / lengthscale` (normalized to the most important
- * dimension). Longer bars = more sensitive. Sorted by importance.
+ * Supports three importance methods selectable via a dropdown:
+ * - **lengthscale** (default): 1 / ARD lengthscale
+ * - **sobol**: First-order Sobol indices (variance-based global sensitivity)
+ * - **gradient**: DGSM (derivative-based global sensitivity measure)
  */
 export function renderFeatureImportance(
   container: HTMLElement,
@@ -19,7 +29,13 @@ export function renderFeatureImportance(
   const interactive = options?.interactive !== false;
 
   if (!interactive) {
-    renderFeatureImportanceStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0]);
+    const method = options?.method ?? "lengthscale";
+    const outcome = options?.outcome ?? predictor.outcomeNames[0];
+    const items = computeImportance(predictor, outcome, method, {
+      numSamples: options?.numSamples,
+      seed: options?.seed,
+    });
+    renderBars(container, items, method);
     return;
   }
 
@@ -28,6 +44,7 @@ export function renderFeatureImportance(
   container.innerHTML = "";
   injectScopedStyles(container);
   let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
+  let selectedMethod: ImportanceMethod = options?.method ?? "lengthscale";
   const tooltip = createTooltipDiv(container.id);
 
   const controlsDiv = document.createElement("div");
@@ -36,6 +53,7 @@ export function renderFeatureImportance(
   container.appendChild(controlsDiv);
   container.appendChild(plotsDiv);
 
+  // Outcome selector
   if (predictor.outcomeNames.length > 1) {
     const { wrapper, select } = makeSelectEl("Outcome:");
     createOutcomeSelector(predictor, select, (name) => {
@@ -45,43 +63,66 @@ export function renderFeatureImportance(
     controlsDiv.appendChild(wrapper);
   }
 
+  // Method selector
+  {
+    const { wrapper, select } = makeSelectEl("Method:");
+    const methods: ImportanceMethod[] = ["lengthscale", "sobol", "gradient"];
+    for (const m of methods) {
+      const opt = document.createElement("option");
+      opt.value = m;
+      opt.textContent = METHOD_LABELS[m];
+      if (m === selectedMethod) opt.selected = true;
+      select.appendChild(opt);
+    }
+    select.onchange = () => {
+      selectedMethod = select.value as ImportanceMethod;
+      redraw();
+    };
+    controlsDiv.appendChild(wrapper);
+  }
+
   function redraw() {
     plotsDiv.innerHTML = "";
-    renderFeatureImportanceStatic(plotsDiv, predictor, selectedOutcome, tooltip, container);
+    const items = computeImportance(predictor, selectedOutcome, selectedMethod, {
+      numSamples: options?.numSamples,
+      seed: options?.seed,
+    });
+    renderBars(plotsDiv, items, selectedMethod, tooltip, container);
   }
   redraw();
 }
 
-function renderFeatureImportanceStatic(
+// ---------------------------------------------------------------------------
+// Static bar chart renderer (works with any ParameterImportance[])
+// ---------------------------------------------------------------------------
+
+function renderBars(
   target: HTMLElement,
-  predictor: RenderPredictor,
-  outcome: string,
+  items: ParameterImportance[],
+  method: ImportanceMethod,
   tooltip?: HTMLDivElement,
   tooltipContainer?: HTMLElement,
 ): void {
-  const ranked = predictor.rankDimensionsByImportance(outcome);
-  if (!ranked || ranked.length === 0) {
-    target.textContent = "No lengthscale data";
+  if (!items || items.length === 0) {
+    target.textContent = "No importance data";
     return;
   }
 
   const barColors = ["#4872f9", "#5478fa", "#6088fa", "#7098fb", "#85a8fb", "#9ab8fc", "#b0c8fc", "#c7d4fd"];
-  const importances = ranked.map((d) => 1 / d.lengthscale);
-  const maxImp = Math.max(...importances);
 
   const W = Math.min((tooltipContainer ?? target).clientWidth || 500, 500);
   const labelW = 130;
   const valueW = 70;
   const barH = 24;
   const rowGap = 6;
-  const H = ranked.length * (barH + rowGap) + 8;
+  const H = items.length * (barH + rowGap) + 8;
   const trackW = W - labelW - valueW;
 
   const svg = svgEl("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
 
-  ranked.forEach((dim, i) => {
+  items.forEach((item, i) => {
     const y = i * (barH + rowGap) + 4;
-    const pct = importances[i] / maxImp;
+    const pct = item.importance;
     const barW = Math.max(2, pct * trackW);
 
     // Label
@@ -89,7 +130,7 @@ function renderFeatureImportanceStatic(
       Object.assign(svgEl("text", {
         x: labelW - 8, y: y + barH / 2 + 4,
         fill: "#333", "font-size": 13, "text-anchor": "end",
-      }), { textContent: dim.paramName }),
+      }), { textContent: item.paramName }),
     );
 
     // Track
@@ -101,7 +142,7 @@ function renderFeatureImportanceStatic(
     // Fill bar
     svg.appendChild(svgEl("rect", {
       x: labelW, y, width: barW, height: barH,
-      rx: 4, fill: barColors[dim.dimIndex % barColors.length],
+      rx: 4, fill: barColors[item.dimIndex % barColors.length],
     }));
 
     // Tooltip on bar hover
@@ -111,7 +152,7 @@ function renderFeatureImportanceStatic(
         fill: "transparent", cursor: "pointer",
       });
       hoverRect.addEventListener("mouseenter", (e: MouseEvent) => {
-        tooltip.innerHTML = `<b>${dim.paramName}</b><br>Lengthscale: ${dim.lengthscale.toFixed(4)}<br>Importance: ${(pct * 100).toFixed(1)}%`;
+        tooltip.innerHTML = tooltipHtml(item, method, pct);
         tooltip.style.display = "block";
         positionTooltip(tooltip, e.clientX, e.clientY);
       });
@@ -130,9 +171,37 @@ function renderFeatureImportanceStatic(
         x: labelW + trackW + 4, y: y + barH / 2 + 4,
         fill: "#666", "font-size": 11, "text-anchor": "start",
         "pointer-events": "none",
-      }), { textContent: `ls=${dim.lengthscale.toFixed(3)}` }),
+      }), { textContent: annotationText(item, method) }),
     );
   });
 
   target.appendChild(svg);
+}
+
+// ---------------------------------------------------------------------------
+// Annotation helpers
+// ---------------------------------------------------------------------------
+
+function annotationText(item: ParameterImportance, method: ImportanceMethod): string {
+  switch (method) {
+    case "lengthscale":
+      return `ls=${item.raw.toFixed(3)}`;
+    case "sobol":
+      return `S=${item.raw.toFixed(3)}`;
+    case "gradient":
+      return `G=${item.raw.toFixed(3)}`;
+  }
+}
+
+function tooltipHtml(item: ParameterImportance, method: ImportanceMethod, pct: number): string {
+  const name = `<b>${item.paramName}</b>`;
+  const impLine = `Importance: ${(pct * 100).toFixed(1)}%`;
+  switch (method) {
+    case "lengthscale":
+      return `${name}<br>Lengthscale: ${item.raw.toFixed(4)}<br>${impLine}`;
+    case "sobol":
+      return `${name}<br>Sobol index: ${item.raw.toFixed(4)}<br>${impLine}`;
+    case "gradient":
+      return `${name}<br>Gradient magnitude: ${item.raw.toFixed(4)}<br>${impLine}`;
+  }
 }

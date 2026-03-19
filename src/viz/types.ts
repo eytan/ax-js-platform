@@ -40,11 +40,20 @@ export interface DotInfo {
   defaultR: number;
 }
 
+/** Which importance method to use. */
+export type ImportanceMethod = "lengthscale" | "sobol" | "gradient";
+
 /** Options for renderFeatureImportance. */
 export interface FeatureImportanceOptions {
   outcome?: string;
+  /** Importance method: "lengthscale" (default), "sobol", or "gradient". */
+  method?: ImportanceMethod;
   interactive?: boolean;
   backgroundColor?: string;
+  /** Number of Monte Carlo samples for Sobol / gradient methods. */
+  numSamples?: number;
+  /** PRNG seed for reproducibility (default 42). */
+  seed?: number;
 }
 
 /** Options for renderCrossValidation. */
