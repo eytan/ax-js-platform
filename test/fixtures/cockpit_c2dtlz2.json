@@ -610,7 +610,7 @@
         "generation_method": "Sobol"
       },
       {
-        "arm_name": "0_7",
+        "arm_name": "1_0",
         "parameters": {
           "x0": 0.5280779051402825,
           "x1": 0.9290506044022919,
@@ -631,12 +631,12 @@
             "sem": 0.0
           }
         },
-        "trial_index": 0,
+        "trial_index": 1,
         "trial_status": "COMPLETED",
-        "generation_method": "Sobol"
+        "generation_method": "qEHVI"
       },
       {
-        "arm_name": "1_0",
+        "arm_name": "1_1",
         "parameters": {
           "x0": 0.9064707010257503,
           "x1": 0.5049191544337284,
@@ -659,10 +659,10 @@
         },
         "trial_index": 1,
         "trial_status": "COMPLETED",
-        "generation_method": "BoTorch"
+        "generation_method": "qEHVI"
       },
       {
-        "arm_name": "1_1",
+        "arm_name": "1_2",
         "parameters": {
           "x0": 0.35417870208573343,
           "x1": 0.45725390040175273,
@@ -685,10 +685,10 @@
         },
         "trial_index": 1,
         "trial_status": "COMPLETED",
-        "generation_method": "BoTorch"
+        "generation_method": "qEHVI"
       },
       {
-        "arm_name": "1_2",
+        "arm_name": "1_3",
         "parameters": {
           "x0": 0.3873716394778559,
           "x1": 0.2100460539025979,
@@ -711,10 +711,10 @@
         },
         "trial_index": 1,
         "trial_status": "COMPLETED",
-        "generation_method": "BoTorch"
+        "generation_method": "qEHVI"
       },
       {
-        "arm_name": "1_3",
+        "arm_name": "1_4",
         "parameters": {
           "x0": 0.0006821055045670432,
           "x1": 0.23115601097366656,
@@ -737,10 +737,10 @@
         },
         "trial_index": 1,
         "trial_status": "COMPLETED",
-        "generation_method": "BoTorch"
+        "generation_method": "qEHVI"
       },
       {
-        "arm_name": "1_4",
+        "arm_name": "1_5",
         "parameters": {
           "x0": 0.05574429992148855,
           "x1": 0.32724076468563734,
@@ -763,7 +763,7 @@
         },
         "trial_index": 1,
         "trial_status": "COMPLETED",
-        "generation_method": "BoTorch"
+        "generation_method": "qEHVI"
       }
     ],
     "candidates": [
@@ -776,7 +776,7 @@
           "x3": 0.9721808595783404
         },
         "trial_index": 2,
-        "generation_method": "BoTorch"
+        "generation_method": "qEHVI"
       },
       {
         "arm_name": "2_1",
@@ -787,7 +787,7 @@
           "x3": 0.9171758581412681
         },
         "trial_index": 2,
-        "generation_method": "BoTorch"
+        "generation_method": "qEHVI"
       },
       {
         "arm_name": "2_2",
@@ -798,7 +798,7 @@
           "x3": 0.4978205709384833
         },
         "trial_index": 2,
-        "generation_method": "BoTorch"
+        "generation_method": "qEHVI"
       },
       {
         "arm_name": "2_3",
@@ -809,7 +809,7 @@
           "x3": 0.3023634034797106
         },
         "trial_index": 2,
-        "generation_method": "BoTorch"
+        "generation_method": "qEHVI"
       },
       {
         "arm_name": "2_4",
@@ -820,7 +820,7 @@
           "x3": 0.06096613853653554
         },
         "trial_index": 2,
-        "generation_method": "BoTorch"
+        "generation_method": "qEHVI"
       }
     ],
     "status_quo": {
@@ -837,7 +837,7 @@
       "botorch_version": "0.17.2",
       "gpytorch_version": "1.15.2",
       "torch_version": "2.11.0.dev20260124",
-      "generated_at": "2026-03-17T12:52:35.334415+00:00",
+      "generated_at": "2026-03-20T21:21:06.170640+00:00",
       "seed": 200,
       "benchmark": "C2DTLZ2",
       "cockpit": true

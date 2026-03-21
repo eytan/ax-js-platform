@@ -48,11 +48,11 @@ describe("cockpit fixture metadata", () => {
     const sobol = exp.observations.filter(
       (o: any) => o.generation_method === "Sobol",
     );
-    const botorch = exp.observations.filter(
-      (o: any) => o.generation_method === "BoTorch",
+    const bo = exp.observations.filter(
+      (o: any) => o.generation_method === "qEHVI",
     );
-    expect(sobol.length).toBe(8);
-    expect(botorch.length).toBe(5);
+    expect(sobol.length).toBe(7);
+    expect(bo.length).toBe(6);
   });
 
   it("observations have correct trial metadata", () => {
@@ -62,7 +62,7 @@ describe("cockpit fixture metadata", () => {
       expect(obs.metrics).toBeDefined();
       expect(obs.trial_index).toBeDefined();
       expect(obs.trial_status).toBe("COMPLETED");
-      expect(["Sobol", "BoTorch"]).toContain(obs.generation_method);
+      expect(["Sobol", "qEHVI"]).toContain(obs.generation_method);
 
       if (obs.generation_method === "Sobol") {
         expect(obs.trial_index).toBe(0);
@@ -89,7 +89,7 @@ describe("cockpit fixture metadata", () => {
       expect(cand.arm_name).toBeDefined();
       expect(cand.parameters).toBeDefined();
       expect(cand.trial_index).toBe(2);
-      expect(cand.generation_method).toBe("BoTorch");
+      expect(cand.generation_method).toBe("qEHVI");
     }
   });
 

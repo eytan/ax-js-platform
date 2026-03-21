@@ -18,6 +18,7 @@ export const hartmannMixedFixture = readFileSync(join(root, 'test/fixtures/hartm
 export const penicillinFixture = readFileSync(join(root, 'test/fixtures/penicillin_modellist.json'), 'utf8');
 export const branincurrinFixture = readFileSync(join(root, 'test/fixtures/branincurrin_modellist.json'), 'utf8');
 export const vsipFixture = readFileSync(join(root, 'test/fixtures/vsip_modellist.json'), 'utf8');
+export const cockpitFixture = readFileSync(join(root, 'test/fixtures/cockpit_vsip.json'), 'utf8');
 
 /** Inline the main ax-js library. Exposes Ax.Predictor, Ax.loadModel, etc. */
 export function libraryScript() {

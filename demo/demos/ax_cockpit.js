@@ -1,4 +1,4 @@
-import { libraryScript, vizScript, fixtureScript, axHomeLink, axFavicon, vsipFixture } from '../shared.js';
+import { libraryScript, vizScript, fixtureScript, axHomeLink, axFavicon, cockpitFixture } from '../shared.js';
 
 export default function() {
 return `<!DOCTYPE html>
@@ -192,7 +192,7 @@ button:hover { background: #f0f0f0; }
 
 ${libraryScript()}
 ${vizScript()}
-${fixtureScript('__DEFAULT_FIXTURE__', vsipFixture)}
+${fixtureScript('__DEFAULT_FIXTURE__', cockpitFixture)}
 
 <script>
 (function() {
@@ -310,6 +310,8 @@ function loadExperimentState(rawData) {
 
   if (data.observations && data.observations.length > 0) {
     // Fixture has explicit observations
+    // Infer batch indices from generation_method if batch_index not provided
+    var batchMap = {}, nextBatch = 0;
     data.observations.forEach(function(obs, i) {
       var pt = obs.point || obs.parameters || [];
       // If observations use named parameters, convert to positional array
@@ -317,14 +319,23 @@ function loadExperimentState(rawData) {
         pt = paramNames.map(function(n) { return pt[n] || 0; });
       }
       var evals = [];
+      var vals = obs.values || obs.metrics || {};
       outcomeNames.forEach(function(name) {
-        evals.push(obs.values ? (obs.values[name] || 0) : 0);
+        var v = vals[name];
+        // metrics format: {mean, sem}; values format: scalar
+        evals.push(v != null ? (typeof v === 'object' ? v.mean : v) : 0);
       });
+      var gen = obs.generation_method || 'unknown';
+      var batch = obs.batch_index;
+      if (batch == null) {
+        if (batchMap[gen] == null) batchMap[gen] = nextBatch++;
+        batch = batchMap[gen];
+      }
       arms.push({
         idx: i, armName: obs.arm_name || ('arm_0_' + i), params: pt, evals: evals,
         trialIndex: obs.trial_index != null ? obs.trial_index : i,
-        batchIndex: obs.batch_index != null ? obs.batch_index : 0,
-        trialStatus: 'COMPLETED', generationMethod: obs.generation_method || 'unknown'
+        batchIndex: batch,
+        trialStatus: 'COMPLETED', generationMethod: gen
       });
     });
   } else {
@@ -823,6 +834,9 @@ legendEl.addEventListener('click', function(e) {
   }
 });
 
+// Last-render state for hover ellipses
+var lastSx = null, lastSy = null, lastPts = [];
+
 function renderScatter() {
   var xName = outcomeNames[xOutIdx];
   var yName = outcomeNames[yOutIdx];
@@ -952,7 +966,56 @@ function renderScatter() {
   html += '</g>';
 
   svg.innerHTML = html;
+  lastSx = sx; lastSy = sy; lastPts = pts;
   updateOpacities();
+}
+
+// ── Hover ellipses (inserted/removed without re-rendering scatter) ──
+var hoverEllipseGroup = null;
+
+function showHoverEllipse(info) {
+  removeHoverEllipse();
+  if (!info || !lastSx || !lastSy) return;
+  var p = null;
+  for (var i = 0; i < lastPts.length; i++) {
+    if (lastPts[i].type === info.type && lastPts[i].idx === info.idx) { p = lastPts[i]; break; }
+  }
+  if (!p || !p.visible) return;
+  var cx = lastSx(p.x), cy = lastSy(p.y);
+  var color = batchColor(p.batch);
+  var rx95 = Math.abs(lastSx(p.x + CI_Z.c95 * p.xSem) - cx);
+  var ry95 = Math.abs(lastSy(p.y - CI_Z.c95 * p.ySem) - cy);
+  var rx75 = Math.abs(lastSx(p.x + CI_Z.c75 * p.xSem) - cx);
+  var ry75 = Math.abs(lastSy(p.y - CI_Z.c75 * p.ySem) - cy);
+  var ns = 'http://www.w3.org/2000/svg';
+  var g = document.createElementNS(ns, 'g');
+  g.setAttribute('pointer-events', 'none');
+  var e95 = document.createElementNS(ns, 'ellipse');
+  e95.setAttribute('cx', cx); e95.setAttribute('cy', cy);
+  e95.setAttribute('rx', rx95); e95.setAttribute('ry', ry95);
+  e95.setAttribute('fill', color); e95.setAttribute('fill-opacity', '0.12');
+  e95.setAttribute('stroke', color); e95.setAttribute('stroke-width', '0.75');
+  e95.setAttribute('opacity', '0.35');
+  var e75 = document.createElementNS(ns, 'ellipse');
+  e75.setAttribute('cx', cx); e75.setAttribute('cy', cy);
+  e75.setAttribute('rx', rx75); e75.setAttribute('ry', ry75);
+  e75.setAttribute('fill', color); e75.setAttribute('fill-opacity', '0.18');
+  e75.setAttribute('stroke', color); e75.setAttribute('stroke-width', '0.75');
+  e75.setAttribute('opacity', '0.45');
+  g.appendChild(e95);
+  g.appendChild(e75);
+  // Insert before the dot groups so ellipses render behind dots
+  var clipGroup = svg.querySelector('g[clip-path]');
+  if (clipGroup) { clipGroup.insertBefore(g, clipGroup.firstChild); }
+  else { svg.appendChild(g); }
+  hoverEllipseGroup = g;
+}
+
+function removeHoverEllipse() {
+  if (hoverEllipseGroup && hoverEllipseGroup.parentNode) {
+    hoverEllipseGroup.parentNode.removeChild(hoverEllipseGroup);
+  }
+  hoverEllipseGroup = null;
 }
 
 // ── Opacity/relevance ──
@@ -1872,6 +1935,7 @@ svg.addEventListener('mouseover', function(e) {
   if (hoveredItem && hoveredItem.type === info.type && hoveredItem.idx === info.idx) return;
   hoveredItem = info;
   updateOpacities();
+  showHoverEllipse(info);
   if (!selectedItem) showDeltoid(info);
 });
 svg.addEventListener('mouseout', function(e) {
@@ -1881,6 +1945,7 @@ svg.addEventListener('mouseout', function(e) {
   if (relInfo && relInfo.type === info.type && relInfo.idx === info.idx) return;
   hoveredItem = null;
   updateOpacities();
+  removeHoverEllipse();
   if (!selectedItem) showDeltoid(null);
 });
 svg.addEventListener('click', function(e) {

@@ -712,6 +712,38 @@ FIXTURE_SPECS = [
         status_quo="center",
         description="Cockpit: C2DTLZ2 multi-batch MOO, 8 Sobol + 5 qEHVI + 5 candidates",
     ),
+    # 47. Cockpit: VSIP 9-outcome MOO with observations + candidates
+    FixtureSpec(
+        name="cockpit_vsip",
+        benchmark="VSIP",
+        model_class="ModelListGP",
+        n_train=20,  # 12 Sobol + 8 qEHVI
+        n_test=10,
+        seed=79,
+        n_outcomes=9,
+        kernel_type="RBF",
+        ax_level=True,
+        outcome_names=VehicleSideImpact.OUTCOME_NAMES,
+        param_names=VehicleSideImpact.PARAM_NAMES,
+        objectives=[
+            {"name": "weight", "minimize": True},
+            {"name": "acceleration", "minimize": True},
+            {"name": "intrusion", "minimize": True},
+        ],
+        outcome_constraints=[
+            {"name": "door_velocity", "bound": 32.0, "op": "LEQ"},
+            {"name": "bpillar_top_vel", "bound": 30.0, "op": "LEQ"},
+            {"name": "pubic_force", "bound": 4.0, "op": "LEQ"},
+            {"name": "abdomen_load", "bound": 1.0, "op": "LEQ"},
+        ],
+        objective_thresholds=[
+            {"name": "weight", "bound": 35.0, "op": "LEQ"},
+            {"name": "acceleration", "bound": 6.0, "op": "LEQ"},
+            {"name": "intrusion", "bound": 11.0, "op": "LEQ"},
+        ],
+        status_quo="center",
+        description="Cockpit: VSIP 9-outcome MOO, 12 Sobol + 8 qEHVI + 5 candidates",
+    ),
 ]
 
 

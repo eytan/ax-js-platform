@@ -1923,7 +1923,40 @@ var Ax = (() => {
   };
 
   // src/sensitivity.ts
-  var PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71];
+  var PRIMES = [
+    2,
+    3,
+    5,
+    7,
+    11,
+    13,
+    17,
+    19,
+    23,
+    29,
+    31,
+    37,
+    41,
+    43,
+    47,
+    53,
+    59,
+    61,
+    67,
+    71,
+    73,
+    79,
+    83,
+    89,
+    97,
+    101,
+    103,
+    107,
+    109,
+    113,
+    127,
+    131
+  ];
   function haltonSequence(n, d, rng) {
     if (d > PRIMES.length) {
       throw new Error(`haltonSequence supports up to ${PRIMES.length} dimensions, got ${d}`);
@@ -3602,6 +3635,7 @@ var Ax;
     defaultParamValue: () => defaultParamValue,
     drawColorbar: () => drawColorbar,
     drawDataDot: () => drawDataDot,
+    estimateRange: () => estimateRange,
     findNearestDot: () => findNearestDot,
     formatParamValue: () => formatParamValue,
     hideTooltip: () => hideTooltip,
@@ -3610,6 +3644,7 @@ var Ax;
     isChoice: () => isChoice,
     isInteger: () => isInteger,
     normalizeFixture: () => normalizeFixture,
+    piYG: () => piYG,
     plasma: () => plasma,
     pointRelevance: () => pointRelevance,
     removeTooltip: () => removeTooltip,
@@ -3763,6 +3798,22 @@ var Ax;
   }
   function plasma(t) {
     return interpolateStops(t, PLASMA_STOPS);
+  }
+  var PIYG_STOPS = [
+    [140, 0, 75],
+    [212, 0, 112],
+    [238, 65, 158],
+    [250, 148, 203],
+    [254, 214, 233],
+    [247, 247, 247],
+    [216, 248, 190],
+    [168, 232, 88],
+    [98, 198, 30],
+    [45, 162, 8],
+    [15, 115, 0]
+  ];
+  function piYG(t) {
+    return interpolateStops(t, PIYG_STOPS);
   }
   function drawColorbar(canvasId, colorFn) {
     const cvs = document.getElementById(canvasId);
@@ -4279,6 +4330,268 @@ var Ax;
       }
     });
     return { getPinnedIdx };
+  }
+
+  // src/sensitivity.ts
+  var PRIMES = [
+    2,
+    3,
+    5,
+    7,
+    11,
+    13,
+    17,
+    19,
+    23,
+    29,
+    31,
+    37,
+    41,
+    43,
+    47,
+    53,
+    59,
+    61,
+    67,
+    71,
+    73,
+    79,
+    83,
+    89,
+    97,
+    101,
+    103,
+    107,
+    109,
+    113,
+    127,
+    131
+  ];
+  function haltonSequence(n, d, rng) {
+    if (d > PRIMES.length) {
+      throw new Error(`haltonSequence supports up to ${PRIMES.length} dimensions, got ${d}`);
+    }
+    const r = rng ?? new Rng(42);
+    const result = [];
+    const permutations = [];
+    for (let dim = 0; dim < d; dim++) {
+      const base = PRIMES[dim];
+      const dimPerms = [];
+      for (let digitPos = 0; digitPos < 20; digitPos++) {
+        const perm = [];
+        for (let k = 0; k < base; k++) perm.push(k);
+        for (let k = base - 1; k > 0; k--) {
+          const j = Math.floor(r.uniform() * (k + 1));
+          const tmp = perm[k];
+          perm[k] = perm[j];
+          perm[j] = tmp;
+        }
+        dimPerms.push(perm);
+      }
+      permutations.push(dimPerms);
+    }
+    for (let i = 0; i < n; i++) {
+      const point = new Array(d);
+      for (let dim = 0; dim < d; dim++) {
+        const base = PRIMES[dim];
+        let val = 0;
+        let denom = 1;
+        let idx = i + 1;
+        let digitPos = 0;
+        while (idx > 0) {
+          denom *= base;
+          const digit = idx % base;
+          const scrambled = permutations[dim][digitPos % 20][digit];
+          val += scrambled / denom;
+          idx = Math.floor(idx / base);
+          digitPos++;
+        }
+        point[dim] = val;
+      }
+      result.push(point);
+    }
+    return result;
+  }
+
+  // src/viz/estimateRange.ts
+  var MAX_HALTON_D = 32;
+  function estimateRange(predictor, ciMultiplier = 1.96, outcomes) {
+    const names = outcomes ?? predictor.outcomeNames;
+    const result = {};
+    const d = predictor.paramNames.length;
+    const bounds = predictor.paramBounds;
+    const specs = predictor.paramSpecs;
+    const choiceDims = /* @__PURE__ */ new Set();
+    const choiceValues = /* @__PURE__ */ new Map();
+    if (specs) {
+      for (let j = 0; j < d; j++) {
+        if (isChoice(specs[j])) {
+          choiceDims.add(j);
+          choiceValues.set(j, specs[j].values.map(Number));
+        }
+      }
+    }
+    const contDims = [];
+    for (let j = 0; j < d; j++) {
+      if (!choiceDims.has(j)) contDims.push(j);
+    }
+    let activeDims = contDims;
+    const fixedDimValues = /* @__PURE__ */ new Map();
+    if (contDims.length > MAX_HALTON_D) {
+      let importantDims = null;
+      if (predictor.computeSensitivity) {
+        try {
+          const sens = predictor.computeSensitivity(names[0]);
+          const indexed = sens.totalOrder.map((v, i) => ({ i, v }));
+          indexed.sort((a, b) => b.v - a.v);
+          importantDims = indexed.map((x) => x.i).filter((i) => !choiceDims.has(i)).slice(0, MAX_HALTON_D);
+        } catch {
+        }
+      }
+      if (!importantDims) {
+        const ranked = predictor.rankDimensionsByImportance?.(names[0]);
+        if (ranked && ranked.length > 0) {
+          importantDims = ranked.map((r) => r.dimIndex).filter((i) => !choiceDims.has(i)).slice(0, MAX_HALTON_D);
+        }
+      }
+      if (importantDims && importantDims.length > 0) {
+        activeDims = importantDims;
+        for (const j of contDims) {
+          if (!activeDims.includes(j)) {
+            fixedDimValues.set(j, (bounds[j][0] + bounds[j][1]) / 2);
+          }
+        }
+      } else {
+        activeDims = contDims.slice(0, MAX_HALTON_D);
+        for (const j of contDims.slice(MAX_HALTON_D)) {
+          fixedDimValues.set(j, (bounds[j][0] + bounds[j][1]) / 2);
+        }
+      }
+    }
+    const dEff = activeDims.length;
+    const nInitial = dEff <= 6 ? 256 : dEff <= 12 ? 384 : 512;
+    const nStarts = dEff <= 6 ? 4 : 8;
+    const nSteps = dEff <= 6 ? 5 : 10;
+    const rng = new Rng(42);
+    const haltonD = Math.min(dEff, MAX_HALTON_D);
+    const haltonPts = haltonD > 0 ? haltonSequence(nInitial, haltonD, rng) : [];
+    const nChoicePerPt = choiceDims.size > 0 ? 1 : 0;
+    const fullPoints = [];
+    for (let i = 0; i < nInitial; i++) {
+      const pt = new Array(d);
+      for (let ai = 0; ai < activeDims.length; ai++) {
+        const j = activeDims[ai];
+        const h = haltonD > 0 ? haltonPts[i][ai] : rng.uniform();
+        pt[j] = bounds[j][0] + h * (bounds[j][1] - bounds[j][0]);
+      }
+      for (const [j, v] of fixedDimValues) {
+        pt[j] = v;
+      }
+      for (const j of choiceDims) {
+        const vals = choiceValues.get(j);
+        pt[j] = vals[Math.floor(rng.uniform() * vals.length)];
+      }
+      fullPoints.push(pt);
+    }
+    const td0 = predictor.getTrainingData();
+    for (const pt of td0.X) {
+      fullPoints.push(pt);
+    }
+    const allPreds = predictor.predict(fullPoints);
+    for (const outcome of names) {
+      const pred = allPreds[outcome];
+      if (!pred) {
+        result[outcome] = { muMin: 0, muMax: 1, ciMin: 0, ciMax: 1 };
+        continue;
+      }
+      let muMin = Infinity, muMax = -Infinity;
+      let ciMin = Infinity, ciMax = -Infinity;
+      const maxCands = [];
+      const minCands = [];
+      for (let i = 0; i < fullPoints.length; i++) {
+        const mu = pred.mean[i];
+        const s = Math.sqrt(pred.variance[i]);
+        const up = mu + ciMultiplier * s;
+        const lo = mu - ciMultiplier * s;
+        if (mu < muMin) muMin = mu;
+        if (mu > muMax) muMax = mu;
+        if (lo < ciMin) ciMin = lo;
+        if (up > ciMax) ciMax = up;
+        if (i < nInitial) {
+          maxCands.push({ idx: i, ciUp: up, ciLo: lo });
+          minCands.push({ idx: i, ciUp: up, ciLo: lo });
+        }
+      }
+      maxCands.sort((a, b) => b.ciUp - a.ciUp);
+      minCands.sort((a, b) => a.ciLo - b.ciLo);
+      const maxStarts = maxCands.slice(0, nStarts).map((c) => fullPoints[c.idx].slice());
+      const minStarts = minCands.slice(0, nStarts).map((c) => fullPoints[c.idx].slice());
+      const eps = 1e-4;
+      const lr = 0.02;
+      const totalStarts = maxStarts.length + minStarts.length;
+      for (let step = 0; step < nSteps; step++) {
+        const batchPts = [];
+        const allStarts = [...maxStarts, ...minStarts];
+        for (const pt of allStarts) {
+          batchPts.push(pt.slice());
+          for (const j of activeDims) {
+            const ptP = pt.slice();
+            ptP[j] = Math.min(bounds[j][1], pt[j] + eps * (bounds[j][1] - bounds[j][0]));
+            batchPts.push(ptP);
+          }
+        }
+        const bPred = predictor.predict(batchPts)[outcome];
+        if (!bPred) break;
+        let offset = 0;
+        for (let si = 0; si < totalStarts; si++) {
+          const isMax = si < maxStarts.length;
+          const pt = isMax ? maxStarts[si] : minStarts[si - maxStarts.length];
+          const mu0 = bPred.mean[offset];
+          const s0 = Math.sqrt(bPred.variance[offset]);
+          const val0 = isMax ? mu0 + ciMultiplier * s0 : mu0 - ciMultiplier * s0;
+          if (mu0 > muMax) muMax = mu0;
+          if (mu0 < muMin) muMin = mu0;
+          if (mu0 + ciMultiplier * s0 > ciMax) ciMax = mu0 + ciMultiplier * s0;
+          if (mu0 - ciMultiplier * s0 < ciMin) ciMin = mu0 - ciMultiplier * s0;
+          const grad = [];
+          for (let ai = 0; ai < activeDims.length; ai++) {
+            const muJ = bPred.mean[offset + 1 + ai];
+            const sJ = Math.sqrt(bPred.variance[offset + 1 + ai]);
+            const valJ = isMax ? muJ + ciMultiplier * sJ : muJ - ciMultiplier * sJ;
+            grad.push((valJ - val0) / (eps * (bounds[activeDims[ai]][1] - bounds[activeDims[ai]][0])));
+          }
+          const gradNorm = Math.sqrt(grad.reduce((s, g) => s + g * g, 0));
+          if (gradNorm > 1e-8) {
+            for (let ai = 0; ai < activeDims.length; ai++) {
+              const j = activeDims[ai];
+              const range = bounds[j][1] - bounds[j][0];
+              const stepJ = lr * range * grad[ai] / gradNorm;
+              pt[j] = Math.max(bounds[j][0], Math.min(
+                bounds[j][1],
+                pt[j] + (isMax ? stepJ : -stepJ)
+              ));
+            }
+          }
+          offset += 1 + activeDims.length;
+        }
+      }
+      const finalPts = [...maxStarts, ...minStarts];
+      if (finalPts.length > 0) {
+        const fPred = predictor.predict(finalPts)[outcome];
+        if (fPred) {
+          for (let i = 0; i < finalPts.length; i++) {
+            const mu = fPred.mean[i];
+            const s = Math.sqrt(fPred.variance[i]);
+            if (mu > muMax) muMax = mu;
+            if (mu < muMin) muMin = mu;
+            if (mu + ciMultiplier * s > ciMax) ciMax = mu + ciMultiplier * s;
+            if (mu - ciMultiplier * s < ciMin) ciMin = mu - ciMultiplier * s;
+          }
+        }
+      }
+      result[outcome] = { muMin, muMax, ciMin, ciMax };
+    }
+    return result;
   }
 
   // src/viz/plots/_svg.ts
@@ -5072,50 +5385,34 @@ var Ax;
 
   // src/viz/plots/slice.ts
   var CTRL_CSS4 = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
+  function resolveStatusQuo(predictor, options) {
+    return options?.statusQuoPoint ?? predictor.statusQuoPoint ?? null;
+  }
+  function deltaRelativize(m_t, s_t, m_c, s_c) {
+    const absC = Math.abs(m_c);
+    const rHat = (m_t - m_c) / absC - s_c * s_c * m_t / (absC * absC * absC);
+    const variance = (s_t * s_t + (m_t / m_c * s_c) ** 2) / (m_c * m_c);
+    return [rHat * 100, Math.sqrt(Math.max(0, variance)) * 100];
+  }
+  function naiveRelPct(y, sqMean) {
+    return (y - sqMean) / Math.abs(sqMean) * 100;
+  }
+  function formatPct(v) {
+    const sign = v > 0 ? "+" : "";
+    const abs = Math.abs(v);
+    if (abs === 0) return "0.0%";
+    if (abs < 1e-3) return sign + v.toExponential(1) + "%";
+    if (abs < 0.1) return sign + v.toFixed(3) + "%";
+    if (abs < 1) return sign + v.toFixed(2) + "%";
+    if (abs < 100) return sign + v.toFixed(1) + "%";
+    return sign + v.toFixed(0) + "%";
+  }
   function getParamSpecs(predictor) {
     if (predictor.paramSpecs) return predictor.paramSpecs;
     return predictor.paramBounds.map(([lo, hi]) => ({
       type: "range",
       bounds: [lo, hi]
     }));
-  }
-  function precomputeYRange(predictor, params) {
-    const result = {};
-    const nSample = 200;
-    const bounds = predictor.paramBounds;
-    const pts = [];
-    for (let i = 0; i < nSample; i++) {
-      pts.push(params.map((p, j) => {
-        if (isChoice(p)) {
-          const vals = p.values.map(Number);
-          return vals[Math.floor(Math.random() * vals.length)];
-        }
-        if (isInteger(p)) return Math.round(bounds[j][0] + Math.random() * (bounds[j][1] - bounds[j][0]));
-        return bounds[j][0] + Math.random() * (bounds[j][1] - bounds[j][0]);
-      }));
-    }
-    for (const name of predictor.outcomeNames) {
-      const preds = predictor.predict(pts);
-      const pred = preds[name];
-      let lo = Infinity, hi = -Infinity;
-      for (let j = 0; j < nSample; j++) {
-        const s = Math.sqrt(pred.variance[j]);
-        const lower = pred.mean[j] - 2 * s;
-        const upper = pred.mean[j] + 2 * s;
-        if (lower < lo) lo = lower;
-        if (upper > hi) hi = upper;
-      }
-      const td = predictor.getTrainingData(name);
-      if (td.Y) {
-        for (const yv of td.Y) {
-          if (yv < lo) lo = yv;
-          if (yv > hi) hi = yv;
-        }
-      }
-      const pad = 0.05 * (hi - lo);
-      result[name] = { min: lo - pad, max: hi + pad };
-    }
-    return result;
   }
   function renderSlicePlot(container, predictor, options) {
     const interactive = options?.interactive !== false;
@@ -5135,7 +5432,42 @@ var Ax;
       return (predictor.paramBounds[j][0] + predictor.paramBounds[j][1]) / 2;
     }));
     const tooltip = createTooltipDiv(container.id);
-    const globalYRange = precomputeYRange(predictor, params);
+    const isRelative = options?.relative === true;
+    let sqStats;
+    if (isRelative) {
+      const sq = resolveStatusQuo(predictor, options);
+      if (sq) {
+        const sqPred = predictor.predict([sq]);
+        sqStats = {};
+        for (const name of predictor.outcomeNames) {
+          const p = sqPred[name];
+          if (p && Math.abs(p.mean[0]) >= 1e-15) {
+            sqStats[name] = { mean: p.mean[0], std: Math.sqrt(p.variance[0]) };
+          }
+        }
+        if (Object.keys(sqStats).length === 0) {
+          console.warn("ax-js: status quo mean \u2248 0 for all outcomes; falling back to absolute mode");
+          sqStats = void 0;
+        }
+      }
+    }
+    const rawRange = estimateRange(predictor);
+    const globalYRange = {};
+    for (const name of predictor.outcomeNames) {
+      const r = rawRange[name];
+      if (!r) continue;
+      const sq = sqStats?.[name];
+      let lo, hi;
+      if (sq) {
+        lo = naiveRelPct(r.ciMin, sq.mean);
+        hi = naiveRelPct(r.ciMax, sq.mean);
+      } else {
+        lo = r.ciMin;
+        hi = r.ciMax;
+      }
+      const pad = 0.05 * (hi - lo);
+      globalYRange[name] = { min: lo - pad, max: hi + pad };
+    }
     let slicePinnedIdx = -1;
     const controlsDiv = document.createElement("div");
     controlsDiv.style.cssText = CTRL_CSS4 + "padding:8px 16px;";
@@ -5186,7 +5518,8 @@ var Ax;
           for (let j = 0; j < fixedValues.length; j++) fixedValues[j] = pt[j];
           rebuildSliders();
           redrawPlots();
-        }
+        },
+        sqStats
       );
     }
     function redraw() {
@@ -5195,7 +5528,7 @@ var Ax;
     }
     redraw();
   }
-  function renderSlicePlotStatic(target, predictor, outcome, options, fixedValuesOverride, tooltip, globalYRange, paramSpecs, getPinnedIdx, setPinnedIdx, onSnapToPoint) {
+  function renderSlicePlotStatic(target, predictor, outcome, options, fixedValuesOverride, tooltip, globalYRange, paramSpecs, getPinnedIdx, setPinnedIdx, onSnapToPoint, sqStats) {
     const numPoints = options?.numPoints ?? 80;
     const W = options?.width ?? 340;
     const H = options?.height ?? 220;
@@ -5204,10 +5537,12 @@ var Ax;
     const nDim = names.length;
     const params = paramSpecs ?? getParamSpecs(predictor);
     const fixedValues = fixedValuesOverride?.slice() ?? options?.fixedValues?.slice() ?? bounds.map(([lo, hi]) => (lo + hi) / 2);
+    const sqStat = sqStats?.[outcome];
+    const relativeActive = sqStat !== void 0;
     target.style.display = "flex";
     target.style.flexWrap = "wrap";
     target.style.gap = "8px";
-    const margin = { top: 24, right: 16, bottom: 32, left: 50 };
+    const margin = { top: 24, right: 16, bottom: 32, left: relativeActive ? 62 : 50 };
     const pw = W - margin.left - margin.right;
     const ph = H - margin.top - margin.bottom;
     const allSubplotDots = [];
@@ -5246,8 +5581,21 @@ var Ax;
       });
       const pred = predictor.predict(testPoints)[outcome];
       if (!pred) continue;
-      const means = Array.from(pred.mean);
-      const stds = means.map((_, i) => Math.sqrt(pred.variance[i]));
+      const rawMeans = Array.from(pred.mean);
+      const rawStds = rawMeans.map((_, i) => Math.sqrt(pred.variance[i]));
+      let means, stds;
+      if (relativeActive) {
+        means = [];
+        stds = [];
+        for (let i = 0; i < rawMeans.length; i++) {
+          const [rm, rs] = deltaRelativize(rawMeans[i], rawStds[i], sqStat.mean, sqStat.std);
+          means.push(rm);
+          stds.push(rs);
+        }
+      } else {
+        means = rawMeans;
+        stds = rawStds;
+      }
       const upper = means.map((m, i) => m + 2 * stds[i]);
       const lower = means.map((m, i) => m - 2 * stds[i]);
       let yMin, yMax;
@@ -5312,6 +5660,7 @@ var Ax;
         svg.appendChild(svgEl("path", { d: lineD, stroke: "#4872f9", "stroke-width": 2, fill: "none" }));
       }
       const td = predictor.getTrainingData(outcome);
+      const tdY = relativeActive ? td.Y.map((y) => naiveRelPct(y, sqStat.mean)) : td.Y;
       const sliceDots = [];
       if (td.X.length > 0) {
         for (let i = 0; i < td.X.length; i++) {
@@ -5333,7 +5682,7 @@ var Ax;
           } else {
             ptScreenX = sx(td.X[i][dim]);
           }
-          const ptScreenY = sy(td.Y[i]);
+          const ptScreenY = sy(tdY[i]);
           if (ptScreenY >= margin.top && ptScreenY <= H - margin.bottom) {
             const dot = svgEl("circle", {
               cx: ptScreenX,
@@ -5359,13 +5708,37 @@ var Ax;
       }
       allSubplotDots.push(sliceDots);
       const nYTicks = 4;
+      const tickVals = [];
       for (let t = 0; t <= nYTicks; t++) {
-        const v = yMin + yRange * t / nYTicks;
+        tickVals.push(yMin + yRange * t / nYTicks);
+      }
+      if (relativeActive && yMin <= 0 && yMax >= 0 && !tickVals.some((v) => Math.abs(v) < yRange * 0.01)) {
+        tickVals.push(0);
+        tickVals.sort((a, b) => a - b);
+      }
+      for (const v of tickVals) {
         const yp = sy(v);
-        svg.appendChild(svgEl("line", { x1: margin.left, x2: margin.left + pw, y1: yp, y2: yp, stroke: "rgba(0,0,0,0.06)" }));
+        const isZeroLine = relativeActive && Math.abs(v) < 1e-10;
+        svg.appendChild(svgEl("line", {
+          x1: margin.left,
+          x2: margin.left + pw,
+          y1: yp,
+          y2: yp,
+          stroke: isZeroLine ? "rgba(0,0,0,0.25)" : "rgba(0,0,0,0.06)",
+          "stroke-width": isZeroLine ? 1 : 1,
+          ...isZeroLine ? { "stroke-dasharray": "4,3" } : {}
+        }));
+        const label = relativeActive ? formatPct(v) : v.toFixed(2);
         svg.appendChild(Object.assign(
-          svgEl("text", { x: margin.left - 6, y: yp + 4, fill: "#999", "font-size": 10, "text-anchor": "end" }),
-          { textContent: v.toFixed(2) }
+          svgEl("text", {
+            x: margin.left - 6,
+            y: yp + 4,
+            "font-size": 10,
+            "text-anchor": "end",
+            fill: isZeroLine ? "#555" : "#999",
+            "font-weight": isZeroLine ? "600" : "400"
+          }),
+          { textContent: label }
         ));
       }
       if (dimIsChoice) {
@@ -5434,7 +5807,8 @@ var Ax;
               hoverHighlight = true;
             }
             let html = `<div style="font-size:11px;color:#999;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">training point #${hitPt.idx + 1}</div>`;
-            html += `<span style="color:#333;font-weight:500">y = ${td.Y[hitPt.idx].toFixed(4)}</span><br>`;
+            const yLabel = relativeActive ? `\u0394 = ${formatPct(tdY[hitPt.idx])}` : `y = ${td.Y[hitPt.idx].toFixed(4)}`;
+            html += `<span style="color:#333;font-weight:500">${yLabel}</span><br>`;
             html += names.map((n, j) => `<span style="color:#666">${n}</span> = ${formatParamValue(td.X[hitPt.idx][j], params[j])}`).join("<br>");
             tooltip.innerHTML = html;
             tooltip.style.display = "block";
@@ -5465,9 +5839,15 @@ var Ax;
             const xLabel = dimIsChoice ? String(p.values[idx]) : formatParamValue(xs[idx], p);
             let html = `<div style="font-size:11px;color:#999;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">${names[dim]}</div>`;
             html += `<span style="color:#666">${names[dim]}</span> = ${xLabel}<br>`;
-            html += `\u03BC = <span style="color:#4872f9;font-weight:500">${mu.toFixed(4)}</span><br>`;
-            html += `\u03C3 = ${s.toFixed(4)}<br>`;
-            html += `95% CI: [${(mu - 2 * s).toFixed(4)}, ${(mu + 2 * s).toFixed(4)}]`;
+            if (relativeActive) {
+              html += `\u0394 = <span style="color:#4872f9;font-weight:500">${formatPct(mu)}</span><br>`;
+              html += `\u03C3 = ${s.toFixed(1)}%<br>`;
+              html += `95% CI: [${formatPct(mu - 2 * s)}, ${formatPct(mu + 2 * s)}]`;
+            } else {
+              html += `\u03BC = <span style="color:#4872f9;font-weight:500">${mu.toFixed(4)}</span><br>`;
+              html += `\u03C3 = ${s.toFixed(4)}<br>`;
+              html += `95% CI: [${(mu - 2 * s).toFixed(4)}, ${(mu + 2 * s).toFixed(4)}]`;
+            }
             tooltip.innerHTML = html;
             tooltip.style.display = "block";
             positionTooltip(tooltip, e.clientX, e.clientY);
@@ -5527,6 +5907,25 @@ var Ax;
   }
 
   // src/viz/plots/surface.ts
+  function resolveStatusQuo2(predictor, options) {
+    return options?.statusQuoPoint ?? predictor.statusQuoPoint ?? null;
+  }
+  function deltaRelativize2(m_t, s_t, m_c, s_c) {
+    const absC = Math.abs(m_c);
+    const rHat = (m_t - m_c) / absC - s_c * s_c * m_t / (absC * absC * absC);
+    const variance = (s_t * s_t + (m_t / m_c * s_c) ** 2) / (m_c * m_c);
+    return [rHat * 100, Math.sqrt(Math.max(0, variance)) * 100];
+  }
+  function formatPct2(v) {
+    const sign = v > 0 ? "+" : "";
+    const abs = Math.abs(v);
+    if (abs === 0) return "0.0%";
+    if (abs < 1e-3) return sign + v.toExponential(1) + "%";
+    if (abs < 0.1) return sign + v.toFixed(3) + "%";
+    if (abs < 1) return sign + v.toFixed(2) + "%";
+    if (abs < 100) return sign + v.toFixed(1) + "%";
+    return sign + v.toFixed(0) + "%";
+  }
   function getParamSpecs2(predictor) {
     if (predictor.paramSpecs) return predictor.paramSpecs;
     return predictor.paramBounds.map(([lo, hi]) => ({
@@ -5560,6 +5959,7 @@ var Ax;
     let selDimY = options?.dimY ?? (rangeDims.length > 1 ? rangeDims[1] : 0);
     const fixedValues = options?.fixedValues?.slice() ?? params.map((p) => defaultParamValue(p));
     const tooltip = createTooltipDiv(container.id);
+    const globalRangeData = estimateRange(predictor);
     const controlsDiv = document.createElement("div");
     controlsDiv.style.cssText = CTRL_CSS5 + "padding:8px 16px;";
     const plotsDiv = document.createElement("div");
@@ -5631,6 +6031,28 @@ var Ax;
     rebuildSliders();
     function redraw() {
       plotsDiv.innerHTML = "";
+      const er = globalRangeData[selectedOutcome];
+      let range;
+      if (er) {
+        const estStdMax = (er.ciMax - er.muMax) / 1.96;
+        if (options?.relative) {
+          const sq = options.statusQuoPoint ?? predictor.statusQuoPoint ?? null;
+          if (sq) {
+            const sqPred = predictor.predict([sq])[selectedOutcome];
+            if (sqPred && Math.abs(sqPred.mean[0]) >= 1e-15) {
+              const sqM = sqPred.mean[0];
+              const sqS = Math.sqrt(sqPred.variance[0]);
+              const [relMin] = deltaRelativize2(er.muMin, 0, sqM, sqS);
+              const [relMax] = deltaRelativize2(er.muMax, 0, sqM, sqS);
+              const relStdMax = estStdMax / Math.abs(sqM) * 100;
+              const maxAbs = Math.max(Math.abs(relMin), Math.abs(relMax));
+              range = { meanMin: -maxAbs, meanMax: maxAbs, stdMax: relStdMax };
+            }
+          }
+        } else {
+          range = { meanMin: er.muMin, meanMax: er.muMax, stdMax: Math.max(0, estStdMax) };
+        }
+      }
       renderResponseSurfaceStatic(
         plotsDiv,
         predictor,
@@ -5649,23 +6071,50 @@ var Ax;
         () => rsPinnedIdx,
         (v) => {
           rsPinnedIdx = v;
-        }
+        },
+        range
       );
     }
     redraw();
   }
-  function drawVerticalColorbar(ctx, x, y, w, h, vMin, vMax, colorFn) {
+  function drawVerticalColorbar(ctx, x, y, w, h, vMin, vMax, colorFn, formatLabel, isRelative) {
     for (let i = 0; i < h; i++) {
       const t = 1 - i / h;
       const rgb = colorFn(t);
       ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
       ctx.fillRect(x, y + i, w, 1);
     }
+    const fmt = formatLabel ?? ((v) => v.toFixed(2));
     ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
     ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.textAlign = "left";
-    ctx.fillText(vMax.toFixed(2), x + w + 3, y + 8);
-    ctx.fillText(vMin.toFixed(2), x + w + 3, y + h);
+    ctx.fillText(fmt(vMax), x + w + 3, y + 8);
+    ctx.fillText(fmt(vMin), x + w + 3, y + h);
+    const vCenter = (vMin + vMax) / 2;
+    const centerY = y + h / 2;
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.fillRect(x, centerY, w, 1);
+    ctx.fillStyle = "rgba(0,0,0,0.50)";
+    ctx.fillText(fmt(vCenter), x + w + 3, centerY + 3);
+    if (isRelative && vMin < 0 && vMax > 0) {
+      const range = vMax - vMin;
+      const zeroFrac = (vMax - 0) / range;
+      const zeroY = y + zeroFrac * h;
+      if (Math.abs(zeroFrac - 0.5) > 0.1 && zeroFrac > 0.08 && zeroFrac < 0.92) {
+        ctx.strokeStyle = "rgba(0,0,0,0.4)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        ctx.beginPath();
+        ctx.moveTo(x, zeroY);
+        ctx.lineTo(x + w, zeroY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "rgba(0,0,0,0.55)";
+        ctx.font = "bold 9px -apple-system, BlinkMacSystemFont, sans-serif";
+        ctx.fillText("0%", x + w + 3, zeroY + 3);
+        ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
+      }
+    }
   }
   function drawAxes(ctx, ML, MT, N, xlo, xhi, ylo, yhi, xName, yName, showYAxis, xLabels, yLabels) {
     ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
@@ -5749,7 +6198,7 @@ var Ax;
       }
     }
   }
-  function renderResponseSurfaceStatic(target, predictor, outcome, dimX, dimY, options, fixedValuesOverride, tooltip, tooltipContainer, onSnapToPoint, getPinnedIdx, setPinnedIdx) {
+  function renderResponseSurfaceStatic(target, predictor, outcome, dimX, dimY, options, fixedValuesOverride, tooltip, tooltipContainer, onSnapToPoint, getPinnedIdx, setPinnedIdx, globalRange) {
     const gridSize = options?.gridSize ?? 80;
     const bounds = predictor.paramBounds;
     const names = predictor.paramNames;
@@ -5760,7 +6209,7 @@ var Ax;
     const MB = 38;
     const CB_W = 14;
     const CB_GAP = 4;
-    const CB_LBL = 36;
+    const CB_LBL = options?.relative ? 52 : 36;
     const MR = CB_GAP + CB_W + CB_LBL;
     const totalW = options?.width ?? 800;
     const panelW = Math.floor((totalW - 12) / 2);
@@ -5791,12 +6240,55 @@ var Ax;
       target.textContent = "No prediction data for outcome: " + outcome;
       return;
     }
-    const means = Array.from(pred.mean);
-    const stds = means.map((_, i) => Math.sqrt(pred.variance[i]));
-    const meanMin = Math.min(...means);
-    const meanMax = Math.max(...means);
+    const rawMeans = Array.from(pred.mean);
+    const rawStds = rawMeans.map((_, i) => Math.sqrt(pred.variance[i]));
+    const isRelative = options?.relative === true;
+    let sqMean = 0;
+    let sqStd = 0;
+    let relativeActive = false;
+    if (isRelative) {
+      const sq = resolveStatusQuo2(predictor, options);
+      if (sq) {
+        const sqPred = predictor.predict([sq])[outcome];
+        if (sqPred) {
+          sqMean = sqPred.mean[0];
+          sqStd = Math.sqrt(sqPred.variance[0]);
+          if (Math.abs(sqMean) >= 1e-15) {
+            relativeActive = true;
+          } else {
+            console.warn("ax-js: status quo mean \u2248 0; falling back to absolute mode");
+          }
+        }
+      }
+    }
+    let means;
+    let stds;
+    if (relativeActive) {
+      means = [];
+      stds = [];
+      for (let i = 0; i < rawMeans.length; i++) {
+        const [rm, rs] = deltaRelativize2(rawMeans[i], rawStds[i], sqMean, sqStd);
+        means.push(rm);
+        stds.push(rs);
+      }
+    } else {
+      means = rawMeans;
+      stds = rawStds;
+    }
+    let meanMin, meanMax;
+    if (globalRange) {
+      meanMin = globalRange.meanMin;
+      meanMax = globalRange.meanMax;
+    } else if (relativeActive) {
+      const maxAbs = Math.max(Math.abs(Math.min(...means)), Math.abs(Math.max(...means)));
+      meanMin = -maxAbs;
+      meanMax = maxAbs;
+    } else {
+      meanMin = Math.min(...means);
+      meanMax = Math.max(...means);
+    }
     const stdMin = 0;
-    const stdMax = Math.max(...stds);
+    const stdMax = globalRange?.stdMax ?? Math.max(...stds);
     const td = predictor.getTrainingData(outcome);
     const xRange = xhi - xlo || 1;
     const yRange = yhi - ylo || 1;
@@ -5857,11 +6349,31 @@ var Ax;
       }
       return img;
     }
-    const meanImg = buildHeatmap(means, meanMin, meanMax, viridis);
+    const meanColorFn = relativeActive ? piYG : viridis;
+    const meanImg = buildHeatmap(means, meanMin, meanMax, meanColorFn);
     const stdImg = buildHeatmap(stds, stdMin, stdMax, plasma);
+    const meanFmtLabel = relativeActive ? formatPct2 : void 0;
     const panels = [
-      { title: "posterior mean", img: meanImg, colorFn: viridis, vMin: meanMin, vMax: meanMax, values: means },
-      { title: "predictive std", img: stdImg, colorFn: plasma, vMin: stdMin, vMax: stdMax, values: stds }
+      {
+        title: relativeActive ? "% change vs control" : "posterior mean",
+        img: meanImg,
+        colorFn: meanColorFn,
+        vMin: meanMin,
+        vMax: meanMax,
+        values: means,
+        formatLabel: meanFmtLabel,
+        isRelative: relativeActive
+      },
+      {
+        title: "predictive std",
+        img: stdImg,
+        colorFn: plasma,
+        vMin: stdMin,
+        vMax: stdMax,
+        values: stds,
+        formatLabel: relativeActive ? ((v) => v.toFixed(1) + "%") : void 0,
+        isRelative: false
+      }
     ];
     const panelWrap = document.createElement("div");
     panelWrap.style.cssText = "display:flex;gap:12px";
@@ -5883,11 +6395,11 @@ var Ax;
       ctx.textAlign = "center";
       ctx.fillText(panel.title, pML + N / 2, 12);
       ctx.putImageData(panel.img, pML, MT);
-      drawVerticalColorbar(ctx, pML + N + CB_GAP, MT, CB_W, N, panel.vMin, panel.vMax, panel.colorFn);
+      drawVerticalColorbar(ctx, pML + N + CB_GAP, MT, CB_W, N, panel.vMin, panel.vMax, panel.colorFn, panel.formatLabel, panel.isRelative);
       const xLabels = xIsChoice ? params[dimX].values.map(String) : void 0;
       const yLabels = yIsChoice ? params[dimY].values.map(String).reverse() : void 0;
       drawAxes(ctx, pML, MT, N, xlo, xhi, ylo, yhi, names[dimX], names[dimY], isFirst, xLabels, yLabels);
-      canvasRefs.push({ canvas, ctx, img: panel.img, ml: pML });
+      canvasRefs.push({ canvas, ctx, img: panel.img, ml: pML, panelIdx: pi });
       const col = document.createElement("div");
       col.appendChild(canvas);
       panelWrap.appendChild(col);
@@ -5956,6 +6468,19 @@ var Ax;
           const cRect = ref.canvas.getBoundingClientRect();
           const mx = e.clientX - cRect.left;
           const my = e.clientY - cRect.top;
+          const cbX0 = rml + N + CB_GAP;
+          const cbX1 = cbX0 + CB_W + CB_LBL;
+          if (mx >= cbX0 && mx <= cbX1 && my >= MT && my <= MT + N) {
+            ref.canvas.style.cursor = "default";
+            const frac = 1 - (my - MT) / N;
+            const panel = panels[ref.panelIdx];
+            const val = panel.vMin + frac * (panel.vMax - panel.vMin);
+            const fmt = panel.formatLabel ?? ((v) => v.toFixed(4));
+            tooltip.innerHTML = `<span style="color:#333;font-weight:500">${fmt(val)}</span>`;
+            tooltip.style.display = "block";
+            positionTooltip(tooltip, e.clientX, e.clientY);
+            return;
+          }
           if (mx < rml || mx > rml + N || my < MT || my > MT + N) {
             tooltip.style.display = "none";
             return;
@@ -5985,7 +6510,9 @@ var Ax;
             const idx = gj * nColsX + gi;
             const mu = means[idx] ?? 0;
             const s = stds[idx] ?? 0;
-            tooltip.innerHTML = `<b>${names[dimX]}</b>: ${formatParamValue(xVal, params[dimX])}<br><b>${names[dimY]}</b>: ${formatParamValue(yVal, params[dimY])}<br>\u03BC = ${mu.toFixed(4)}<br>\u03C3 = ${s.toFixed(4)}`;
+            const muLabel = relativeActive ? `\u0394 = ${formatPct2(mu)}` : `\u03BC = ${mu.toFixed(4)}`;
+            const sLabel = relativeActive ? `\u03C3 = ${s.toFixed(1)}%` : `\u03C3 = ${s.toFixed(4)}`;
+            tooltip.innerHTML = `<b>${names[dimX]}</b>: ${formatParamValue(xVal, params[dimX])}<br><b>${names[dimY]}</b>: ${formatParamValue(yVal, params[dimY])}<br>${muLabel}<br>${sLabel}`;
             tooltip.style.display = "block";
             positionTooltip(tooltip, e.clientX, e.clientY);
           }
@@ -8147,8 +8674,8 @@ var __DEFAULT_FIXTURE__ = {
         }
       ]
     },
-    "name": "vsip_modellist",
-    "description": "Vehicle Side-Impact 7D, ModelListGP with 9 outcomes (3 obj + 6 con)",
+    "name": "cockpit_vsip",
+    "description": "Cockpit: VSIP 9-outcome MOO, 12 Sobol + 8 qEHVI + 5 candidates",
     "outcome_names": [
       "weight",
       "acceleration",
@@ -8159,16 +8686,1217 @@ var __DEFAULT_FIXTURE__ = {
       "pubic_force",
       "viscous_criterion",
       "abdomen_load"
-    ]
+    ],
+    "optimization_config": {
+      "objectives": [
+        {
+          "name": "weight",
+          "minimize": true
+        },
+        {
+          "name": "acceleration",
+          "minimize": true
+        },
+        {
+          "name": "intrusion",
+          "minimize": true
+        }
+      ],
+      "outcome_constraints": [
+        {
+          "name": "door_velocity",
+          "bound": 32.0,
+          "op": "LEQ"
+        },
+        {
+          "name": "bpillar_top_vel",
+          "bound": 30.0,
+          "op": "LEQ"
+        },
+        {
+          "name": "pubic_force",
+          "bound": 4.0,
+          "op": "LEQ"
+        },
+        {
+          "name": "abdomen_load",
+          "bound": 1.0,
+          "op": "LEQ"
+        }
+      ],
+      "objective_thresholds": [
+        {
+          "name": "weight",
+          "bound": 35.0,
+          "op": "LEQ"
+        },
+        {
+          "name": "acceleration",
+          "bound": 6.0,
+          "op": "LEQ"
+        },
+        {
+          "name": "intrusion",
+          "bound": 11.0,
+          "op": "LEQ"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "arm_name": "0_0",
+        "parameters": {
+          "bpillar_inner": 0.8683278081049576,
+          "bpillar_outer": 0.9918776585616269,
+          "floor_side_inner": 1.1026100224505297,
+          "cross_member": 1.0168850108099265,
+          "door_beam": 2.50110019677662,
+          "door_belt_line": 0.5228337034476417,
+          "roof_rail": 0.9986734803907732
+        },
+        "metrics": {
+          "weight": {
+            "mean": 31.80341687780549,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 4.987507920385989,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 7.744202898488034,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 26.67500513513757,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 24.60718310835013,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 25.17244984930808,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.3543867168809176,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.25327282847680044,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.817200839689411,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 0,
+        "trial_status": "COMPLETED",
+        "generation_method": "Sobol"
+      },
+      {
+        "arm_name": "0_1",
+        "parameters": {
+          "bpillar_inner": 0.7844744019936466,
+          "bpillar_outer": 0.7335627190298319,
+          "floor_side_inner": 0.5832896614726581,
+          "cross_member": 1.12625598823385,
+          "door_beam": 1.9936272929190133,
+          "door_belt_line": 0.9844493503926753,
+          "roof_rail": 0.5618760895710845
+        },
+        "metrics": {
+          "weight": {
+            "mean": 24.38799901087004,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 5.2959650630165935,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 9.633494632316431,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 29.597480930521634,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 27.809108684323146,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 28.4499121453977,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.591442788893012,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.29772051636918456,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.9406692344790224,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 0,
+        "trial_status": "COMPLETED",
+        "generation_method": "Sobol"
+      },
+      {
+        "arm_name": "0_2",
+        "parameters": {
+          "bpillar_inner": 0.5569672564540972,
+          "bpillar_outer": 0.9704013450934548,
+          "floor_side_inner": 1.3032979432936826,
+          "cross_member": 0.7079030295831611,
+          "door_beam": 1.5391863165766744,
+          "door_belt_line": 0.7212100343323425,
+          "roof_rail": 0.6819629502163883
+        },
+        "metrics": {
+          "weight": {
+            "mean": 27.719659028848355,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 5.550247748595358,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 9.421649923577604,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 30.17219971927823,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 29.396829168543746,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 28.080975237483838,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.7262520945482906,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.32136484499501794,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.9378911374143545,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 0,
+        "trial_status": "COMPLETED",
+        "generation_method": "Sobol"
+      },
+      {
+        "arm_name": "0_3",
+        "parameters": {
+          "bpillar_inner": 1.4031846855087715,
+          "bpillar_outer": 0.907977232386191,
+          "floor_side_inner": 0.8114900791683215,
+          "cross_member": 1.0196241521460907,
+          "door_beam": 1.3148095188722135,
+          "door_belt_line": 1.1766609583040477,
+          "roof_rail": 0.712349170895428
+        },
+        "metrics": {
+          "weight": {
+            "mean": 28.950957542804943,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 5.133395776180132,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 9.149115805103042,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 28.52731489083517,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 25.339821589707977,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 26.11881624465027,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.354198822173258,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.28392753789415304,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.8455073265501218,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 0,
+        "trial_status": "COMPLETED",
+        "generation_method": "Sobol"
+      },
+      {
+        "arm_name": "0_4",
+        "parameters": {
+          "bpillar_inner": 0.9454654013391939,
+          "bpillar_outer": 1.0707271874264204,
+          "floor_side_inner": 0.7220107130521609,
+          "cross_member": 1.359636739208025,
+          "door_beam": 2.5981125648899033,
+          "door_belt_line": 0.8577084396461182,
+          "roof_rail": 0.9936591870049966
+        },
+        "metrics": {
+          "weight": {
+            "mean": 31.584496562491854,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 4.811450895192033,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 8.058493533004427,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 26.61084836555295,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 23.506620750129578,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 25.159386095702143,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.1149499571188874,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.239752946728218,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.8133706838914346,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 0,
+        "trial_status": "COMPLETED",
+        "generation_method": "Sobol"
+      },
+      {
+        "arm_name": "0_5",
+        "parameters": {
+          "bpillar_inner": 0.5819104648127812,
+          "bpillar_outer": 0.8135288461388586,
+          "floor_side_inner": 0.70378545479746,
+          "cross_member": 1.1211678082042627,
+          "door_beam": 1.7027537418399763,
+          "door_belt_line": 1.0449855136474073,
+          "roof_rail": 0.5541121729126199
+        },
+        "metrics": {
+          "weight": {
+            "mean": 24.210576944754436,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 5.449960350386069,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 10.12847610616587,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 30.748438111814714,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 29.501608271595,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 29.401974657302,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.659904282474595,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.32083047547316396,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.9811797239385116,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 0,
+        "trial_status": "COMPLETED",
+        "generation_method": "Sobol"
+      },
+      {
+        "arm_name": "0_6",
+        "parameters": {
+          "bpillar_inner": 1.3210265892670563,
+          "bpillar_outer": 0.5377524598752103,
+          "floor_side_inner": 0.6773479644837359,
+          "cross_member": 1.1265772106937362,
+          "door_beam": 1.066132970384174,
+          "door_belt_line": 1.11625135352537,
+          "roof_rail": 0.7113942276239109
+        },
+        "metrics": {
+          "weight": {
+            "mean": 25.12624178180522,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 5.252424266605809,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 9.986985071931342,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 30.22517142582501,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 28.192849652928437,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 28.325203582779192,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.7955381915295416,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.31757625810694046,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.9331922282864956,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 0,
+        "trial_status": "COMPLETED",
+        "generation_method": "Sobol"
+      },
+      {
+        "arm_name": "0_7",
+        "parameters": {
+          "bpillar_inner": 0.9878742883901633,
+          "bpillar_outer": 0.8846477177438055,
+          "floor_side_inner": 0.7943762635264158,
+          "cross_member": 1.1887184193342346,
+          "door_beam": 2.5545443624435045,
+          "door_belt_line": 0.6591059412708137,
+          "roof_rail": 0.8669109441046028
+        },
+        "metrics": {
+          "weight": {
+            "mean": 29.947106419903918,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 4.903163764935194,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 8.013162016691277,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 26.772756455217703,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 24.227663838998076,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 25.523333022847833,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.3742192376070106,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.2487959132573882,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.8249339272374743,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 0,
+        "trial_status": "COMPLETED",
+        "generation_method": "Sobol"
+      },
+      {
+        "arm_name": "0_8",
+        "parameters": {
+          "bpillar_inner": 0.8782464900181104,
+          "bpillar_outer": 1.3443535247266687,
+          "floor_side_inner": 1.2551490698701198,
+          "cross_member": 0.7720977662593409,
+          "door_beam": 1.2181098957931784,
+          "door_belt_line": 0.9563809920409417,
+          "roof_rail": 0.8827752393503825
+        },
+        "metrics": {
+          "weight": {
+            "mean": 31.686466760339457,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 5.428924157891698,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 9.084492846697296,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 29.105778697608155,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 26.79049725164997,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 26.229374531223907,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.2950065235702315,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.29834351456671887,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.8765641268467359,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 0,
+        "trial_status": "COMPLETED",
+        "generation_method": "Sobol"
+      },
+      {
+        "arm_name": "0_9",
+        "parameters": {
+          "bpillar_inner": 0.8828430610539013,
+          "bpillar_outer": 1.1858426379698204,
+          "floor_side_inner": 1.1764468605997065,
+          "cross_member": 0.710316957405473,
+          "door_beam": 1.9363068850362208,
+          "door_belt_line": 1.0764551603594579,
+          "roof_rail": 0.8425307468559196
+        },
+        "metrics": {
+          "weight": {
+            "mean": 31.023283130046213,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 5.268680732972528,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 8.52340346653122,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 27.95500905756117,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 25.33238188684538,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 25.454437007126163,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.146937511076061,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.2704864850946596,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.8368877216702058,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 0,
+        "trial_status": "COMPLETED",
+        "generation_method": "Sobol"
+      },
+      {
+        "arm_name": "0_10",
+        "parameters": {
+          "bpillar_inner": 1.227061691745916,
+          "bpillar_outer": 0.8908521458580926,
+          "floor_side_inner": 1.1163853853434658,
+          "cross_member": 0.6195307139275196,
+          "door_beam": 2.4809029593376133,
+          "door_belt_line": 1.0358982658802964,
+          "roof_rail": 0.888185056021159
+        },
+        "metrics": {
+          "weight": {
+            "mean": 31.053062623799807,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 5.010094985771182,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 7.689412765985734,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 26.20896127136522,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 22.986089433747182,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 23.98121070142958,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.226948928078976,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.23729287730722176,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.7627893064256882,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 0,
+        "trial_status": "COMPLETED",
+        "generation_method": "Sobol"
+      },
+      {
+        "arm_name": "0_11",
+        "parameters": {
+          "bpillar_inner": 1.3492126680973686,
+          "bpillar_outer": 0.601065718242779,
+          "floor_side_inner": 0.5698875565983004,
+          "cross_member": 1.1953216602977272,
+          "door_beam": 2.4354047341470655,
+          "door_belt_line": 0.6512975120306341,
+          "roof_rail": 0.6252986654098972
+        },
+        "metrics": {
+          "weight": {
+            "mean": 27.41404249806929,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 4.8155507806726705,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 8.05831608256958,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 26.56955090134349,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 23.634588973715918,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 25.487861590181073,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.643672549579769,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.2444374591961067,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.8208899701587143,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 0,
+        "trial_status": "COMPLETED",
+        "generation_method": "Sobol"
+      },
+      {
+        "arm_name": "1_0",
+        "parameters": {
+          "bpillar_inner": 1.0975751308978823,
+          "bpillar_outer": 0.6530612644289387,
+          "floor_side_inner": 1.3738579190539135,
+          "cross_member": 1.2426280100105702,
+          "door_beam": 2.5391548541189444,
+          "door_belt_line": 0.5364274585960971,
+          "roof_rail": 0.5858101486835245
+        },
+        "metrics": {
+          "weight": {
+            "mean": 32.40599714397569,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 4.691977326551388,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 7.409681258336554,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 26.42049393366418,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 24.64923599791304,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 24.64728078368106,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.6321948277997227,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.253857634367995,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.781342617646208,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 1,
+        "trial_status": "COMPLETED",
+        "generation_method": "qEHVI"
+      },
+      {
+        "arm_name": "1_1",
+        "parameters": {
+          "bpillar_inner": 1.2345626180126037,
+          "bpillar_outer": 1.0172644578017374,
+          "floor_side_inner": 0.811081875751253,
+          "cross_member": 1.4914244612587768,
+          "door_beam": 2.2714062135717024,
+          "door_belt_line": 0.7842834537638439,
+          "roof_rail": 1.0082370609837046
+        },
+        "metrics": {
+          "weight": {
+            "mean": 33.2528488642877,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 4.692204340491722,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 7.9491531103050255,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 26.326676593593223,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 23.015192726759203,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 24.597854237872035,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.261512744398947,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.24157370127898264,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.7874009761400299,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 1,
+        "trial_status": "COMPLETED",
+        "generation_method": "qEHVI"
+      },
+      {
+        "arm_name": "1_2",
+        "parameters": {
+          "bpillar_inner": 0.5887054913137199,
+          "bpillar_outer": 1.1587993322286285,
+          "floor_side_inner": 1.4793313404758823,
+          "cross_member": 0.9587476157906805,
+          "door_beam": 1.2523069817775123,
+          "door_belt_line": 0.7984924130168553,
+          "roof_rail": 1.0623971741776104
+        },
+        "metrics": {
+          "weight": {
+            "mean": 31.894408354726338,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 5.4344646619546655,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 9.367681258109513,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 30.247981162815833,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 29.18863037964825,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 27.503751794181028,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.6365070527648884,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.3228160889542961,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.9282212008043459,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 1,
+        "trial_status": "COMPLETED",
+        "generation_method": "qEHVI"
+      },
+      {
+        "arm_name": "1_3",
+        "parameters": {
+          "bpillar_inner": 1.0667778425011711,
+          "bpillar_outer": 0.9147396334969047,
+          "floor_side_inner": 1.1333136609704821,
+          "cross_member": 1.069332265347883,
+          "door_beam": 1.9462168167259684,
+          "door_belt_line": 1.0176116473514876,
+          "roof_rail": 1.060044456390453
+        },
+        "metrics": {
+          "weight": {
+            "mean": 31.866281432664582,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 5.025961880197271,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 8.52375583532044,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 27.94005749805841,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 25.447293320616325,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 25.62875047625134,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.371391599911601,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.27283163687226736,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.8309084048143766,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 1,
+        "trial_status": "COMPLETED",
+        "generation_method": "qEHVI"
+      },
+      {
+        "arm_name": "1_4",
+        "parameters": {
+          "bpillar_inner": 1.4961871931871418,
+          "bpillar_outer": 0.45709067710478446,
+          "floor_side_inner": 0.6773976997975013,
+          "cross_member": 0.6533391331292602,
+          "door_beam": 1.745708557001433,
+          "door_belt_line": 0.9871107749805843,
+          "roof_rail": 0.497108570975984
+        },
+        "metrics": {
+          "weight": {
+            "mean": 24.17369267234277,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 5.174549025420114,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 8.884937989251172,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 28.12685777721063,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 25.39452916954219,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 26.391603385814822,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.732971227669712,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.27470111364181043,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.8566599037882651,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 1,
+        "trial_status": "COMPLETED",
+        "generation_method": "qEHVI"
+      },
+      {
+        "arm_name": "1_5",
+        "parameters": {
+          "bpillar_inner": 0.8397691204343367,
+          "bpillar_outer": 1.2376063392417722,
+          "floor_side_inner": 0.8264366973859715,
+          "cross_member": 0.8549018701233471,
+          "door_beam": 2.5202972538456834,
+          "door_belt_line": 0.8085290494655702,
+          "roof_rail": 0.8844912814652015
+        },
+        "metrics": {
+          "weight": {
+            "mean": 30.447986459114354,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 5.0878578451557885,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 7.988141528495444,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 26.590830994116303,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 23.59107117799557,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 24.988704007957132,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.0136893686698163,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.24095723566502525,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.8135445882249278,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 1,
+        "trial_status": "COMPLETED",
+        "generation_method": "qEHVI"
+      },
+      {
+        "arm_name": "1_6",
+        "parameters": {
+          "bpillar_inner": 1.0773089137069474,
+          "bpillar_outer": 0.860642743316157,
+          "floor_side_inner": 0.778665655508654,
+          "cross_member": 1.323170637411408,
+          "door_beam": 1.9102132061526291,
+          "door_belt_line": 0.7895082536420035,
+          "roof_rail": 0.8556376723532502
+        },
+        "metrics": {
+          "weight": {
+            "mean": 29.477161167282656,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 4.98783569913391,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 8.826460370062158,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 28.095281780507296,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 25.733763333055006,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 26.53486921399142,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.519010089122209,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.27660319654151566,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.8642386961762292,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 1,
+        "trial_status": "COMPLETED",
+        "generation_method": "qEHVI"
+      },
+      {
+        "arm_name": "1_7",
+        "parameters": {
+          "bpillar_inner": 1.481756792905828,
+          "bpillar_outer": 0.5098709466519953,
+          "floor_side_inner": 1.1881609821422963,
+          "cross_member": 1.1475568363120696,
+          "door_beam": 2.6173572796599114,
+          "door_belt_line": 0.6969819880718184,
+          "roof_rail": 1.0001724011791715
+        },
+        "metrics": {
+          "weight": {
+            "mean": 32.92657766337384,
+            "sem": 0.0
+          },
+          "acceleration": {
+            "mean": 4.52223517733326,
+            "sem": 0.0
+          },
+          "intrusion": {
+            "mean": 7.082510726013132,
+            "sem": 0.0
+          },
+          "door_velocity": {
+            "mean": 25.450427247720757,
+            "sem": 0.0
+          },
+          "bpillar_top_vel": {
+            "mean": 22.64666440101427,
+            "sem": 0.0
+          },
+          "bpillar_mid_vel": {
+            "mean": 23.545099516223996,
+            "sem": 0.0
+          },
+          "pubic_force": {
+            "mean": 3.669989629243145,
+            "sem": 0.0
+          },
+          "viscous_criterion": {
+            "mean": 0.2300107210930369,
+            "sem": 0.0
+          },
+          "abdomen_load": {
+            "mean": 0.735125673286276,
+            "sem": 0.0
+          }
+        },
+        "trial_index": 1,
+        "trial_status": "COMPLETED",
+        "generation_method": "qEHVI"
+      }
+    ],
+    "candidates": [
+      {
+        "arm_name": "2_0",
+        "parameters": {
+          "bpillar_inner": 0.9476337225218457,
+          "bpillar_outer": 0.9685217412980971,
+          "floor_side_inner": 1.2071778968798548,
+          "cross_member": 1.280138810317561,
+          "door_beam": 2.2259364386968112,
+          "door_belt_line": 1.0362654392899084,
+          "roof_rail": 0.9800324224850524
+        },
+        "trial_index": 2,
+        "generation_method": "qEHVI"
+      },
+      {
+        "arm_name": "2_1",
+        "parameters": {
+          "bpillar_inner": 0.9793614730487503,
+          "bpillar_outer": 0.4615024705842721,
+          "floor_side_inner": 1.2653346470174822,
+          "cross_member": 0.8748486035940963,
+          "door_beam": 1.8475352529253275,
+          "door_belt_line": 0.5557392510165925,
+          "roof_rail": 0.6024947825981426
+        },
+        "trial_index": 2,
+        "generation_method": "qEHVI"
+      },
+      {
+        "arm_name": "2_2",
+        "parameters": {
+          "bpillar_inner": 1.46532977066731,
+          "bpillar_outer": 1.2118351961676546,
+          "floor_side_inner": 0.6796418261617874,
+          "cross_member": 0.8711915285320055,
+          "door_beam": 1.0320465946713406,
+          "door_belt_line": 0.5971966808043894,
+          "roof_rail": 1.1928694756819538
+        },
+        "trial_index": 2,
+        "generation_method": "qEHVI"
+      },
+      {
+        "arm_name": "2_3",
+        "parameters": {
+          "bpillar_inner": 1.094326210954963,
+          "bpillar_outer": 0.8352405181999717,
+          "floor_side_inner": 1.3221623531228008,
+          "cross_member": 1.1697860110271336,
+          "door_beam": 1.9687567430749717,
+          "door_belt_line": 0.42100548628485185,
+          "roof_rail": 1.1680132353045996
+        },
+        "trial_index": 2,
+        "generation_method": "qEHVI"
+      },
+      {
+        "arm_name": "2_4",
+        "parameters": {
+          "bpillar_inner": 0.7787475726348888,
+          "bpillar_outer": 1.1219055295357947,
+          "floor_side_inner": 1.4926286239746482,
+          "cross_member": 1.387177872592242,
+          "door_beam": 1.8812274155209527,
+          "door_belt_line": 0.5000373959934519,
+          "roof_rail": 0.9820914503032819
+        },
+        "trial_index": 2,
+        "generation_method": "qEHVI"
+      }
+    ],
+    "status_quo": {
+      "point": [
+        1.0,
+        0.9,
+        1.0,
+        1.0,
+        1.75,
+        0.8,
+        0.8
+      ]
+    }
   },
   "test": {
     "metadata": {
       "botorch_version": "0.17.2",
       "gpytorch_version": "1.15.2",
       "torch_version": "2.11.0.dev20260124",
-      "generated_at": "2026-03-17T03:19:17.951241+00:00",
+      "generated_at": "2026-03-20T21:21:07.609060+00:00",
       "seed": 79,
-      "benchmark": "VSIP"
+      "benchmark": "VSIP",
+      "cockpit": true
     },
     "test_points": [
       [
@@ -8260,362 +9988,227 @@ var __DEFAULT_FIXTURE__ = {
         1.3962323350735248,
         0.4129198469061559,
         0.42440542499583717
-      ],
-      [
-        0.562832195819464,
-        0.775617701394008,
-        1.2864151230104177,
-        1.1427199180333492,
-        0.9977763686395573,
-        1.087287833922792,
-        0.46894031215226506
-      ],
-      [
-        1.237383296234492,
-        0.6213394774674427,
-        0.7243203543018855,
-        0.7002466345946838,
-        0.9681386936831335,
-        1.1759441315249501,
-        1.163105276121253
-      ],
-      [
-        1.4127860076087253,
-        0.9295440071158612,
-        1.0547313689711384,
-        0.8920146498432928,
-        1.196838599321382,
-        0.7380530938193672,
-        1.1885123226596042
-      ],
-      [
-        0.9554913029694411,
-        1.2234617546100854,
-        1.0841773734077413,
-        0.935265931241991,
-        2.233557091959379,
-        0.9893220692759642,
-        1.0622780266568692
-      ],
-      [
-        0.7126703466731646,
-        0.505224802072703,
-        0.618103553027399,
-        1.3611303119252909,
-        1.9067393672618618,
-        0.5254858484059814,
-        0.866072529510215
       ]
     ],
     "expected": {
       "mean": [
         [
-          27.434925091127944,
+          27.43492509112794,
           32.76355496430066,
           22.479885415905382,
           32.00698224591832,
           23.951572874487994,
           23.447350575507237,
-          27.265881310674825,
+          27.26588131067483,
           33.56390486185016,
-          34.106127912499744,
-          32.078438067707935,
-          26.622235565365116,
-          25.5612480483932,
-          31.509220920649124,
-          32.904912197727434,
-          24.990555254302926
+          34.10612791249975,
+          32.078438067707935
         ],
         [
           5.461021326627999,
           5.180018750447221,
           5.62886769782462,
-          5.385267563593947,
-          5.426957883398601,
-          5.681304460439753,
+          5.385267563593946,
+          5.4269578833986,
+          5.681304460439752,
           5.433833938801637,
-          4.9827793298948055,
+          4.982779329894805,
           4.793849526754386,
-          5.096017304301955,
-          5.51648977191346,
-          5.459500284112989,
-          5.16264402931939,
-          5.035337497485982,
-          5.249161016003519
+          5.096017304301957
         ],
         [
           9.630428381269379,
-          8.571895336605882,
-          10.164464977280891,
-          8.943443629747845,
-          9.793197548603041,
+          8.57189533660588,
+          10.164464977280893,
+          8.943443629747847,
+          9.79319754860304,
           10.314043281081352,
-          9.20026985492494,
-          8.520757963003685,
-          7.4022679849663096,
-          8.600401029033288,
-          10.391409893651577,
-          10.088283699817781,
-          8.811274420239332,
-          8.050815274340072,
-          9.6716642456051
+          9.200269854924938,
+          8.520757963003684,
+          7.402267984966307,
+          8.600401029033286
         ],
         [
           29.81893286433698,
-          28.330049644666982,
-          30.910652570056225,
-          29.16239272025805,
+          28.33004964466698,
+          30.91065257005623,
+          29.162392720258048,
           29.957852791233215,
-          31.07909847138263,
+          31.079098471382625,
           28.686125750465948,
           27.686910186585695,
-          25.671863280590397,
-          27.913346913239167,
-          32.02318602454791,
-          30.507037942516504,
-          28.221067398949454,
-          26.878443770347026,
-          30.021192297048984
+          25.6718632805904,
+          27.913346913239167
         ],
         [
-          28.174507473910605,
-          25.74237089547768,
-          30.066401526021906,
+          28.17450747391061,
+          25.742370895477677,
+          30.066401526021913,
           27.056659067774433,
-          28.10963567186257,
-          30.575572684365355,
+          28.109635671862566,
+          30.57557268436535,
           26.249871240072782,
-          24.04108821645633,
+          24.041088216456334,
           22.31996940734236,
-          25.534570427746388,
-          31.482723660002712,
-          28.56173634780874,
-          25.534106945395788,
-          23.81891797751086,
-          29.320847283434976
+          25.534570427746388
         ],
         [
           27.951650482439398,
-          25.2695060049435,
-          29.5806580504722,
-          26.195745892422075,
+          25.269506004943498,
+          29.580658050472195,
+          26.195745892422078,
           28.110778389343082,
-          29.90537556772752,
+          29.905375567727518,
           26.894682959678345,
           24.62641190292878,
-          23.592570982183258,
-          25.664360608039594,
-          29.64963232451728,
-          28.46756492260323,
-          25.794582947087086,
-          24.64572255135916,
-          29.430582721897515
+          23.592570982183254,
+          25.664360608039598
         ],
         [
-          3.6740316131758157,
+          3.674031613175816,
           3.231204079106287,
           3.8533039393041237,
-          3.2766434804949456,
+          3.276643480494945,
           3.8383946544410987,
           3.9505164244584168,
           3.2532127260032384,
           3.116317070673169,
-          3.0251454676435907,
-          3.389005532165934,
-          3.887448203664262,
-          3.742108131730023,
-          3.5343255303972176,
-          3.0371513826156824,
-          3.8918318960056957
+          3.0251454676435903,
+          3.389005532165934
         ],
         [
-          0.312511048787818,
-          0.2821375854148298,
+          0.31251104878781794,
+          0.28213758541482975,
           0.3317908219936502,
-          0.29589916222777013,
-          0.3158600756237011,
-          0.3444442049975908,
+          0.2958991622277701,
+          0.3158600756237013,
+          0.3444442049975909,
           0.28296250203092865,
           0.27221402201517836,
-          0.2281043339183486,
-          0.2831393670201248,
-          0.3532288669742711,
-          0.32303646312112044,
-          0.2877404782977014,
-          0.24885985373907063,
-          0.316602677908968
+          0.22810433391834872,
+          0.2831393670201248
         ],
         [
           0.9251052389751923,
-          0.8267121089403235,
+          0.8267121089403234,
           0.9867817631443603,
-          0.8791469723948298,
-          0.9247075655147302,
+          0.8791469723948296,
+          0.9247075655147303,
           1.0045080785484808,
-          0.890129820407679,
-          0.7916604929333348,
-          0.7542905438913392,
-          0.845094284227319,
-          0.9933523238221336,
-          0.9409258950309233,
-          0.8341044969485509,
-          0.8022891138079546,
-          0.9783113886883914
+          0.8901298204076791,
+          0.7916604929333347,
+          0.7542905438913391,
+          0.845094284227319
         ]
       ],
       "variance": [
         [
-          0.3676728025227239,
-          0.2606240279090031,
-          0.19371407064176352,
-          0.1278516266884686,
-          0.20832047108959992,
-          0.6917110430778839,
-          0.2547196746515701,
-          0.9119064898991227,
-          0.12088918937618397,
-          0.9240684028037197,
-          0.4700369093638258,
-          0.7483605799980625,
-          0.3940956208855892,
-          0.047172921208103256,
-          0.42036680805697657
+          0.36767280252272494,
+          0.2606240279090041,
+          0.19371407064176147,
+          0.12785162668846758,
+          0.20832047108959892,
+          0.6917110430778818,
+          0.2547196746515711,
+          0.9119064898991248,
+          0.12088918937618089,
+          0.9240684028037249
         ],
         [
-          0.0014805407189302032,
-          0.0009972991497221337,
-          0.0013786950933875218,
-          0.0004724646288315383,
+          0.001480540718930212,
+          0.0009972991497221248,
+          0.0013786950933875129,
+          0.00047246462883158324,
           0.0016746744249385014,
           0.004769603145581202,
-          0.0012603869333510734,
-          0.0037506889570168215,
-          0.000678487998245966,
-          0.0031639484449530715,
-          0.0023584562798731803,
-          0.0031020777754228626,
-          0.001833838215908584,
-          0.00023569064489211344,
-          0.0017752350193128176
+          0.0012603869333510374,
+          0.0037506889570168393,
+          0.000678487998245957,
+          0.0031639484449530715
         ],
         [
           0.0071041806341989935,
-          0.010199298788695556,
+          0.010199298788695473,
           0.006082185416382378,
-          0.004513977543397829,
-          0.0072637620560955,
+          0.004513977543397912,
+          0.007263762056095333,
           0.05107506449951026,
-          0.0070456048951816515,
+          0.007045604895181818,
           0.031053663876685577,
-          0.003859797239278867,
-          0.027187049597926397,
-          0.025133591525199252,
-          0.009258977294351442,
-          0.02404216787359897,
-          0.0014917462793544226,
-          0.020108698544454764
+          0.0038597972392791172,
+          0.027187049597925898
         ],
         [
           0.020916421719769433,
-          0.017685410248137926,
-          0.019438644299251375,
+          0.017685410248138807,
+          0.019438644299250782,
           0.011599644377966747,
-          0.021743846862106092,
-          0.12719296740111147,
+          0.02174384686210668,
+          0.12719296740111027,
           0.016436973314547913,
           0.07197226177480813,
-          0.010131549617547943,
-          0.07195554122016429,
-          0.06930717624765165,
-          0.027221264918026754,
-          0.06710625510857932,
-          0.00410469244412609,
-          0.05815279474391174
+          0.01013154961754824,
+          0.07195554122016369
         ],
         [
           0.026508179612863555,
-          0.012130566857926626,
-          0.03141320159170648,
-          0.014679521298990273,
-          0.016580125478035376,
-          0.11677178864144937,
-          0.0122159277202948,
-          0.08834310593764427,
-          0.014332556474643474,
-          0.05269012224116019,
-          0.10658021183644403,
-          0.03745911896243077,
-          0.04522652039364688,
-          0.006102990314144092,
-          0.0781847033687008
+          0.012130566857928274,
+          0.031413201591707574,
+          0.014679521298990823,
+          0.01658012547803318,
+          0.11677178864144827,
+          0.0122159277202937,
+          0.08834310593764591,
+          0.014332556474642925,
+          0.05269012224116623
         ],
         [
           0.026167562818662497,
-          0.03671676421663408,
+          0.0367167642166349,
           0.023633980080895838,
           0.014696526912050555,
-          0.017249732768260993,
-          0.11580019326041442,
-          0.03340982743360257,
-          0.13950971465126327,
-          0.017987325110298442,
-          0.04727244901165322,
-          0.08212132200536805,
-          0.03274123537000746,
-          0.045925682732543736,
-          0.0056511581437236015,
-          0.061337368860836974
+          0.01724973276826127,
+          0.11580019326041303,
+          0.03340982743360229,
+          0.1395097146512622,
+          0.01798732511029927,
+          0.047272449011653776
         ],
         [
-          0.0011873535378172347,
+          0.0011873535378172468,
           0.0005737624188080145,
           0.0012814486510289002,
-          0.0007731766922062365,
-          0.00147725267589897,
-          0.006838043642963976,
-          0.0005946194017819167,
-          0.003695300549136416,
-          0.0005649462698764915,
-          0.006268181061132223,
-          0.0031473894075352018,
-          0.001340097498971291,
-          0.003951963934539012,
-          0.00025527587001563,
-          0.005734222495159584
+          0.0007731766922062426,
+          0.0014772526758989638,
+          0.0068380436429639644,
+          0.0005946194017819408,
+          0.0036953005491364103,
+          0.0005649462698765217,
+          0.006268181061132218
         ],
         [
-          4.47799764507485e-06,
+          4.47799764507474e-06,
           1.9770931472773337e-06,
-          5.098876667886235e-06,
+          5.098876667886345e-06,
           2.3595077233821086e-06,
-          3.2874183209658408e-06,
-          1.96031852242237e-05,
+          3.2874183209656197e-06,
+          1.9603185224223368e-05,
           2.0165554962172112e-06,
           1.3138987509519796e-05,
-          2.328351752148335e-06,
-          9.980546706926467e-06,
-          1.7679567393124815e-05,
-          6.614471589848968e-06,
-          8.200002831123519e-06,
-          9.845177839762881e-07,
-          1.1404536453046545e-05
+          2.3283517521486656e-06,
+          9.980546706926467e-06
         ],
         [
-          4.378958981059006e-05,
-          6.878965692616467e-05,
+          4.378958981059055e-05,
+          6.878965692616273e-05,
           3.813172876687754e-05,
-          2.5351327593016887e-05,
-          2.725601588353278e-05,
-          0.00019517793371321074,
+          2.535132759301544e-05,
+          2.7256015883534703e-05,
+          0.00019517793371321123,
           5.5878697723318137e-05,
-          0.00024941152515732534,
-          2.9405808195227268e-05,
-          8.039786166800042e-05,
-          0.00013729326934008024,
-          5.495499364102465e-05,
-          8.55003374232188e-05,
-          9.550496674605256e-06,
-          9.591158616898166e-05
+          0.0002494115251573263,
+          2.940580819522775e-05,
+          8.039786166800042e-05
         ]
       ]
     }
@@ -8739,6 +10332,8 @@ function loadExperimentState(rawData) {
 
   if (data.observations && data.observations.length > 0) {
     // Fixture has explicit observations
+    // Infer batch indices from generation_method if batch_index not provided
+    var batchMap = {}, nextBatch = 0;
     data.observations.forEach(function(obs, i) {
       var pt = obs.point || obs.parameters || [];
       // If observations use named parameters, convert to positional array
@@ -8746,14 +10341,23 @@ function loadExperimentState(rawData) {
         pt = paramNames.map(function(n) { return pt[n] || 0; });
       }
       var evals = [];
+      var vals = obs.values || obs.metrics || {};
       outcomeNames.forEach(function(name) {
-        evals.push(obs.values ? (obs.values[name] || 0) : 0);
+        var v = vals[name];
+        // metrics format: {mean, sem}; values format: scalar
+        evals.push(v != null ? (typeof v === 'object' ? v.mean : v) : 0);
       });
+      var gen = obs.generation_method || 'unknown';
+      var batch = obs.batch_index;
+      if (batch == null) {
+        if (batchMap[gen] == null) batchMap[gen] = nextBatch++;
+        batch = batchMap[gen];
+      }
       arms.push({
         idx: i, armName: obs.arm_name || ('arm_0_' + i), params: pt, evals: evals,
         trialIndex: obs.trial_index != null ? obs.trial_index : i,
-        batchIndex: obs.batch_index != null ? obs.batch_index : 0,
-        trialStatus: 'COMPLETED', generationMethod: obs.generation_method || 'unknown'
+        batchIndex: batch,
+        trialStatus: 'COMPLETED', generationMethod: gen
       });
     });
   } else {
@@ -9252,6 +10856,9 @@ legendEl.addEventListener('click', function(e) {
   }
 });
 
+// Last-render state for hover ellipses
+var lastSx = null, lastSy = null, lastPts = [];
+
 function renderScatter() {
   var xName = outcomeNames[xOutIdx];
   var yName = outcomeNames[yOutIdx];
@@ -9381,7 +10988,56 @@ function renderScatter() {
   html += '</g>';
 
   svg.innerHTML = html;
+  lastSx = sx; lastSy = sy; lastPts = pts;
   updateOpacities();
+}
+
+// ── Hover ellipses (inserted/removed without re-rendering scatter) ──
+var hoverEllipseGroup = null;
+
+function showHoverEllipse(info) {
+  removeHoverEllipse();
+  if (!info || !lastSx || !lastSy) return;
+  var p = null;
+  for (var i = 0; i < lastPts.length; i++) {
+    if (lastPts[i].type === info.type && lastPts[i].idx === info.idx) { p = lastPts[i]; break; }
+  }
+  if (!p || !p.visible) return;
+  var cx = lastSx(p.x), cy = lastSy(p.y);
+  var color = batchColor(p.batch);
+  var rx95 = Math.abs(lastSx(p.x + CI_Z.c95 * p.xSem) - cx);
+  var ry95 = Math.abs(lastSy(p.y - CI_Z.c95 * p.ySem) - cy);
+  var rx75 = Math.abs(lastSx(p.x + CI_Z.c75 * p.xSem) - cx);
+  var ry75 = Math.abs(lastSy(p.y - CI_Z.c75 * p.ySem) - cy);
+  var ns = 'http://www.w3.org/2000/svg';
+  var g = document.createElementNS(ns, 'g');
+  g.setAttribute('pointer-events', 'none');
+  var e95 = document.createElementNS(ns, 'ellipse');
+  e95.setAttribute('cx', cx); e95.setAttribute('cy', cy);
+  e95.setAttribute('rx', rx95); e95.setAttribute('ry', ry95);
+  e95.setAttribute('fill', color); e95.setAttribute('fill-opacity', '0.12');
+  e95.setAttribute('stroke', color); e95.setAttribute('stroke-width', '0.75');
+  e95.setAttribute('opacity', '0.35');
+  var e75 = document.createElementNS(ns, 'ellipse');
+  e75.setAttribute('cx', cx); e75.setAttribute('cy', cy);
+  e75.setAttribute('rx', rx75); e75.setAttribute('ry', ry75);
+  e75.setAttribute('fill', color); e75.setAttribute('fill-opacity', '0.18');
+  e75.setAttribute('stroke', color); e75.setAttribute('stroke-width', '0.75');
+  e75.setAttribute('opacity', '0.45');
+  g.appendChild(e95);
+  g.appendChild(e75);
+  // Insert before the dot groups so ellipses render behind dots
+  var clipGroup = svg.querySelector('g[clip-path]');
+  if (clipGroup) { clipGroup.insertBefore(g, clipGroup.firstChild); }
+  else { svg.appendChild(g); }
+  hoverEllipseGroup = g;
+}
+
+function removeHoverEllipse() {
+  if (hoverEllipseGroup && hoverEllipseGroup.parentNode) {
+    hoverEllipseGroup.parentNode.removeChild(hoverEllipseGroup);
+  }
+  hoverEllipseGroup = null;
 }
 
 // ── Opacity/relevance ──
@@ -10301,6 +11957,7 @@ svg.addEventListener('mouseover', function(e) {
   if (hoveredItem && hoveredItem.type === info.type && hoveredItem.idx === info.idx) return;
   hoveredItem = info;
   updateOpacities();
+  showHoverEllipse(info);
   if (!selectedItem) showDeltoid(info);
 });
 svg.addEventListener('mouseout', function(e) {
@@ -10310,6 +11967,7 @@ svg.addEventListener('mouseout', function(e) {
   if (relInfo && relInfo.type === info.type && relInfo.idx === info.idx) return;
   hoveredItem = null;
   updateOpacities();
+  removeHoverEllipse();
   if (!selectedItem) showDeltoid(null);
 });
 svg.addEventListener('click', function(e) {

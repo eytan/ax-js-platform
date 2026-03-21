@@ -53,15 +53,18 @@ def generate_cockpit_fixture(spec: FixtureSpec, benchmarks: dict) -> dict:
         raw_Y = raw_Y.unsqueeze(-1)
     raw_Y = raw_Y[:, :spec.n_outcomes]
 
-    # Split into Sobol (first 8) and BoTorch (next 5) batches
-    n_sobol = min(8, n_train)
-    n_botorch = n_train - n_sobol
+    # Split into Sobol init + BO batches
+    n_sobol = min(max(n_train * 3 // 5, 1), n_train)
+    n_bo = n_train - n_sobol
+    # Label BO method based on whether multi-objective
+    is_moo = spec.objectives and len(spec.objectives) > 1
+    bo_method = "qEHVI" if is_moo else "BoTorch"
 
     # Build observations
     observations = []
     for i in range(n_train):
         batch_idx = 0 if i < n_sobol else 1
-        gen_method = "Sobol" if i < n_sobol else "BoTorch"
+        gen_method = "Sobol" if i < n_sobol else bo_method
         arm_name = f"{batch_idx}_{i - (0 if i < n_sobol else n_sobol)}"
 
         metrics = {}
@@ -89,7 +92,7 @@ def generate_cockpit_fixture(spec: FixtureSpec, benchmarks: dict) -> dict:
             "arm_name": f"2_{i}",
             "parameters": {param_names[j]: float(cand_X[i, j]) for j in range(d)},
             "trial_index": 2,
-            "generation_method": "BoTorch",
+            "generation_method": bo_method,
         })
 
     # Build optimization config
