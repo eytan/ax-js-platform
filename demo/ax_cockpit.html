@@ -119,7 +119,6 @@ button:hover { background: #f0f0f0; }
 .scatter-header .scatter-label {
   font-size: 11px; color: #999; letter-spacing: 0.06em; text-transform: uppercase;
 }
-.scatter-header .rp-actions { margin-left: auto; }
 .icon-btn {
   width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
   border: none; background: none; color: #999; cursor: pointer; border-radius: 4px;
@@ -127,6 +126,17 @@ button:hover { background: #f0f0f0; }
 }
 .icon-btn:hover { background: #f0f0f0; color: #555; }
 .icon-btn svg { width: 14px; height: 14px; pointer-events: none; }
+.nav-btn {
+  width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center;
+  border: none; background: none; color: #bbb; cursor: pointer; border-radius: 3px;
+  padding: 0; font-size: 11px; vertical-align: middle;
+}
+.nav-btn:hover { background: #f0f0f0; color: #555; }
+.axis-badge {
+  display: inline-block; font-size: 8px; font-weight: 700; color: #fff; background: #4872f9;
+  border-radius: 3px; padding: 1px 4px; margin-left: 4px; vertical-align: middle;
+  letter-spacing: 0; text-transform: none;
+}
 .toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
   background: #333; color: #fff; padding: 8px 18px; border-radius: 6px;
@@ -144,7 +154,9 @@ button:hover { background: #f0f0f0; }
 <div class="main-area">
   <div class="right-panel" id="rightPanel">
     <div class="rp-header">
+      <button class="nav-btn" id="btnPrevArm" data-tip="Previous arm">&#9664;</button>
       <div class="rp-title" id="rpTitle">Click an arm to see all outcomes</div>
+      <button class="nav-btn" id="btnNextArm" data-tip="Next arm">&#9654;</button>
       <div class="rp-actions">
         <button class="icon-btn" id="btnCopyDeltoid" data-tip="Copy as text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
         <button class="icon-btn" id="btnSaveDeltoid" data-tip="Download image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
@@ -155,7 +167,9 @@ button:hover { background: #f0f0f0; }
   </div>
   <div class="scatter-wrap">
     <div class="scatter-header">
-      <span class="scatter-label">Scatter</span>
+      <span class="scatter-label">Metric Tradeoffs</span>
+      <label style="margin-left:auto">X <select id="selX"></select></label>
+      <label>Y <select id="selY"></select></label>
       <div class="rp-actions">
         <button class="icon-btn" id="btnSaveScatter" data-tip="Download image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
       </div>
@@ -163,10 +177,6 @@ button:hover { background: #f0f0f0; }
     <svg id="scatterSvg" width="420" height="400"></svg>
     <div class="legend" id="legend"></div>
     <div class="scatter-controls">
-      <div class="controls">
-        <label>X <select id="selX"></select></label>
-        <label>Y <select id="selY"></select></label>
-      </div>
       <div class="controls-secondary">
         <label>Control arm <select id="selSQ"></select></label>
         <label>Distance highlighting
@@ -10768,6 +10778,42 @@ document.querySelectorAll('.icon-btn[data-tip]').forEach(function(btn) {
   });
 });
 
+// Tooltip for scatter dots and nav buttons (reuses tooltip)
+[svg, document.getElementById('btnPrevArm'), document.getElementById('btnNextArm')].forEach(function(el) {
+  if (!el) return;
+  el.addEventListener('mouseover', function(e) {
+    var target = e.target;
+    while (target && target !== el) {
+      var tip = target.getAttribute && target.getAttribute('data-tip');
+      if (tip) {
+        tooltip.textContent = tip;
+        tooltip.style.display = 'block';
+        tooltip.style.left = (e.clientX + 14) + 'px';
+        tooltip.style.top = (e.clientY - 8) + 'px';
+        return;
+      }
+      target = target.parentNode;
+    }
+    // Check the element itself
+    var ownTip = el.getAttribute && el.getAttribute('data-tip');
+    if (ownTip) {
+      tooltip.textContent = ownTip;
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top = (e.clientY - 8) + 'px';
+    }
+  });
+  el.addEventListener('mousemove', function(e) {
+    if (tooltip.style.display === 'block') {
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top = (e.clientY - 8) + 'px';
+    }
+  });
+  el.addEventListener('mouseleave', function() {
+    tooltip.style.display = 'none';
+  });
+});
+
 var W = 420, H = 400;
 var margin = { top: 24, right: 16, bottom: 46, left: 52 };
 var pw = W - margin.left - margin.right;
@@ -10872,7 +10918,7 @@ function renderScatter() {
     if (rx && ry) {
       pts.push({ idx: i, type: 'arm', x: rx.mean, y: ry.mean,
                  xSem: rx.sem, ySem: ry.sem, genMethod: arm.generationMethod,
-                 batch: arm.batchIndex,
+                 batch: arm.batchIndex, armName: arm.armName,
                  visible: isItemVisible(arm.generationMethod, arm.batchIndex) });
     }
   });
@@ -10883,7 +10929,7 @@ function renderScatter() {
     if (crx && cry) {
       pts.push({ idx: ci, type: 'candidate', x: crx.mean, y: cry.mean,
                  xSem: crx.sem, ySem: cry.sem, genMethod: cand.generationMethod,
-                 batch: cand.batchIndex,
+                 batch: cand.batchIndex, armName: cand.armName,
                  visible: isItemVisible(cand.generationMethod, cand.batchIndex) });
     }
   });
@@ -10946,7 +10992,8 @@ function renderScatter() {
     var cx = sx(p.x), cy = sy(p.y);
     var color = batchColor(p.batch);
 
-    html += '<g data-idx="' + p.idx + '" data-type="' + p.type + '" style="cursor:pointer">';
+    var tipText = p.armName + ' (' + p.genMethod + ')';
+    html += '<g data-idx="' + p.idx + '" data-type="' + p.type + '" data-tip="' + tipText + '" style="cursor:pointer">';
 
     // Hit area
     html += '<circle cx="' + cx + '" cy="' + cy + '" r="14" fill="transparent"/>';
@@ -11393,6 +11440,15 @@ function showDeltoid(item) {
     s += '<text data-tip="' + metricType + '" x="' + (handleW + labelW - 4) + '" y="' + (cy + 4) +
          '" text-anchor="end" fill="' + labelColor + '" font-size="11" font-family="sans-serif"' +
          (isActiveOutcome ? ' font-weight="600"' : '') + '>' + labelText + '</text>';
+    // X/Y axis badge
+    var axisLabel = null;
+    if (name === outcomeNames[xOutIdx]) axisLabel = 'X';
+    if (name === outcomeNames[yOutIdx]) axisLabel = 'Y';
+    if (axisLabel) {
+      var badgeX = handleW + 2;
+      s += '<rect x="' + badgeX + '" y="' + (cy - 6) + '" width="14" height="12" rx="2" fill="#4872f9"/>';
+      s += '<text x="' + (badgeX + 7) + '" y="' + (cy + 3) + '" text-anchor="middle" fill="#fff" font-size="8" font-weight="700" font-family="sans-serif">' + axisLabel + '</text>';
+    }
 
     if (r) {
 
@@ -11728,7 +11784,7 @@ function renderSliders() {
         }
       }
     }
-    html += '<div style="font-size:10px;color:#888;margin-bottom:6px">Sorted by parameter importances for ' + sliderOutcome + '</div>';
+    html += '<div style="font-size:10px;color:#888;margin-bottom:6px">Parameters ranked by influence on <span style="color:#4872f9;font-weight:600">' + sliderOutcome + '</span></div>';
   } else {
     for (var d = 0; d < nDims; d++) {
       var sumS1 = 0, sumST = 0, count = 0;
@@ -11989,6 +12045,7 @@ selX.addEventListener('change', function() {
     selY.value = String(yOutIdx);
   }
   renderScatter();
+  showDeltoid(null);
 });
 selY.addEventListener('change', function() {
   yOutIdx = +selY.value;
@@ -11997,6 +12054,7 @@ selY.addEventListener('change', function() {
     selX.value = String(xOutIdx);
   }
   renderScatter();
+  showDeltoid(null);
 });
 selSQ.addEventListener('change', function() {
   sqIdx = +selSQ.value;
@@ -12192,6 +12250,34 @@ function saveScatterPng() {
 document.getElementById('btnCopyDeltoid').addEventListener('click', copyDeltoidText);
 document.getElementById('btnSaveDeltoid').addEventListener('click', saveDeltoidPng);
 document.getElementById('btnSaveScatter').addEventListener('click', saveScatterPng);
+
+// ── Arm navigation (prev/next) ──
+function getAllItems() {
+  var items = [];
+  arms.forEach(function(_, i) { items.push({ type: 'arm', idx: i }); });
+  candidates.forEach(function(_, i) { items.push({ type: 'candidate', idx: i }); });
+  return items;
+}
+
+function navigateArm(dir) {
+  var items = getAllItems();
+  if (items.length === 0) return;
+  var curIdx = 0;
+  if (selectedItem) {
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].type === selectedItem.type && items[i].idx === selectedItem.idx) { curIdx = i; break; }
+    }
+  }
+  curIdx = (curIdx + dir + items.length) % items.length;
+  prevSelectedItem = selectedItem;
+  selectedItem = items[curIdx];
+  renderScatter();
+  showDeltoid(null);
+  renderSliders();
+}
+
+document.getElementById('btnPrevArm').addEventListener('click', function() { navigateArm(-1); });
+document.getElementById('btnNextArm').addEventListener('click', function() { navigateArm(1); });
 
 // ── Init ──
 updateSubtitle();
