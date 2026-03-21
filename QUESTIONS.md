@@ -5,7 +5,7 @@ Items marked [DONE] have been resolved; others need input.
 
 ## Resolved
 
-- [DONE] **Package name**: `ax-js-platform` on npm, `Ax` as IIFE global
+- [DONE] **Package name**: `ax-js` on npm, `Ax` as IIFE global
 - [DONE] **License**: MIT, Copyright Meta Platforms, Inc.
 - [DONE] **Three bundles**: `ax.js`, `ax-acquisition.js`, `ax-viz.js`
 - [DONE] **Viz module**: Extracted shared demo utilities into `src/viz/index.ts`

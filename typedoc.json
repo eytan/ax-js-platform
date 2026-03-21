@@ -11,7 +11,7 @@
   "excludeProtected": true,
   "excludeInternal": true,
   "navigationLinks": {
-    "GitHub": "https://github.com/eytan/ax-js-platform",
+    "GitHub": "https://github.com/eytan/ax-js",
     "Ax": "https://ax.dev",
     "BoTorch": "https://botorch.org"
   }

@@ -55,7 +55,7 @@ export interface RelativizeOptions {
  *
  * @example
  * ```ts
- * import { relativize } from "ax-js-platform";
+ * import { relativize } from "ax-js";
  * const result = relativize(1.1, 0.05, 1.0, 0.03);
  * // result.mean ≈ 10.0 (10% improvement), result.sem ≈ 5.6
  * ```

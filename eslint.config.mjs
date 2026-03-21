@@ -80,6 +80,11 @@ export default [
           format: ["PascalCase"],
         },
         {
+          // Wire-format interfaces use snake_case (train_X, model_type, etc.)
+          selector: ["objectLiteralProperty", "typeProperty"],
+          format: null,
+        },
+        {
           selector: "variable",
           format: ["camelCase", "UPPER_CASE", "PascalCase"],
           leadingUnderscore: "allow",

@@ -1,0 +1,16 @@
+[project]
+name = "ax-js"
+version = "0.0.1"
+description = "Client-side GP prediction library for Ax — Jupyter integration"
+requires-python = ">=3.10"
+dependencies = ["ax-platform>=1.2"]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["axjs_jupyter", "axjs_export", "_extraction"]
+
+[tool.setuptools.package-dir]
+"" = "python"

@@ -47,11 +47,11 @@ optimization on GPU.
 ### Usage
 
 ```typescript
-import { Predictor } from "ax-js-platform";
-import { LogExpectedImprovement, optimizeAcqf } from "ax-js-platform/acquisition";
+import { Predictor } from "ax-js";
+import { LogExpectedImprovement, optimizeAcqf } from "ax-js/acquisition";
 
 // Acquisition functions need raw model access (experimental)
-import { loadModel } from "ax-js-platform";
+import { loadModel } from "ax-js";
 
 const model = loadModel(experimentState.model_state);
 const acqf = new LogExpectedImprovement(model, bestObservedValue);

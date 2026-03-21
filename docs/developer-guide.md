@@ -146,7 +146,7 @@ const loo = predictor.loocv("y");              // analytic LOO-CV
 const ls = predictor.getLengthscales("y");      // kernel lengthscales
 
 // Relativization (% change vs status quo) — matches Ax's separated pattern:
-import { relativizePredictions } from "ax-js-platform";
+import { relativizePredictions } from "ax-js";
 const sqPreds = predictor.predict([predictor.statusQuoPoint!]);
 const rel = relativizePredictions(
   preds["y"].mean, preds["y"].variance,
