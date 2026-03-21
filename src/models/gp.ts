@@ -10,7 +10,7 @@ import type { InputWarp } from "../transforms/warp.js";
 import { kernelDiag } from "../kernels/composite.js";
 import { cholesky } from "../linalg/cholesky.js";
 import { Matrix } from "../linalg/matrix.js";
-import { forwardSolve, solveCholesky } from "../linalg/solve.js";
+import { forwardSolveTransposed, solveCholesky } from "../linalg/solve.js";
 
 /**
  * Core ExactGP with Cholesky-based posterior.
@@ -37,6 +37,10 @@ export class ExactGP {
   // V matrix cache for sharing between predict() and predictCovarianceWith()
   private cachedV: Matrix | null = null;
   private cachedTestX: Matrix | null = null;
+
+  // K* (cross-covariance) cache for interactive use (Tier 2.2)
+  private cachedKstar: Matrix | null = null;
+  private cachedKstarKey: string | null = null;
 
   constructor(
     trainX: Matrix,
@@ -137,22 +141,36 @@ export class ExactGP {
     return true;
   }
 
-  /** Compute V = L⁻¹ @ K*ᵀ for a set of transformed test points. */
-  private computeV(Kstar: Matrix, nTest: number): Matrix {
-    const KstarT = new Matrix(this.trainXNorm.rows, nTest);
-    for (let i = 0; i < Kstar.rows; i++) {
-      for (let j = 0; j < Kstar.cols; j++) {
-        KstarT.set(j, i, Kstar.get(i, j));
-      }
+  /** Generate cache key for K* based on transformed test points. */
+  private makeKstarCacheKey(testXNorm: Matrix): string {
+    const n = testXNorm.rows * testXNorm.cols;
+    if (n === 0) {
+      return "empty";
     }
-    return forwardSolve(this.L, KstarT);
+    // Use dimensions + first/last values for fast collision-resistant key
+    const first = testXNorm.data[0];
+    const last = testXNorm.data[n - 1];
+    return `${testXNorm.rows}:${testXNorm.cols}:${first}:${last}`;
+  }
+
+  /** Compute V = L⁻¹ @ K*ᵀ for a set of transformed test points. */
+  private computeV(Kstar: Matrix): Matrix {
+    return forwardSolveTransposed(this.L, Kstar);
   }
 
   predict(testX: Matrix): PredictionResult {
     const testXNorm = this.transformInputs(testX);
 
-    // Cross-covariance k(X*, X_train)
-    const Kstar = this.kernel.compute(testXNorm, this.trainXNorm);
+    // Cross-covariance k(X*, X_train) — check cache first
+    const cacheKey = this.makeKstarCacheKey(testXNorm);
+    let Kstar: Matrix;
+    if (this.cachedKstarKey === cacheKey && this.cachedKstar !== null) {
+      Kstar = this.cachedKstar;
+    } else {
+      Kstar = this.kernel.compute(testXNorm, this.trainXNorm);
+      this.cachedKstar = Kstar;
+      this.cachedKstarKey = cacheKey;
+    }
 
     // Posterior mean: m(X*) + k* · alpha
     const meanPrior = this.mean.forward(testXNorm);
@@ -167,7 +185,7 @@ export class ExactGP {
 
     // Posterior variance: diag(k**) - ||v||²
     const kssDiag = kernelDiag(this.kernel, testXNorm);
-    const V = this.computeV(Kstar, testX.rows);
+    const V = this.computeV(Kstar);
 
     // Cache V for potential reuse in predictCovarianceWith
     this.cachedV = V;
@@ -267,19 +285,28 @@ export class ExactGP {
     const testXNorm = this.transformInputs(testX);
     const refXNorm = this.transformInputs(refX);
 
-    // Cross-covariance of test and ref with training data
-    const KstarRef = this.kernel.compute(refXNorm, this.trainXNorm);
-
     // V matrices: L⁻¹ @ K*ᵀ
     // Reuse cached Vtest if available, otherwise compute fresh
     let Vtest: Matrix;
     if (this.isCachedVValid(testX)) {
       Vtest = this.cachedV!;
     } else {
-      const KstarTest = this.kernel.compute(testXNorm, this.trainXNorm);
-      Vtest = this.computeV(KstarTest, testX.rows);
+      // Check K* cache for test points
+      const testCacheKey = this.makeKstarCacheKey(testXNorm);
+      let KstarTest: Matrix;
+      if (this.cachedKstarKey === testCacheKey && this.cachedKstar !== null) {
+        KstarTest = this.cachedKstar;
+      } else {
+        KstarTest = this.kernel.compute(testXNorm, this.trainXNorm);
+        this.cachedKstar = KstarTest;
+        this.cachedKstarKey = testCacheKey;
+      }
+      Vtest = this.computeV(KstarTest);
     }
-    const Vref = this.computeV(KstarRef, refX.rows);
+
+    // Cross-covariance of ref with training data (no cache, typically 1 ref point)
+    const KstarRef = this.kernel.compute(refXNorm, this.trainXNorm);
+    const Vref = this.computeV(KstarRef);
 
     // Prior covariance k(x_test, x_ref)
     const Ktr = this.kernel.compute(testXNorm, refXNorm);
