@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 /**
  * Cockpit metadata plumbing tests.
  *
@@ -5,26 +7,28 @@
  * cockpit fixture are correctly loaded and accessible through Predictor.
  * Also verifies prediction parity at observation and candidate locations.
  */
-import { readFileSync } from "fs";
-import { join } from "path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, it, expect } from "vitest";
+
 import { Predictor } from "../../src/predictor";
 import { relativizePredictions } from "../../src/transforms/relativize";
 
 const fixturesDir = join(__dirname, "..", "fixtures");
 const TOLERANCE = 1e-6;
 
-function loadFixture(filename: string) {
-  const raw = readFileSync(join(fixturesDir, filename), "utf-8");
+function loadFixture(filename: string): any {
+  const raw = readFileSync(join(fixturesDir, filename), "utf8");
   return JSON.parse(raw);
 }
 
 function expectAllClose(
-  actual: Float64Array | number[],
-  expected: number[],
+  actual: Float64Array | Array<number>,
+  expected: Array<number>,
   atol: number,
   label: string,
-) {
+): void {
   expect(actual.length).toBe(expected.length);
   for (let i = 0; i < expected.length; i++) {
     const absDiff = Math.abs(actual[i] - expected[i]);
@@ -45,12 +49,8 @@ describe("cockpit fixture metadata", () => {
     expect(exp.observations).toBeDefined();
     expect(exp.observations.length).toBe(13);
 
-    const sobol = exp.observations.filter(
-      (o: any) => o.generation_method === "Sobol",
-    );
-    const bo = exp.observations.filter(
-      (o: any) => o.generation_method === "qEHVI",
-    );
+    const sobol = exp.observations.filter((o: any) => o.generation_method === "Sobol");
+    const bo = exp.observations.filter((o: any) => o.generation_method === "qEHVI");
     expect(sobol.length).toBe(7);
     expect(bo.length).toBe(6);
   });
@@ -117,23 +117,13 @@ describe("cockpit fixture metadata", () => {
     const predictor = new Predictor(exp);
     const predictions = predictor.predict(fixture.test.test_points);
 
-    const expectedMeans = fixture.test.expected.mean as number[][];
-    const expectedVars = fixture.test.expected.variance as number[][];
+    const expectedMeans = fixture.test.expected.mean as Array<Array<number>>;
+    const expectedVars = fixture.test.expected.variance as Array<Array<number>>;
 
     for (let k = 0; k < exp.outcome_names.length; k++) {
       const name = exp.outcome_names[k];
-      expectAllClose(
-        predictions[name].mean,
-        expectedMeans[k],
-        TOLERANCE,
-        `${name} mean`,
-      );
-      expectAllClose(
-        predictions[name].variance,
-        expectedVars[k],
-        TOLERANCE,
-        `${name} variance`,
-      );
+      expectAllClose(predictions[name].mean, expectedMeans[k], TOLERANCE, `${name} mean`);
+      expectAllClose(predictions[name].variance, expectedVars[k], TOLERANCE, `${name} variance`);
     }
   });
 

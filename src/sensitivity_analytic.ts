@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 /**
  * Analytic Sobol' sensitivity indices for GP posterior mean.
  *
@@ -12,22 +14,15 @@
  * cross integral that handles per-model lengthscales.
  * Falls back to null (caller uses MC) for PairwiseGP.
  */
+import type { KernelState, SearchSpaceParam, SensitivityIndices } from "./models/types.js";
+
 import { normalCdf } from "./math.js";
-import type {
-  KernelState,
-  SearchSpaceParam,
-  SensitivityIndices,
-} from "./models/types.js";
 
 // ── RBF closed-form primitives ──────────────────────────────────────────
 
 /** RBF marginal: ∫₀¹ exp(-0.5(x-c)²/ℓ²) dx = ℓ√(2π) [Φ((1-c)/ℓ) - Φ(-c/ℓ)] */
 export function rbfMarginal(c: number, ell: number): number {
-  return (
-    ell *
-    Math.sqrt(2 * Math.PI) *
-    (normalCdf((1 - c) / ell) - normalCdf(-c / ell))
-  );
+  return ell * Math.sqrt(2 * Math.PI) * (normalCdf((1 - c) / ell) - normalCdf(-c / ell));
 }
 
 /**
@@ -39,12 +34,7 @@ export function rbfMarginal(c: number, ell: number): number {
  *
  * When ℓ₁ = ℓ₂ = ℓ, reduces to σ* = ℓ/√2, μ* = (a+b)/2.
  */
-export function rbfGeneralizedCross(
-  a: number,
-  b: number,
-  ell1: number,
-  ell2: number,
-): number {
+export function rbfGeneralizedCross(a: number, b: number, ell1: number, ell2: number): number {
   const s2 = ell1 * ell1 + ell2 * ell2;
   const sigma = (ell1 * ell2) / Math.sqrt(s2);
   const mu = (a * ell2 * ell2 + b * ell1 * ell1) / s2;
@@ -68,7 +58,7 @@ export interface DimIntegrator {
 // ── RBF integrator ──────────────────────────────────────────────────────
 
 export class RbfDimIntegrator implements DimIntegrator {
-  constructor(private ell: number) {}
+  constructor(private readonly ell: number) {}
 
   marginal(c: number): number {
     return rbfMarginal(c, this.ell);
@@ -87,10 +77,7 @@ export class RbfDimIntegrator implements DimIntegrator {
  * - ν = 1.5: k(x, c) = (1 + √3·|x-c|/ℓ) · exp(-√3·|x-c|/ℓ)
  * - ν = 2.5: k(x, c) = (1 + √5·|x-c|/ℓ + 5(x-c)²/(3ℓ²)) · exp(-√5·|x-c|/ℓ)
  */
-function maternKernel1D(
-  nu: 0.5 | 1.5 | 2.5,
-  ell: number,
-): (x: number, c: number) => number {
+function maternKernel1D(nu: 0.5 | 1.5 | 2.5, ell: number): (x: number, c: number) => number {
   if (nu === 0.5) {
     return (x, c) => Math.exp(-Math.abs(x - c) / ell);
   } else if (nu === 1.5) {
@@ -113,13 +100,10 @@ function maternKernel1D(
 }
 
 export class MaternDimIntegrator implements DimIntegrator {
-  private integrator: QuadratureDimIntegrator;
+  private readonly integrator: QuadratureDimIntegrator;
 
   constructor(nu: 0.5 | 1.5 | 2.5, ell: number, nNodes: number = 128) {
-    this.integrator = new QuadratureDimIntegrator(
-      maternKernel1D(nu, ell),
-      nNodes,
-    );
+    this.integrator = new QuadratureDimIntegrator(maternKernel1D(nu, ell), nNodes);
   }
 
   marginal(c: number): number {
@@ -134,8 +118,8 @@ export class MaternDimIntegrator implements DimIntegrator {
 // ── Categorical integrator (finite sums) ────────────────────────────────
 
 export class CategoricalDimIntegrator implements DimIntegrator {
-  private nCategories: number;
-  private expNeg: number; // exp(-1/(d·ℓ))
+  private readonly nCategories: number;
+  private readonly expNeg: number; // exp(-1/(d·ℓ))
 
   /**
    * @param nCategories Number of category values for this dimension
@@ -145,7 +129,7 @@ export class CategoricalDimIntegrator implements DimIntegrator {
   constructor(nCategories: number, lengthscale: number, numCatDims: number) {
     this.nCategories = nCategories;
     // CategoricalKernel: k(v, c) = exp(-indicator(v≠c) / (d·ℓ))
-    this.expNeg = Math.exp(-1.0 / (numCatDims * lengthscale));
+    this.expNeg = Math.exp(-1 / (numCatDims * lengthscale));
   }
 
   marginal(_c: number): number {
@@ -182,11 +166,11 @@ export function gaussLegendre01(n: number): {
 
   for (let i = 0; i < m; i++) {
     // Initial guess (Chebyshev approximation)
-    let x = Math.cos(Math.PI * (i + 0.75) / (n + 0.5));
+    let x = Math.cos((Math.PI * (i + 0.75)) / (n + 0.5));
 
     // Newton iteration to find root of P_n(x)
     for (let iter = 0; iter < 50; iter++) {
-      let p0 = 1.0;
+      let p0 = 1;
       let p1 = x;
       for (let j = 2; j <= n; j++) {
         const p2 = ((2 * j - 1) * x * p1 - (j - 1) * p0) / j;
@@ -198,11 +182,13 @@ export function gaussLegendre01(n: number): {
       const dp = (n * (p0 - x * p1)) / (1 - x * x);
       const dx = p1 / dp;
       x -= dx;
-      if (Math.abs(dx) < 1e-15) break;
+      if (Math.abs(dx) < 1e-15) {
+        break;
+      }
     }
 
     // Recompute P_{n-1}(x) at converged root for weight
-    let p0 = 1.0;
+    let p0 = 1;
     let p1 = x;
     for (let j = 2; j <= n; j++) {
       const p2 = ((2 * j - 1) * x * p1 - (j - 1) * p0) / j;
@@ -211,7 +197,7 @@ export function gaussLegendre01(n: number): {
     }
     // At root: P_n(x) ≈ 0, so P'_n(x) = n·P_{n-1}(x) / (1-x²)
     const dp = (n * p0) / (1 - x * x);
-    const w = 2.0 / ((1 - x * x) * dp * dp);
+    const w = 2 / ((1 - x * x) * dp * dp);
 
     // Map [-1,1] → [0,1]: node = (1±x)/2, weight *= 0.5
     const j = n - 1 - i;
@@ -227,14 +213,11 @@ export function gaussLegendre01(n: number): {
 // ── Quadrature integrator (for warped dims) ─────────────────────────────
 
 export class QuadratureDimIntegrator implements DimIntegrator {
-  private kernelFn: (x: number, c: number) => number;
-  private nodes: Float64Array;
-  private weights: Float64Array;
+  private readonly kernelFn: (x: number, c: number) => number;
+  private readonly nodes: Float64Array;
+  private readonly weights: Float64Array;
 
-  constructor(
-    kernelFn: (x: number, c: number) => number,
-    nNodes: number = 32,
-  ) {
+  constructor(kernelFn: (x: number, c: number) => number, nNodes: number = 32) {
     this.kernelFn = kernelFn;
     const gl = gaussLegendre01(nNodes);
     this.nodes = gl.nodes;
@@ -262,17 +245,17 @@ export class QuadratureDimIntegrator implements DimIntegrator {
 // ── Kernel component (one term in an additive decomposition) ────────────
 
 interface KernelComponent {
-  activeDims: number[];
-  integrators: DimIntegrator[]; // same order as activeDims
+  activeDims: Array<number>;
+  integrators: Array<DimIntegrator>; // same order as activeDims
   outputscale: number;
 }
 
 // ── Warp parameters ────────────────────────────────────────────────────
 
 interface WarpParams {
-  concentration0: number[];
-  concentration1: number[];
-  indices?: number[];
+  concentration0: Array<number>;
+  concentration1: Array<number>;
+  indices?: Array<number>;
 }
 
 // ── Build integrators from kernel state ─────────────────────────────────
@@ -293,37 +276,36 @@ interface WarpParams {
  */
 export function extractKernelComponents(
   kernelState: KernelState,
-  paramSpecs: SearchSpaceParam[],
+  paramSpecs: Array<SearchSpaceParam>,
   warpParams?: WarpParams,
-): KernelComponent[] | null {
+): Array<KernelComponent> | null {
   // Handle Scale wrapper only — legacy outputscale (on RBF/Matern directly)
   // is handled by extractSingleComponent to avoid double-counting
-  let outputscale = 1.0;
+  let outputscale = 1;
   let baseKernel = kernelState;
   if (kernelState.type === "Scale" && kernelState.base_kernel) {
-    outputscale = kernelState.outputscale ?? 1.0;
+    outputscale = kernelState.outputscale ?? 1;
     baseKernel = kernelState.base_kernel;
   }
 
   if (baseKernel.type === "Additive" && baseKernel.kernels) {
     // Additive: each sub-kernel is an independent component.
     // Requires disjoint active_dims across components.
-    const components: KernelComponent[] = [];
+    const components: Array<KernelComponent> = [];
     for (const sub of baseKernel.kernels) {
-      const comp = extractSingleComponent(
-        sub,
-        paramSpecs,
-        warpParams,
-        outputscale,
-      );
-      if (!comp) return null;
+      const comp = extractSingleComponent(sub, paramSpecs, warpParams, outputscale);
+      if (!comp) {
+        return null;
+      }
       components.push(comp);
     }
     // Verify disjoint active_dims
     const seen = new Set<number>();
     for (const comp of components) {
       for (const d of comp.activeDims) {
-        if (seen.has(d)) return null; // overlapping dims → fall back to MC
+        if (seen.has(d)) {
+          return null;
+        } // overlapping dims → fall back to MC
         seen.add(d);
       }
     }
@@ -331,13 +313,10 @@ export function extractKernelComponents(
   }
 
   // Single component (Product, RBF, etc.)
-  const comp = extractSingleComponent(
-    baseKernel,
-    paramSpecs,
-    warpParams,
-    outputscale,
-  );
-  if (!comp) return null;
+  const comp = extractSingleComponent(baseKernel, paramSpecs, warpParams, outputscale);
+  if (!comp) {
+    return null;
+  }
   return [comp];
 }
 
@@ -347,7 +326,7 @@ export function extractKernelComponents(
  */
 function extractSingleComponent(
   kernelState: KernelState,
-  paramSpecs: SearchSpaceParam[],
+  paramSpecs: Array<SearchSpaceParam>,
   warpParams: WarpParams | undefined,
   parentOutputscale: number,
 ): KernelComponent | null {
@@ -355,27 +334,23 @@ function extractSingleComponent(
   let outputscale = parentOutputscale;
   let baseKernel = kernelState;
   if (kernelState.type === "Scale" && kernelState.base_kernel) {
-    outputscale *= kernelState.outputscale ?? 1.0;
+    outputscale *= kernelState.outputscale ?? 1;
     baseKernel = kernelState.base_kernel;
-  } else if (
-    kernelState.type !== "Scale" &&
-    kernelState.outputscale !== undefined
-  ) {
+  } else if (kernelState.type !== "Scale" && kernelState.outputscale !== undefined) {
     outputscale *= kernelState.outputscale;
   }
 
   const d = paramSpecs.length;
-  const warpIndicesSet = warpParams?.indices
-    ? new Set(warpParams.indices)
-    : null;
+  const warpIndicesSet = warpParams?.indices ? new Set(warpParams.indices) : null;
   const hasWarp = !!warpParams;
 
   if (baseKernel.type === "RBF" || baseKernel.type === "Matern") {
     const ls = baseKernel.lengthscale;
-    if (!ls) return null;
-    const activeDims =
-      baseKernel.active_dims ?? Array.from({ length: d }, (_, i) => i);
-    const integrators: DimIntegrator[] = [];
+    if (!ls) {
+      return null;
+    }
+    const activeDims = baseKernel.active_dims ?? Array.from({ length: d }, (_, i) => i);
+    const integrators: Array<DimIntegrator> = [];
     const nu = baseKernel.nu as 0.5 | 1.5 | 2.5 | undefined;
 
     for (let k = 0; k < activeDims.length; k++) {
@@ -383,13 +358,9 @@ function extractSingleComponent(
       const ell = ls[k];
       if (isWarpedDim(j, hasWarp, warpIndicesSet)) {
         if (baseKernel.type === "Matern" && nu !== undefined) {
-          integrators.push(
-            makeWarpedMaternIntegrator(j, nu, ell, warpParams!),
-          );
+          integrators.push(makeWarpedMaternIntegrator(j, nu, ell, warpParams!));
         } else {
-          integrators.push(
-            makeWarpedRbfIntegrator(j, ell, warpParams!),
-          );
+          integrators.push(makeWarpedRbfIntegrator(j, ell, warpParams!));
         }
       } else {
         if (baseKernel.type === "Matern" && nu !== undefined) {
@@ -404,14 +375,14 @@ function extractSingleComponent(
   }
 
   if (baseKernel.type === "Product" && baseKernel.kernels) {
-    const activeDims: number[] = [];
-    const integrators: DimIntegrator[] = [];
+    const activeDims: Array<number> = [];
+    const integrators: Array<DimIntegrator> = [];
 
     for (const sub of baseKernel.kernels) {
       // Unwrap Scale if present on sub-kernel
       let subKernel = sub;
       if (sub.type === "Scale" && sub.base_kernel) {
-        outputscale *= sub.outputscale ?? 1.0;
+        outputscale *= sub.outputscale ?? 1;
         subKernel = sub.base_kernel;
       } else if (sub.type !== "Scale" && sub.outputscale !== undefined) {
         outputscale *= sub.outputscale;
@@ -419,7 +390,9 @@ function extractSingleComponent(
 
       if (subKernel.type === "RBF" || subKernel.type === "Matern") {
         const ls = subKernel.lengthscale;
-        if (!ls) return null;
+        if (!ls) {
+          return null;
+        }
         const dims =
           subKernel.active_dims ??
           sub.active_dims ??
@@ -431,13 +404,9 @@ function extractSingleComponent(
           activeDims.push(j);
           if (isWarpedDim(j, hasWarp, warpIndicesSet)) {
             if (subKernel.type === "Matern" && nu !== undefined) {
-              integrators.push(
-                makeWarpedMaternIntegrator(j, nu, ell, warpParams!),
-              );
+              integrators.push(makeWarpedMaternIntegrator(j, nu, ell, warpParams!));
             } else {
-              integrators.push(
-                makeWarpedRbfIntegrator(j, ell, warpParams!),
-              );
+              integrators.push(makeWarpedRbfIntegrator(j, ell, warpParams!));
             }
           } else {
             if (subKernel.type === "Matern" && nu !== undefined) {
@@ -448,8 +417,7 @@ function extractSingleComponent(
           }
         }
       } else if (subKernel.type === "Categorical") {
-        const dims =
-          subKernel.active_dims ?? sub.active_dims ?? [];
+        const dims = subKernel.active_dims ?? sub.active_dims ?? [];
         const numCatDims = dims.length;
         const ls = subKernel.lengthscale ?? [1];
         for (let k = 0; k < dims.length; k++) {
@@ -458,9 +426,7 @@ function extractSingleComponent(
           const nCats = spec.values?.length ?? 2;
           const ell = ls.length > 1 ? ls[k] : ls[0];
           activeDims.push(j);
-          integrators.push(
-            new CategoricalDimIntegrator(nCats, ell, numCatDims),
-          );
+          integrators.push(new CategoricalDimIntegrator(nCats, ell, numCatDims));
         }
       } else {
         // Unsupported sub-kernel type
@@ -475,14 +441,14 @@ function extractSingleComponent(
   return null;
 }
 
-function isWarpedDim(
-  dim: number,
-  hasWarp: boolean,
-  warpIndicesSet: Set<number> | null,
-): boolean {
-  if (!hasWarp) return false;
+function isWarpedDim(dim: number, hasWarp: boolean, warpIndicesSet: Set<number> | null): boolean {
+  if (!hasWarp) {
+    return false;
+  }
   // If no indices specified, all dims are warped
-  if (warpIndicesSet === null) return true;
+  if (warpIndicesSet === null) {
+    return true;
+  }
   return warpIndicesSet.has(dim);
 }
 
@@ -492,9 +458,7 @@ function makeWarpedMaternIntegrator(
   ell: number,
   warpParams: WarpParams,
 ): QuadratureDimIntegrator {
-  const wIdx = warpParams.indices
-    ? warpParams.indices.indexOf(dim)
-    : dim;
+  const wIdx = warpParams.indices ? warpParams.indices.indexOf(dim) : dim;
   const a = warpParams.concentration1[wIdx]; // Kumaraswamy a
   const b = warpParams.concentration0[wIdx]; // Kumaraswamy b
   const eps = 1e-7;
@@ -513,9 +477,7 @@ function makeWarpedRbfIntegrator(
   ell: number,
   warpParams: WarpParams,
 ): QuadratureDimIntegrator {
-  const wIdx = warpParams.indices
-    ? warpParams.indices.indexOf(dim)
-    : dim;
+  const wIdx = warpParams.indices ? warpParams.indices.indexOf(dim) : dim;
   const a = warpParams.concentration1[wIdx]; // Kumaraswamy a
   const b = warpParams.concentration0[wIdx]; // Kumaraswamy b
   const eps = 1e-7;
@@ -526,7 +488,7 @@ function makeWarpedRbfIntegrator(
     const xn = Math.max(eps, Math.min(1 - eps, x * range + eps));
     const warped = 1 - Math.pow(1 - Math.pow(xn, a), b);
     const diff = warped - c;
-    return Math.exp(-0.5 * diff * diff / (ell * ell));
+    return Math.exp((-0.5 * diff * diff) / (ell * ell));
   });
 }
 
@@ -548,10 +510,10 @@ function makeWarpedRbfIntegrator(
  */
 export function computeAnalyticSobolIndices(
   alpha: Float64Array,
-  trainX: number[][],
-  components: KernelComponent[],
+  trainX: Array<Array<number>>,
+  components: Array<KernelComponent>,
   meanConstant: number,
-  paramNames: string[],
+  paramNames: Array<string>,
 ): SensitivityIndices {
   const n = alpha.length;
   const d = paramNames.length;
@@ -573,7 +535,7 @@ export function computeAnalyticSobolIndices(
     const os = comp.outputscale;
 
     // w[localDim][i] = integrators[localDim].marginal(trainX[i][globalDim])
-    const w: Float64Array[] = new Array(nDims);
+    const w: Array<Float64Array> = new Array(nDims);
     for (let li = 0; li < nDims; li++) {
       const gj = comp.activeDims[li];
       w[li] = new Float64Array(n);
@@ -583,16 +545,13 @@ export function computeAnalyticSobolIndices(
     }
 
     // W[localDim][i*n+k] = integrators[localDim].cross(trainX[i][gj], trainX[k][gj])
-    const W: Float64Array[] = new Array(nDims);
+    const W: Array<Float64Array> = new Array(nDims);
     for (let li = 0; li < nDims; li++) {
       const gj = comp.activeDims[li];
       W[li] = new Float64Array(n * n);
       for (let i = 0; i < n; i++) {
         for (let k = i; k < n; k++) {
-          const val = comp.integrators[li].cross(
-            trainX[i][gj],
-            trainX[k][gj],
-          );
+          const val = comp.integrators[li].cross(trainX[i][gj], trainX[k][gj]);
           W[li][i * n + k] = val;
           W[li][k * n + i] = val;
         }
@@ -601,19 +560,25 @@ export function computeAnalyticSobolIndices(
 
     const productW = new Float64Array(n);
     for (let i = 0; i < n; i++) {
-      let prod = 1.0;
-      for (let li = 0; li < nDims; li++) prod *= w[li][i];
+      let prod = 1;
+      for (let li = 0; li < nDims; li++) {
+        prod *= w[li][i];
+      }
       productW[i] = prod;
     }
 
     let sumAlphaM = 0;
-    for (let i = 0; i < n; i++) sumAlphaM += alpha[i] * os * productW[i];
+    for (let i = 0; i < n; i++) {
+      sumAlphaM += alpha[i] * os * productW[i];
+    }
 
     let crossSum = 0;
     for (let i = 0; i < n; i++) {
       for (let k = 0; k < n; k++) {
-        let prod = 1.0;
-        for (let li = 0; li < nDims; li++) prod *= W[li][i * n + k];
+        let prod = 1;
+        for (let li = 0; li < nDims; li++) {
+          prod *= W[li][i * n + k];
+        }
         crossSum += alpha[i] * alpha[k] * prod;
       }
     }
@@ -623,9 +588,9 @@ export function computeAnalyticSobolIndices(
   });
 
   // ── E[μ] and Var(μ) ──
-  let emu = meanConstant;
+  let _emu = meanConstant;
   for (let ci = 0; ci < components.length; ci++) {
-    emu += compData[ci].sumAlphaM;
+    _emu += compData[ci].sumAlphaM;
   }
 
   let varMu = 0;
@@ -654,7 +619,6 @@ export function computeAnalyticSobolIndices(
     }
 
     const li = dimToLocalIdx[gj];
-    const comp = components[ci];
     const cd = compData[ci];
     const os = cd.os;
 
@@ -668,7 +632,7 @@ export function computeAnalyticSobolIndices(
       if (Math.abs(wDim) < 1e-300) {
         beta[m] = 0;
       } else {
-        beta[m] = os * alpha[m] * cd.productW[m] / wDim;
+        beta[m] = (os * alpha[m] * cd.productW[m]) / wDim;
       }
     }
 
@@ -678,10 +642,7 @@ export function computeAnalyticSobolIndices(
         crossS += beta[m] * beta[p] * cd.W[li][m * n + p];
       }
     }
-    firstOrder[gj] = Math.max(
-      0,
-      (crossS - cd.sumAlphaM * cd.sumAlphaM) / varMu,
-    );
+    firstOrder[gj] = Math.max(0, (crossS - cd.sumAlphaM * cd.sumAlphaM) / varMu);
 
     // ── Total-order ST_i ──
     // γ_m = σ² α_m w_dim[m]
@@ -699,18 +660,22 @@ export function computeAnalyticSobolIndices(
     for (let m = 0; m < n; m++) {
       for (let p = 0; p < n; p++) {
         // ∏_{j≠dim, j∈S_a} W_j[m,p]
-        let prod = 1.0;
+        let prod = 1;
         for (let lk = 0; lk < cd.nDims; lk++) {
-          if (lk !== li) prod *= cd.W[lk][m * n + p];
+          if (lk !== li) {
+            prod *= cd.W[lk][m * n + p];
+          }
         }
         crossT += gamma[m] * gamma[p] * prod;
       }
     }
     let sumGammaW = 0;
     for (let m = 0; m < n; m++) {
-      let prod = 1.0;
+      let prod = 1;
       for (let lk = 0; lk < cd.nDims; lk++) {
-        if (lk !== li) prod *= cd.w[lk][m];
+        if (lk !== li) {
+          prod *= cd.w[lk][m];
+        }
       }
       sumGammaW += gamma[m] * prod;
     }
@@ -719,7 +684,9 @@ export function computeAnalyticSobolIndices(
     // V_{~i} = Var_reduced + Σ_{b≠a} Var_b
     let vNotI = varReduced;
     for (let bj = 0; bj < components.length; bj++) {
-      if (bj !== ci) vNotI += compData[bj].varA;
+      if (bj !== ci) {
+        vNotI += compData[bj].varA;
+      }
     }
 
     totalOrder[gj] = Math.max(0, 1 - vNotI / varMu);
@@ -733,9 +700,9 @@ export function computeAnalyticSobolIndices(
 /** Per-model info needed for ensemble analytic Sobol. */
 export interface EnsembleSubModelInfo {
   alpha: Float64Array;
-  trainXNorm: number[][];
+  trainXNorm: Array<Array<number>>;
   meanConstant: number;
-  lengthscales: number[];
+  lengthscales: Array<number>;
   outputscale: number;
   warpParams?: WarpParams;
   kernelType?: "RBF" | "Matern";
@@ -754,20 +721,20 @@ export interface EnsembleSubModelInfo {
  * if the pooled basis count exceeds a size limit.
  */
 interface BasisFn {
-  center: number[];
+  center: Array<number>;
   coeff: number;
-  lengthscales: number[];
+  lengthscales: Array<number>;
   modelIdx: number;
 }
 
 export function computeEnsembleAnalyticSobol(
-  models: EnsembleSubModelInfo[],
-  paramNames: string[],
+  models: Array<EnsembleSubModelInfo>,
+  paramNames: Array<string>,
 ): SensitivityIndices | null {
   const M = models.length;
   const d = paramNames.length;
 
-  const basis: BasisFn[] = [];
+  const basis: Array<BasisFn> = [];
   let meanEns = 0;
 
   for (let mi = 0; mi < M; mi++) {
@@ -786,7 +753,9 @@ export function computeEnsembleAnalyticSobol(
   const N = basis.length;
 
   // Size guard: O(d × N²) can be slow for very large ensembles
-  if (N > 2000) return null;
+  if (N > 2000) {
+    return null;
+  }
 
   // Determine which dims are warped and precompute warp functions
   const hasAnyWarp = models.some((m) => !!m.warpParams);
@@ -799,8 +768,10 @@ export function computeEnsembleAnalyticSobol(
   }
 
   // Per-model warp function cache (dim → warp function)
-  const warpFns: (((x: number) => number) | null)[][] = models.map((m) => {
-    if (!m.warpParams) return new Array(d).fill(null);
+  const warpFns: Array<Array<((x: number) => number) | null>> = models.map((m) => {
+    if (!m.warpParams) {
+      return new Array(d).fill(null);
+    }
     const wp = m.warpParams;
     const indices = wp.indices ?? Array.from({ length: d }, (_, i) => i);
     const indicesSet = new Set(indices);
@@ -808,7 +779,9 @@ export function computeEnsembleAnalyticSobol(
     const range = 1 - 2 * eps;
 
     return Array.from({ length: d }, (_, j) => {
-      if (!indicesSet.has(j)) return null;
+      if (!indicesSet.has(j)) {
+        return null;
+      }
       const wIdx = wp.indices ? wp.indices.indexOf(j) : j;
       const a = wp.concentration1[wIdx];
       const b = wp.concentration0[wIdx];
@@ -835,7 +808,7 @@ export function computeEnsembleAnalyticSobol(
       return maternKernel1D(m.nu, ell);
     }
     // RBF (default)
-    return (x, c) => Math.exp(-0.5 * (x - c) * (x - c) / (ell * ell));
+    return (x, c) => Math.exp((-0.5 * (x - c) * (x - c)) / (ell * ell));
   }
 
   // Helper: 1D marginal for basis function i on dim j
@@ -861,14 +834,14 @@ export function computeEnsembleAnalyticSobol(
 
   // Helper: 1D cross for basis functions i, k on dim j
   function cross1D(i: number, k: number, j: number): number {
-    const mi_i = basis[i].modelIdx;
-    const mi_k = basis[k].modelIdx;
-    const wFn_i = warpFns[mi_i][j];
-    const wFn_k = warpFns[mi_k][j];
-    const isMatern_i = models[mi_i].kernelType === "Matern";
-    const isMatern_k = models[mi_k].kernelType === "Matern";
+    const miI = basis[i].modelIdx;
+    const miK = basis[k].modelIdx;
+    const wFnI = warpFns[miI][j];
+    const wFnK = warpFns[miK][j];
+    const isMaternI = models[miI].kernelType === "Matern";
+    const isMaternK = models[miK].kernelType === "Matern";
 
-    if (!wFn_i && !wFn_k && !isMatern_i && !isMatern_k) {
+    if (!wFnI && !wFnK && !isMaternI && !isMaternK) {
       // Both non-warped RBF: closed-form generalized cross
       return rbfGeneralizedCross(
         basis[i].center[j],
@@ -881,24 +854,24 @@ export function computeEnsembleAnalyticSobol(
     // Quadrature: at least one warped or Matérn
     const a = basis[i].center[j];
     const b = basis[k].center[j];
-    const kFn_i = modelKernel1D(mi_i, j);
-    const kFn_k = modelKernel1D(mi_k, j);
+    const kFnI = modelKernel1D(miI, j);
+    const kFnK = modelKernel1D(miK, j);
     let sum = 0;
     for (let q = 0; q < glNodes!.length; q++) {
       const x = glNodes![q];
-      const wi = wFn_i ? wFn_i(x) : x;
-      const wk = wFn_k ? wFn_k(x) : x;
-      sum += glWeights![q] * kFn_i(wi, a) * kFn_k(wk, b);
+      const wi = wFnI ? wFnI(x) : x;
+      const wk = wFnK ? wFnK(x) : x;
+      sum += glWeights![q] * kFnI(wi, a) * kFnK(wk, b);
     }
     return sum;
   }
 
   // ── Precompute per-basis marginals and cross integrals ──
-  const w: number[][] = new Array(N);
+  const w: Array<Array<number>> = new Array(N);
   const productW = new Float64Array(N);
   for (let i = 0; i < N; i++) {
     w[i] = new Array(d);
-    let prod = 1.0;
+    let prod = 1;
     for (let j = 0; j < d; j++) {
       w[i][j] = marginal1D(i, j);
       prod *= w[i][j];
@@ -907,7 +880,7 @@ export function computeEnsembleAnalyticSobol(
   }
 
   // Cache cross integrals: crossCache[j][i*N+k] (symmetric)
-  const crossCache: Float64Array[] = new Array(d);
+  const crossCache: Array<Float64Array> = new Array(d);
   for (let j = 0; j < d; j++) {
     crossCache[j] = new Float64Array(N * N);
     for (let i = 0; i < N; i++) {
@@ -930,7 +903,7 @@ export function computeEnsembleAnalyticSobol(
   let varMu = -emuMinusMean * emuMinusMean;
   for (let i = 0; i < N; i++) {
     for (let k = 0; k < N; k++) {
-      let prod = 1.0;
+      let prod = 1;
       for (let j = 0; j < d; j++) {
         prod *= crossCache[j][i * N + k];
       }
@@ -960,7 +933,7 @@ export function computeEnsembleAnalyticSobol(
       if (Math.abs(wDim) < 1e-300) {
         beta[i] = 0;
       } else {
-        beta[i] = basis[i].coeff * productW[i] / wDim;
+        beta[i] = (basis[i].coeff * productW[i]) / wDim;
       }
     }
 
@@ -970,10 +943,7 @@ export function computeEnsembleAnalyticSobol(
         crossS += beta[i] * beta[k] * crossCache[dim][i * N + k];
       }
     }
-    firstOrder[dim] = Math.max(
-      0,
-      (crossS - emuMinusMean * emuMinusMean) / varMu,
-    );
+    firstOrder[dim] = Math.max(0, (crossS - emuMinusMean * emuMinusMean) / varMu);
 
     // ── Total-order: ST_dim = 1 - V_{~dim}/Var(μ) ──
     const gamma = new Float64Array(N);
@@ -984,18 +954,22 @@ export function computeEnsembleAnalyticSobol(
     let crossT = 0;
     for (let i = 0; i < N; i++) {
       for (let k = 0; k < N; k++) {
-        let prod = 1.0;
+        let prod = 1;
         for (let j = 0; j < d; j++) {
-          if (j !== dim) prod *= crossCache[j][i * N + k];
+          if (j !== dim) {
+            prod *= crossCache[j][i * N + k];
+          }
         }
         crossT += gamma[i] * gamma[k] * prod;
       }
     }
     let sumGammaW = 0;
     for (let i = 0; i < N; i++) {
-      let prod = 1.0;
+      let prod = 1;
       for (let j = 0; j < d; j++) {
-        if (j !== dim) prod *= w[i][j];
+        if (j !== dim) {
+          prod *= w[i][j];
+        }
       }
       sumGammaW += gamma[i] * prod;
     }

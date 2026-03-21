@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 /**
  * Outcome (un)transforms for GP predictions.
  *
@@ -132,11 +134,7 @@ export class PowerUntransform implements OutcomeUntransform {
    * method, because the YJ inverse can be highly nonlinear and the delta
    * method underestimates variance.
    */
-  constructor(
-    power: number,
-    scalerMean?: number,
-    scalerScale?: number,
-  ) {
+  constructor(power: number, scalerMean?: number, scalerScale?: number) {
     this.power = power;
     this.scalerMean = scalerMean;
     this.scalerScale = scalerScale;
@@ -144,7 +142,7 @@ export class PowerUntransform implements OutcomeUntransform {
 
   untransform(mu: number, variance: number): { mean: number; variance: number } {
     // Full inverse: un-standardize (scaler) then inverse YJ
-    const fullInverse = (z: number) => {
+    const fullInverse = (z: number): number => {
       let v = z;
       if (this.scalerScale !== undefined && this.scalerMean !== undefined) {
         v = v * this.scalerScale + this.scalerMean;
@@ -156,7 +154,7 @@ export class PowerUntransform implements OutcomeUntransform {
 
     // CI-width matching (matches Ax's match_ci_width):
     // Transform the CI endpoints and find variance that preserves CI width
-    const FAC = 1.959963984540054; // norm.ppf(0.975) for 95% CI
+    const FAC = 1.959_963_984_540_054; // norm.ppf(0.975) for 95% CI
     const sem = Math.sqrt(variance);
     const right = fullInverse(mu + FAC * sem);
     const left = fullInverse(mu - FAC * sem);
@@ -190,7 +188,6 @@ export class PowerUntransform implements OutcomeUntransform {
       return 1 - Math.pow(-z * (2 - lam) + 1, 1 / (2 - lam));
     }
   }
-
 }
 
 /**
@@ -202,9 +199,9 @@ export class PowerUntransform implements OutcomeUntransform {
  * critical for nonlinear transforms that need both to propagate uncertainty.
  */
 export class ChainedOutcomeUntransform implements OutcomeUntransform {
-  readonly transforms: OutcomeUntransform[];
+  readonly transforms: Array<OutcomeUntransform>;
 
-  constructor(transforms: OutcomeUntransform[]) {
+  constructor(transforms: Array<OutcomeUntransform>) {
     // Store in reverse order for un-transformation
     this.transforms = [...transforms].reverse();
   }

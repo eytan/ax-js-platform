@@ -287,7 +287,9 @@ var Ax = (() => {
     }
     static eye(n) {
       const m = new _Matrix(n, n);
-      for (let i = 0; i < n; i++) m.data[i * n + i] = 1;
+      for (let i = 0; i < n; i++) {
+        m.data[i * n + i] = 1;
+      }
       return m;
     }
     static vector(arr) {
@@ -304,7 +306,9 @@ var Ax = (() => {
     }
     col(j) {
       const c = new Float64Array(this.rows);
-      for (let i = 0; i < this.rows; i++) c[i] = this.data[i * this.cols + j];
+      for (let i = 0; i < this.rows; i++) {
+        c[i] = this.data[i * this.cols + j];
+      }
       return c;
     }
     addDiag(value) {
@@ -331,71 +335,39 @@ var Ax = (() => {
     }
   };
 
-  // src/linalg/cholesky.ts
-  function cholesky(A) {
-    const result = choleskyRaw(A);
-    if (result !== null) return result;
-    const jitters = [1e-6, 1e-5, 1e-4, 1e-3];
-    for (const jitter of jitters) {
-      const Aj = A.clone();
-      Aj.addDiag(jitter);
-      const result2 = choleskyRaw(Aj);
-      if (result2 !== null) return result2;
-    }
-    throw new Error("Cholesky decomposition failed even with jitter 1e-3");
-  }
-  function choleskyRaw(A) {
-    const n = A.rows;
-    const L = Matrix.zeros(n, n);
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j <= i; j++) {
-        let s = A.get(i, j);
-        for (let k = 0; k < j; k++) {
-          s -= L.get(i, k) * L.get(j, k);
-        }
-        if (i === j) {
-          if (s <= 0) return null;
-          L.set(i, j, Math.sqrt(s));
-        } else {
-          L.set(i, j, s / L.get(j, j));
-        }
+  // src/kernels/categorical.ts
+  var CategoricalKernel = class {
+    lengthscales;
+    constructor(lengthscale) {
+      if (typeof lengthscale === "number") {
+        this.lengthscales = Float64Array.from([lengthscale]);
+      } else {
+        this.lengthscales = Float64Array.from(lengthscale);
       }
     }
-    return L;
-  }
-
-  // src/linalg/solve.ts
-  function forwardSolve(L, b) {
-    const n = L.rows;
-    const x = Matrix.zeros(n, b.cols);
-    for (let col = 0; col < b.cols; col++) {
-      for (let i = 0; i < n; i++) {
-        let s = b.get(i, col);
-        for (let j = 0; j < i; j++) {
-          s -= L.get(i, j) * x.get(j, col);
+    compute(x1, x2) {
+      const result = new Matrix(x1.rows, x2.rows);
+      const d = x1.cols;
+      const ard = this.lengthscales.length > 1;
+      for (let i = 0; i < x1.rows; i++) {
+        for (let j = 0; j < x2.rows; j++) {
+          let dist = 0;
+          for (let k = 0; k < d; k++) {
+            if (Math.abs(x1.get(i, k) - x2.get(j, k)) > 1e-8) {
+              dist += 1 / (ard ? this.lengthscales[k] : this.lengthscales[0]);
+            }
+          }
+          result.set(i, j, Math.exp(-dist / d));
         }
-        x.set(i, col, s / L.get(i, i));
       }
+      return result;
     }
-    return x;
-  }
-  function backSolve(L, b) {
-    const n = L.rows;
-    const x = Matrix.zeros(n, b.cols);
-    for (let col = 0; col < b.cols; col++) {
-      for (let i = n - 1; i >= 0; i--) {
-        let s = b.get(i, col);
-        for (let j = i + 1; j < n; j++) {
-          s -= L.get(j, i) * x.get(j, col);
-        }
-        x.set(i, col, s / L.get(i, i));
-      }
+    computeDiag(x) {
+      const diag = new Float64Array(x.rows);
+      diag.fill(1);
+      return diag;
     }
-    return x;
-  }
-  function solveCholesky(L, b) {
-    return backSolve(L, forwardSolve(L, b));
-  }
+  };
 
   // src/kernels/composite.ts
   function extractActiveDims(x, activeDims) {
@@ -426,7 +398,9 @@ var Ax = (() => {
       }
       const K = this.compute(x, x);
       const diag = new Float64Array(x.rows);
-      for (let i = 0; i < x.rows; i++) diag[i] = K.get(i, i);
+      for (let i = 0; i < x.rows; i++) {
+        diag[i] = K.get(i, i);
+      }
       return diag;
     }
   };
@@ -449,7 +423,9 @@ var Ax = (() => {
       const diag = kernelDiag(this.kernels[0], x);
       for (let k = 1; k < this.kernels.length; k++) {
         const d = kernelDiag(this.kernels[k], x);
-        for (let i = 0; i < diag.length; i++) diag[i] += d[i];
+        for (let i = 0; i < diag.length; i++) {
+          diag[i] += d[i];
+        }
       }
       return diag;
     }
@@ -473,7 +449,9 @@ var Ax = (() => {
       const diag = kernelDiag(this.kernels[0], x);
       for (let k = 1; k < this.kernels.length; k++) {
         const d = kernelDiag(this.kernels[k], x);
-        for (let i = 0; i < diag.length; i++) diag[i] *= d[i];
+        for (let i = 0; i < diag.length; i++) {
+          diag[i] *= d[i];
+        }
       }
       return diag;
     }
@@ -484,192 +462,237 @@ var Ax = (() => {
     }
     const K = kernel.compute(x, x);
     const diag = new Float64Array(x.rows);
-    for (let i = 0; i < x.rows; i++) diag[i] = K.get(i, i);
+    for (let i = 0; i < x.rows; i++) {
+      diag[i] = K.get(i, i);
+    }
     return diag;
   }
 
-  // src/models/gp.ts
-  var ExactGP = class {
-    kernel;
-    mean;
-    inputTransform;
-    inputWarp;
-    outcomeTransform;
-    trainXNorm;
-    L;
-    alpha;
-    constructor(trainX, trainY, kernel, mean, noiseVariance, inputTransform, outcomeTransform, inputWarp) {
-      this.kernel = kernel;
-      this.mean = mean;
-      this.inputTransform = inputTransform ?? null;
-      this.inputWarp = inputWarp ?? null;
-      this.outcomeTransform = outcomeTransform ?? null;
-      let xNorm = inputTransform ? inputTransform.forward(trainX) : trainX.clone();
-      if (inputWarp) {
-        xNorm = inputWarp.forward(xNorm);
+  // src/kernels/distance.ts
+  function cdistSquared(x1, x2) {
+    const n = x1.rows;
+    const m = x2.rows;
+    const d = x1.cols;
+    const result = new Matrix(n, m);
+    const norms1 = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      let s = 0;
+      for (let k = 0; k < d; k++) {
+        const v = x1.get(i, k);
+        s += v * v;
       }
-      this.trainXNorm = xNorm;
-      const K = kernel.compute(this.trainXNorm, this.trainXNorm);
-      if (typeof noiseVariance === "number") {
-        K.addDiag(noiseVariance);
-      } else {
-        K.addDiagVec(noiseVariance);
-      }
-      this.L = cholesky(K);
-      const meanVals = mean.forward(this.trainXNorm);
-      const residuals = new Matrix(trainY.rows, 1);
-      for (let i = 0; i < trainY.rows; i++) {
-        residuals.data[i] = trainY.get(i, 0) - meanVals.data[i];
-      }
-      this.alpha = solveCholesky(this.L, residuals);
+      norms1[i] = s;
     }
-    /** Expose GP internals for analytic Sobol' computation. */
-    getInternals() {
-      const n = this.alpha.rows;
-      const d = this.trainXNorm.cols;
-      const alphaArr = new Float64Array(n);
-      for (let i = 0; i < n; i++) alphaArr[i] = this.alpha.get(i, 0);
-      const trainXArr = new Array(n);
-      for (let i = 0; i < n; i++) {
-        const row = new Array(d);
-        for (let j = 0; j < d; j++) row[j] = this.trainXNorm.get(i, j);
-        trainXArr[i] = row;
+    const norms2 = new Float64Array(m);
+    for (let j = 0; j < m; j++) {
+      let s = 0;
+      for (let k = 0; k < d; k++) {
+        const v = x2.get(j, k);
+        s += v * v;
       }
-      return {
-        alpha: alphaArr,
-        trainXNorm: trainXArr,
-        meanConstant: this.mean.constant
-      };
+      norms2[j] = s;
     }
-    /** Transform test inputs through normalize + warp pipeline. */
-    transformInputs(testX) {
-      let testXNorm = this.inputTransform ? this.inputTransform.forward(testX) : testX;
-      if (this.inputWarp) {
-        testXNorm = this.inputWarp.forward(testXNorm);
-      }
-      return testXNorm;
-    }
-    /** Compute V = L⁻¹ @ K*ᵀ for a set of transformed test points. */
-    computeV(Kstar, nTest) {
-      const KstarT = new Matrix(this.trainXNorm.rows, nTest);
-      for (let i = 0; i < Kstar.rows; i++) {
-        for (let j = 0; j < Kstar.cols; j++) {
-          KstarT.set(j, i, Kstar.get(i, j));
-        }
-      }
-      return forwardSolve(this.L, KstarT);
-    }
-    predict(testX) {
-      const testXNorm = this.transformInputs(testX);
-      const Kstar = this.kernel.compute(testXNorm, this.trainXNorm);
-      const meanPrior = this.mean.forward(testXNorm);
-      const mu = new Float64Array(testX.rows);
-      for (let i = 0; i < testX.rows; i++) {
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < m; j++) {
         let dot = 0;
-        for (let j = 0; j < this.trainXNorm.rows; j++) {
-          dot += Kstar.get(i, j) * this.alpha.get(j, 0);
+        for (let k = 0; k < d; k++) {
+          dot += x1.get(i, k) * x2.get(j, k);
         }
-        mu[i] = meanPrior.data[i] + dot;
+        const val = norms1[i] + norms2[j] - 2 * dot;
+        result.set(i, j, Math.max(val, 0));
       }
-      const kssDiag = kernelDiag(this.kernel, testXNorm);
-      const V = this.computeV(Kstar, testX.rows);
-      const variance = new Float64Array(testX.rows);
-      for (let i = 0; i < testX.rows; i++) {
-        let vSq = 0;
-        for (let j = 0; j < this.trainXNorm.rows; j++) {
-          const vji = V.get(j, i);
-          vSq += vji * vji;
-        }
-        variance[i] = Math.max(0, kssDiag[i] - vSq);
-      }
-      if (this.outcomeTransform) {
-        for (let i = 0; i < mu.length; i++) {
-          const ut = this.outcomeTransform.untransform(mu[i], variance[i]);
-          mu[i] = ut.mean;
-          variance[i] = ut.variance;
-        }
-      }
-      return { mean: mu, variance };
     }
-    /**
-     * Analytic Leave-One-Out Cross-Validation predictions (Rasmussen & Williams, Eq. 5.12).
-     *
-     * LOO mean:     μ_LOO(i) = y_i - α_i / [K⁻¹]_ii
-     * LOO variance: σ²_LOO(i) = 1 / [K⁻¹]_ii
-     *
-     * where α = K⁻¹(y - m(X)) and K = K(X,X) + σ²I.
-     * No refitting required — computed from the full GP's Cholesky factor.
-     *
-     * Returns predictions in model-internal space (before outcome untransform).
-     * Caller (Predictor) is responsible for applying outcome + adapter untransforms.
-     */
-    loocvPredictions(trainY) {
-      const n = this.L.rows;
-      const diagKinv = new Float64Array(n);
-      for (let i = 0; i < n; i++) {
-        const x = new Float64Array(n);
-        for (let row = 0; row < n; row++) {
-          let s = row === i ? 1 : 0;
-          for (let j = 0; j < row; j++) {
-            s -= this.L.get(row, j) * x[j];
-          }
-          x[row] = s / this.L.get(row, row);
-        }
-        let sumSq = 0;
-        for (let j = 0; j < n; j++) sumSq += x[j] * x[j];
-        diagKinv[i] = sumSq;
-      }
-      const mean = new Float64Array(n);
-      const variance = new Float64Array(n);
-      for (let i = 0; i < n; i++) {
-        const yi = trainY.get(i, 0);
-        mean[i] = yi - this.alpha.get(i, 0) / diagKinv[i];
-        variance[i] = Math.max(0, 1 / diagKinv[i]);
-      }
-      if (this.outcomeTransform) {
-        for (let i = 0; i < n; i++) {
-          const ut = this.outcomeTransform.untransform(mean[i], variance[i]);
-          mean[i] = ut.mean;
-          variance[i] = ut.variance;
-        }
-      }
-      return { mean, variance };
+    return result;
+  }
+  function cdist(x1, x2) {
+    const sq = cdistSquared(x1, x2);
+    const result = new Matrix(sq.rows, sq.cols);
+    for (let i = 0; i < sq.data.length; i++) {
+      result.data[i] = Math.sqrt(Math.max(sq.data[i], 1e-30));
+      result.data[i] = Math.max(result.data[i], 1e-15);
     }
-    /**
-     *
-     * Cov(f(x_i), f(x_ref)) = k(x_i, x_ref) - v_i · v_ref
-     * where v = L⁻¹ @ k(X, x)
-     *
-     * Note: returns covariance in the MODEL's transformed space (before outcome
-     * untransform). For Standardize this scales by std²; for nonlinear transforms
-     * the covariance in original space requires additional delta-method terms.
-     * For relativization, the Standardize scaling cancels out in the ratio.
-     */
-    predictCovarianceWith(testX, refX) {
-      const testXNorm = this.transformInputs(testX);
-      const refXNorm = this.transformInputs(refX);
-      const KstarTest = this.kernel.compute(testXNorm, this.trainXNorm);
-      const KstarRef = this.kernel.compute(refXNorm, this.trainXNorm);
-      const Vtest = this.computeV(KstarTest, testX.rows);
-      const Vref = this.computeV(KstarRef, refX.rows);
-      const Ktr = this.kernel.compute(testXNorm, refXNorm);
-      const n = testX.rows;
-      const covariance = new Float64Array(n);
-      for (let i = 0; i < n; i++) {
-        let vDot = 0;
-        for (let j = 0; j < this.trainXNorm.rows; j++) {
-          vDot += Vtest.get(j, i) * Vref.get(j, 0);
+    return result;
+  }
+
+  // src/kernels/matern.ts
+  var MaternKernel = class {
+    lengthscale;
+    nu;
+    constructor(lengthscale, nu = 2.5) {
+      this.lengthscale = Float64Array.from(lengthscale);
+      this.nu = nu;
+    }
+    compute(x1, x2) {
+      const d = x1.cols;
+      const mean = new Float64Array(d);
+      for (let j = 0; j < d; j++) {
+        let s = 0;
+        for (let i = 0; i < x1.rows; i++) {
+          s += x1.get(i, j);
         }
-        covariance[i] = Ktr.get(i, 0) - vDot;
+        mean[j] = s / x1.rows;
       }
-      if (this.outcomeTransform) {
-        for (let i = 0; i < n; i++) {
-          covariance[i] = this.outcomeTransform.untransformCovariance(covariance[i]);
+      const x1s = new Matrix(x1.rows, d);
+      for (let i = 0; i < x1.rows; i++) {
+        for (let j = 0; j < d; j++) {
+          x1s.set(i, j, (x1.get(i, j) - mean[j]) / this.lengthscale[j]);
         }
       }
-      return covariance;
+      const x2s = new Matrix(x2.rows, d);
+      for (let i = 0; i < x2.rows; i++) {
+        for (let j = 0; j < d; j++) {
+          x2s.set(i, j, (x2.get(i, j) - mean[j]) / this.lengthscale[j]);
+        }
+      }
+      const dist = cdist(x1s, x2s);
+      const result = new Matrix(x1.rows, x2.rows);
+      if (this.nu === 2.5) {
+        const sqrt5 = Math.sqrt(5);
+        for (let i = 0; i < dist.data.length; i++) {
+          const r = dist.data[i];
+          const sr = sqrt5 * r;
+          result.data[i] = (1 + sr + 5 * r * r / 3) * Math.exp(-sr);
+        }
+      } else if (this.nu === 1.5) {
+        const sqrt3 = Math.sqrt(3);
+        for (let i = 0; i < dist.data.length; i++) {
+          const r = dist.data[i];
+          const sr = sqrt3 * r;
+          result.data[i] = (1 + sr) * Math.exp(-sr);
+        }
+      } else {
+        for (let i = 0; i < dist.data.length; i++) {
+          result.data[i] = Math.exp(-dist.data[i]);
+        }
+      }
+      return result;
+    }
+    computeDiag(x) {
+      const diag = new Float64Array(x.rows);
+      diag.fill(1);
+      return diag;
     }
   };
+
+  // src/kernels/rbf.ts
+  var RBFKernel = class {
+    lengthscale;
+    constructor(lengthscale) {
+      this.lengthscale = Float64Array.from(lengthscale);
+    }
+    compute(x1, x2) {
+      const d = x1.cols;
+      const x1s = new Matrix(x1.rows, d);
+      for (let i = 0; i < x1.rows; i++) {
+        for (let j = 0; j < d; j++) {
+          x1s.set(i, j, x1.get(i, j) / this.lengthscale[j]);
+        }
+      }
+      const x2s = new Matrix(x2.rows, d);
+      for (let i = 0; i < x2.rows; i++) {
+        for (let j = 0; j < d; j++) {
+          x2s.set(i, j, x2.get(i, j) / this.lengthscale[j]);
+        }
+      }
+      const sq = cdistSquared(x1s, x2s);
+      const result = new Matrix(x1.rows, x2.rows);
+      for (let i = 0; i < sq.data.length; i++) {
+        result.data[i] = Math.exp(-sq.data[i] / 2);
+      }
+      return result;
+    }
+    computeDiag(x) {
+      const diag = new Float64Array(x.rows);
+      diag.fill(1);
+      return diag;
+    }
+  };
+
+  // src/kernels/scale.ts
+  var ScaleKernel = class {
+    base;
+    outputscale;
+    constructor(base, outputscale) {
+      this.base = base;
+      this.outputscale = outputscale;
+    }
+    compute(x1, x2) {
+      const K = this.base.compute(x1, x2);
+      for (let i = 0; i < K.data.length; i++) {
+        K.data[i] *= this.outputscale;
+      }
+      return K;
+    }
+    computeDiag(x) {
+      if (this.base.computeDiag) {
+        const diag2 = this.base.computeDiag(x);
+        for (let i = 0; i < diag2.length; i++) {
+          diag2[i] *= this.outputscale;
+        }
+        return diag2;
+      }
+      const K = this.base.compute(x, x);
+      const diag = new Float64Array(x.rows);
+      for (let i = 0; i < x.rows; i++) {
+        diag[i] = K.get(i, i) * this.outputscale;
+      }
+      return diag;
+    }
+  };
+
+  // src/kernels/build.ts
+  function _validateLengthscale(ls, kernelType) {
+    for (let i = 0; i < ls.length; i++) {
+      if (ls[i] <= 0 || !isFinite(ls[i])) {
+        throw new Error(
+          `${kernelType} kernel: lengthscale[${i}] = ${ls[i]} must be positive and finite`
+        );
+      }
+    }
+  }
+  function buildKernel(state) {
+    let kernel;
+    switch (state.type) {
+      case "Matern": {
+        _validateLengthscale(state.lengthscale, "Matern");
+        kernel = new MaternKernel(state.lengthscale, state.nu ?? 2.5);
+        break;
+      }
+      case "RBF": {
+        _validateLengthscale(state.lengthscale, "RBF");
+        kernel = new RBFKernel(state.lengthscale);
+        break;
+      }
+      case "Categorical": {
+        kernel = new CategoricalKernel(
+          state.lengthscale && state.lengthscale.length > 1 ? state.lengthscale : state.lengthscale?.[0] ?? 1
+        );
+        break;
+      }
+      case "Scale": {
+        kernel = new ScaleKernel(buildKernel(state.base_kernel), state.outputscale);
+        break;
+      }
+      case "Additive": {
+        kernel = new AdditiveKernel(state.kernels.map(buildKernel));
+        break;
+      }
+      case "Product": {
+        kernel = new ProductKernel(state.kernels.map(buildKernel));
+        break;
+      }
+      default: {
+        throw new Error(`Unknown kernel type: ${String(state.type)}`);
+      }
+    }
+    if (state.type !== "Scale" && state.outputscale !== void 0) {
+      kernel = new ScaleKernel(kernel, state.outputscale);
+    }
+    if (state.active_dims) {
+      kernel = new ActiveDimsKernel(kernel, state.active_dims);
+    }
+    return kernel;
+  }
 
   // src/means/constant.ts
   var ConstantMean = class {
@@ -681,66 +704,6 @@ var Ax = (() => {
       const result = new Matrix(x.rows, 1);
       for (let i = 0; i < x.rows; i++) {
         result.data[i] = this.constant;
-      }
-      return result;
-    }
-  };
-
-  // src/transforms/normalize.ts
-  function identityInputTransform(d) {
-    return {
-      offset: new Array(d).fill(0),
-      coefficient: new Array(d).fill(1)
-    };
-  }
-  function boundsInputTransform(bounds) {
-    return {
-      offset: bounds.map((b) => b[0]),
-      coefficient: bounds.map((b) => b[1] - b[0])
-    };
-  }
-  var InputNormalize = class {
-    offset;
-    coefficient;
-    constructor(offset, coefficient) {
-      this.offset = Float64Array.from(offset);
-      this.coefficient = Float64Array.from(coefficient);
-    }
-    forward(X) {
-      const result = new Matrix(X.rows, X.cols);
-      for (let i = 0; i < X.rows; i++) {
-        for (let j = 0; j < X.cols; j++) {
-          result.set(i, j, (X.get(i, j) - this.offset[j]) / this.coefficient[j]);
-        }
-      }
-      return result;
-    }
-  };
-
-  // src/transforms/warp.ts
-  var InputWarp = class {
-    concentration0;
-    concentration1;
-    indices;
-    constructor(concentration0, concentration1, indices) {
-      this.concentration0 = Float64Array.from(concentration0);
-      this.concentration1 = Float64Array.from(concentration1);
-      this.indices = indices ?? null;
-    }
-    forward(X) {
-      const result = X.clone();
-      const dims = this.indices ?? Array.from({ length: X.cols }, (_, i) => i);
-      const eps = 1e-7;
-      const range = 1 - 2 * eps;
-      for (let i = 0; i < X.rows; i++) {
-        for (let k = 0; k < dims.length; k++) {
-          const j = dims[k];
-          const x = result.get(i, j);
-          const a = this.concentration1[k];
-          const b = this.concentration0[k];
-          const xn = Math.max(eps, Math.min(1 - eps, x * range + eps));
-          result.set(i, j, 1 - Math.pow(1 - Math.pow(xn, a), b));
-        }
       }
       return result;
     }
@@ -876,270 +839,345 @@ var Ax = (() => {
       return new StandardizeUntransform(mean, std);
     }
     switch (state.type) {
-      case "Log":
+      case "Log": {
         return new LogUntransform();
-      case "Bilog":
+      }
+      case "Bilog": {
         return new BilogUntransform();
-      case "Power":
+      }
+      case "Power": {
         return new PowerUntransform(state.power);
+      }
       case "Chained": {
         const transforms = state.transforms.map(buildOutcomeUntransform);
         return new ChainedOutcomeUntransform(transforms);
       }
-      default:
+      default: {
         throw new Error(`Unknown outcome transform type: ${state.type}`);
+      }
     }
   }
 
-  // src/kernels/distance.ts
-  function cdistSquared(x1, x2) {
-    const n = x1.rows;
-    const m = x2.rows;
-    const d = x1.cols;
-    const result = new Matrix(n, m);
-    const norms1 = new Float64Array(n);
-    for (let i = 0; i < n; i++) {
-      let s = 0;
-      for (let k = 0; k < d; k++) {
-        const v = x1.get(i, k);
-        s += v * v;
-      }
-      norms1[i] = s;
-    }
-    const norms2 = new Float64Array(m);
-    for (let j = 0; j < m; j++) {
-      let s = 0;
-      for (let k = 0; k < d; k++) {
-        const v = x2.get(j, k);
-        s += v * v;
-      }
-      norms2[j] = s;
-    }
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j < m; j++) {
-        let dot = 0;
-        for (let k = 0; k < d; k++) {
-          dot += x1.get(i, k) * x2.get(j, k);
-        }
-        const val = norms1[i] + norms2[j] - 2 * dot;
-        result.set(i, j, Math.max(val, 0));
-      }
-    }
-    return result;
+  // src/transforms/normalize.ts
+  function identityInputTransform(d) {
+    return {
+      offset: new Array(d).fill(0),
+      coefficient: new Array(d).fill(1)
+    };
   }
-  function cdist(x1, x2) {
-    const sq = cdistSquared(x1, x2);
-    const result = new Matrix(sq.rows, sq.cols);
-    for (let i = 0; i < sq.data.length; i++) {
-      result.data[i] = Math.sqrt(Math.max(sq.data[i], 1e-30));
-      result.data[i] = Math.max(result.data[i], 1e-15);
-    }
-    return result;
+  function boundsInputTransform(bounds) {
+    return {
+      offset: bounds.map((b) => b[0]),
+      coefficient: bounds.map((b) => b[1] - b[0])
+    };
   }
-
-  // src/kernels/matern.ts
-  var MaternKernel = class {
-    lengthscale;
-    nu;
-    constructor(lengthscale, nu = 2.5) {
-      this.lengthscale = Float64Array.from(lengthscale);
-      this.nu = nu;
+  var InputNormalize = class {
+    offset;
+    coefficient;
+    constructor(offset, coefficient) {
+      this.offset = Float64Array.from(offset);
+      this.coefficient = Float64Array.from(coefficient);
     }
-    compute(x1, x2) {
-      const d = x1.cols;
-      const mean = new Float64Array(d);
-      for (let j = 0; j < d; j++) {
-        let s = 0;
-        for (let i = 0; i < x1.rows; i++) s += x1.get(i, j);
-        mean[j] = s / x1.rows;
-      }
-      const x1s = new Matrix(x1.rows, d);
-      for (let i = 0; i < x1.rows; i++) {
-        for (let j = 0; j < d; j++) {
-          x1s.set(i, j, (x1.get(i, j) - mean[j]) / this.lengthscale[j]);
-        }
-      }
-      const x2s = new Matrix(x2.rows, d);
-      for (let i = 0; i < x2.rows; i++) {
-        for (let j = 0; j < d; j++) {
-          x2s.set(i, j, (x2.get(i, j) - mean[j]) / this.lengthscale[j]);
-        }
-      }
-      const dist = cdist(x1s, x2s);
-      const result = new Matrix(x1.rows, x2.rows);
-      if (this.nu === 2.5) {
-        const sqrt5 = Math.sqrt(5);
-        for (let i = 0; i < dist.data.length; i++) {
-          const r = dist.data[i];
-          const sr = sqrt5 * r;
-          result.data[i] = (1 + sr + 5 * r * r / 3) * Math.exp(-sr);
-        }
-      } else if (this.nu === 1.5) {
-        const sqrt3 = Math.sqrt(3);
-        for (let i = 0; i < dist.data.length; i++) {
-          const r = dist.data[i];
-          const sr = sqrt3 * r;
-          result.data[i] = (1 + sr) * Math.exp(-sr);
-        }
-      } else {
-        for (let i = 0; i < dist.data.length; i++) {
-          result.data[i] = Math.exp(-dist.data[i]);
+    forward(X) {
+      const result = new Matrix(X.rows, X.cols);
+      for (let i = 0; i < X.rows; i++) {
+        for (let j = 0; j < X.cols; j++) {
+          result.set(i, j, (X.get(i, j) - this.offset[j]) / this.coefficient[j]);
         }
       }
       return result;
     }
-    computeDiag(x) {
-      const diag = new Float64Array(x.rows);
-      diag.fill(1);
-      return diag;
-    }
   };
 
-  // src/kernels/rbf.ts
-  var RBFKernel = class {
-    lengthscale;
-    constructor(lengthscale) {
-      this.lengthscale = Float64Array.from(lengthscale);
+  // src/transforms/warp.ts
+  var InputWarp = class {
+    concentration0;
+    concentration1;
+    indices;
+    constructor(concentration0, concentration1, indices) {
+      this.concentration0 = Float64Array.from(concentration0);
+      this.concentration1 = Float64Array.from(concentration1);
+      this.indices = indices ?? null;
     }
-    compute(x1, x2) {
-      const d = x1.cols;
-      const x1s = new Matrix(x1.rows, d);
-      for (let i = 0; i < x1.rows; i++) {
-        for (let j = 0; j < d; j++) {
-          x1s.set(i, j, x1.get(i, j) / this.lengthscale[j]);
+    forward(X) {
+      const result = X.clone();
+      const dims = this.indices ?? Array.from({ length: X.cols }, (_, i) => i);
+      const eps = 1e-7;
+      const range = 1 - 2 * eps;
+      for (let i = 0; i < X.rows; i++) {
+        for (let k = 0; k < dims.length; k++) {
+          const j = dims[k];
+          const x = result.get(i, j);
+          const a = this.concentration1[k];
+          const b = this.concentration0[k];
+          const xn = Math.max(eps, Math.min(1 - eps, x * range + eps));
+          result.set(i, j, 1 - Math.pow(1 - Math.pow(xn, a), b));
         }
-      }
-      const x2s = new Matrix(x2.rows, d);
-      for (let i = 0; i < x2.rows; i++) {
-        for (let j = 0; j < d; j++) {
-          x2s.set(i, j, x2.get(i, j) / this.lengthscale[j]);
-        }
-      }
-      const sq = cdistSquared(x1s, x2s);
-      const result = new Matrix(x1.rows, x2.rows);
-      for (let i = 0; i < sq.data.length; i++) {
-        result.data[i] = Math.exp(-sq.data[i] / 2);
       }
       return result;
     }
-    computeDiag(x) {
-      const diag = new Float64Array(x.rows);
-      diag.fill(1);
-      return diag;
-    }
   };
 
-  // src/kernels/scale.ts
-  var ScaleKernel = class {
-    base;
-    outputscale;
-    constructor(base, outputscale) {
-      this.base = base;
-      this.outputscale = outputscale;
+  // src/linalg/cholesky.ts
+  function cholesky(A) {
+    const result = choleskyRaw(A);
+    if (result !== null) {
+      return result;
     }
-    compute(x1, x2) {
-      const K = this.base.compute(x1, x2);
-      for (let i = 0; i < K.data.length; i++) {
-        K.data[i] *= this.outputscale;
-      }
-      return K;
-    }
-    computeDiag(x) {
-      if (this.base.computeDiag) {
-        const diag2 = this.base.computeDiag(x);
-        for (let i = 0; i < diag2.length; i++) diag2[i] *= this.outputscale;
-        return diag2;
-      }
-      const K = this.base.compute(x, x);
-      const diag = new Float64Array(x.rows);
-      for (let i = 0; i < x.rows; i++) diag[i] = K.get(i, i) * this.outputscale;
-      return diag;
-    }
-  };
-
-  // src/kernels/categorical.ts
-  var CategoricalKernel = class {
-    lengthscales;
-    constructor(lengthscale) {
-      if (typeof lengthscale === "number") {
-        this.lengthscales = Float64Array.from([lengthscale]);
-      } else {
-        this.lengthscales = Float64Array.from(lengthscale);
+    const jitters = [1e-6, 1e-5, 1e-4, 1e-3];
+    for (const jitter of jitters) {
+      const Aj = A.clone();
+      Aj.addDiag(jitter);
+      const jittered = choleskyRaw(Aj);
+      if (jittered !== null) {
+        return jittered;
       }
     }
-    compute(x1, x2) {
-      const result = new Matrix(x1.rows, x2.rows);
-      const d = x1.cols;
-      const ard = this.lengthscales.length > 1;
-      for (let i = 0; i < x1.rows; i++) {
-        for (let j = 0; j < x2.rows; j++) {
-          let dist = 0;
-          for (let k = 0; k < d; k++) {
-            if (Math.abs(x1.get(i, k) - x2.get(j, k)) > 1e-8) {
-              dist += 1 / (ard ? this.lengthscales[k] : this.lengthscales[0]);
-            }
+    throw new Error("Cholesky decomposition failed even with jitter 1e-3");
+  }
+  function choleskyRaw(A) {
+    const n = A.rows;
+    const L = Matrix.zeros(n, n);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j <= i; j++) {
+        let s = A.get(i, j);
+        for (let k = 0; k < j; k++) {
+          s -= L.get(i, k) * L.get(j, k);
+        }
+        if (i === j) {
+          if (s <= 0) {
+            return null;
           }
-          result.set(i, j, Math.exp(-dist / d));
+          L.set(i, j, Math.sqrt(s));
+        } else {
+          L.set(i, j, s / L.get(j, j));
         }
       }
-      return result;
     }
-    computeDiag(x) {
-      const diag = new Float64Array(x.rows);
-      diag.fill(1);
-      return diag;
-    }
-  };
+    return L;
+  }
 
-  // src/kernels/build.ts
-  function _validateLengthscale(ls, kernelType) {
-    for (let i = 0; i < ls.length; i++) {
-      if (ls[i] <= 0 || !isFinite(ls[i])) {
-        throw new Error(
-          `${kernelType} kernel: lengthscale[${i}] = ${ls[i]} must be positive and finite`
-        );
+  // src/linalg/solve.ts
+  function forwardSolve(L, b) {
+    const n = L.rows;
+    const x = Matrix.zeros(n, b.cols);
+    for (let col = 0; col < b.cols; col++) {
+      for (let i = 0; i < n; i++) {
+        let s = b.get(i, col);
+        for (let j = 0; j < i; j++) {
+          s -= L.get(i, j) * x.get(j, col);
+        }
+        x.set(i, col, s / L.get(i, i));
       }
     }
+    return x;
   }
-  function buildKernel(state) {
-    let kernel;
-    switch (state.type) {
-      case "Matern":
-        _validateLengthscale(state.lengthscale, "Matern");
-        kernel = new MaternKernel(state.lengthscale, state.nu ?? 2.5);
-        break;
-      case "RBF":
-        _validateLengthscale(state.lengthscale, "RBF");
-        kernel = new RBFKernel(state.lengthscale);
-        break;
-      case "Categorical":
-        kernel = new CategoricalKernel(
-          state.lengthscale && state.lengthscale.length > 1 ? state.lengthscale : state.lengthscale?.[0] ?? 1
-        );
-        break;
-      case "Scale":
-        kernel = new ScaleKernel(
-          buildKernel(state.base_kernel),
-          state.outputscale
-        );
-        break;
-      case "Additive":
-        kernel = new AdditiveKernel(state.kernels.map(buildKernel));
-        break;
-      case "Product":
-        kernel = new ProductKernel(state.kernels.map(buildKernel));
-        break;
-      default:
-        throw new Error(`Unknown kernel type: ${state.type}`);
+  function backSolve(L, b) {
+    const n = L.rows;
+    const x = Matrix.zeros(n, b.cols);
+    for (let col = 0; col < b.cols; col++) {
+      for (let i = n - 1; i >= 0; i--) {
+        let s = b.get(i, col);
+        for (let j = i + 1; j < n; j++) {
+          s -= L.get(j, i) * x.get(j, col);
+        }
+        x.set(i, col, s / L.get(i, i));
+      }
     }
-    if (state.type !== "Scale" && state.outputscale !== void 0) {
-      kernel = new ScaleKernel(kernel, state.outputscale);
-    }
-    if (state.active_dims) {
-      kernel = new ActiveDimsKernel(kernel, state.active_dims);
-    }
-    return kernel;
+    return x;
   }
+  function solveCholesky(L, b) {
+    return backSolve(L, forwardSolve(L, b));
+  }
+
+  // src/models/gp.ts
+  var ExactGP = class {
+    kernel;
+    mean;
+    inputTransform;
+    inputWarp;
+    outcomeTransform;
+    trainXNorm;
+    L;
+    alpha;
+    constructor(trainX, trainY, kernel, mean, noiseVariance, inputTransform, outcomeTransform, inputWarp) {
+      this.kernel = kernel;
+      this.mean = mean;
+      this.inputTransform = inputTransform ?? null;
+      this.inputWarp = inputWarp ?? null;
+      this.outcomeTransform = outcomeTransform ?? null;
+      let xNorm = inputTransform ? inputTransform.forward(trainX) : trainX.clone();
+      if (inputWarp) {
+        xNorm = inputWarp.forward(xNorm);
+      }
+      this.trainXNorm = xNorm;
+      const K = kernel.compute(this.trainXNorm, this.trainXNorm);
+      if (typeof noiseVariance === "number") {
+        K.addDiag(noiseVariance);
+      } else {
+        K.addDiagVec(noiseVariance);
+      }
+      this.L = cholesky(K);
+      const meanVals = mean.forward(this.trainXNorm);
+      const residuals = new Matrix(trainY.rows, 1);
+      for (let i = 0; i < trainY.rows; i++) {
+        residuals.data[i] = trainY.get(i, 0) - meanVals.data[i];
+      }
+      this.alpha = solveCholesky(this.L, residuals);
+    }
+    /** Expose GP internals for analytic Sobol' computation. */
+    getInternals() {
+      const n = this.alpha.rows;
+      const d = this.trainXNorm.cols;
+      const alphaArr = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        alphaArr[i] = this.alpha.get(i, 0);
+      }
+      const trainXArr = new Array(n);
+      for (let i = 0; i < n; i++) {
+        const row = new Array(d);
+        for (let j = 0; j < d; j++) {
+          row[j] = this.trainXNorm.get(i, j);
+        }
+        trainXArr[i] = row;
+      }
+      return {
+        alpha: alphaArr,
+        trainXNorm: trainXArr,
+        meanConstant: this.mean.constant
+      };
+    }
+    /** Transform test inputs through normalize + warp pipeline. */
+    transformInputs(testX) {
+      let testXNorm = this.inputTransform ? this.inputTransform.forward(testX) : testX;
+      if (this.inputWarp) {
+        testXNorm = this.inputWarp.forward(testXNorm);
+      }
+      return testXNorm;
+    }
+    /** Compute V = L⁻¹ @ K*ᵀ for a set of transformed test points. */
+    computeV(Kstar, nTest) {
+      const KstarT = new Matrix(this.trainXNorm.rows, nTest);
+      for (let i = 0; i < Kstar.rows; i++) {
+        for (let j = 0; j < Kstar.cols; j++) {
+          KstarT.set(j, i, Kstar.get(i, j));
+        }
+      }
+      return forwardSolve(this.L, KstarT);
+    }
+    predict(testX) {
+      const testXNorm = this.transformInputs(testX);
+      const Kstar = this.kernel.compute(testXNorm, this.trainXNorm);
+      const meanPrior = this.mean.forward(testXNorm);
+      const mu = new Float64Array(testX.rows);
+      for (let i = 0; i < testX.rows; i++) {
+        let dot = 0;
+        for (let j = 0; j < this.trainXNorm.rows; j++) {
+          dot += Kstar.get(i, j) * this.alpha.get(j, 0);
+        }
+        mu[i] = meanPrior.data[i] + dot;
+      }
+      const kssDiag = kernelDiag(this.kernel, testXNorm);
+      const V = this.computeV(Kstar, testX.rows);
+      const variance = new Float64Array(testX.rows);
+      for (let i = 0; i < testX.rows; i++) {
+        let vSq = 0;
+        for (let j = 0; j < this.trainXNorm.rows; j++) {
+          const vji = V.get(j, i);
+          vSq += vji * vji;
+        }
+        variance[i] = Math.max(0, kssDiag[i] - vSq);
+      }
+      if (this.outcomeTransform) {
+        for (let i = 0; i < mu.length; i++) {
+          const ut = this.outcomeTransform.untransform(mu[i], variance[i]);
+          mu[i] = ut.mean;
+          variance[i] = ut.variance;
+        }
+      }
+      return { mean: mu, variance };
+    }
+    /**
+     * Analytic Leave-One-Out Cross-Validation predictions (Rasmussen & Williams, Eq. 5.12).
+     *
+     * LOO mean:     μ_LOO(i) = y_i - α_i / [K⁻¹]_ii
+     * LOO variance: σ²_LOO(i) = 1 / [K⁻¹]_ii
+     *
+     * where α = K⁻¹(y - m(X)) and K = K(X,X) + σ²I.
+     * No refitting required — computed from the full GP's Cholesky factor.
+     *
+     * Returns predictions in model-internal space (before outcome untransform).
+     * Caller (Predictor) is responsible for applying outcome + adapter untransforms.
+     */
+    loocvPredictions(trainY) {
+      const n = this.L.rows;
+      const diagKinv = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        const x = new Float64Array(n);
+        for (let row = 0; row < n; row++) {
+          let s = row === i ? 1 : 0;
+          for (let j = 0; j < row; j++) {
+            s -= this.L.get(row, j) * x[j];
+          }
+          x[row] = s / this.L.get(row, row);
+        }
+        let sumSq = 0;
+        for (let j = 0; j < n; j++) {
+          sumSq += x[j] * x[j];
+        }
+        diagKinv[i] = sumSq;
+      }
+      const mean = new Float64Array(n);
+      const variance = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        const yi = trainY.get(i, 0);
+        mean[i] = yi - this.alpha.get(i, 0) / diagKinv[i];
+        variance[i] = Math.max(0, 1 / diagKinv[i]);
+      }
+      if (this.outcomeTransform) {
+        for (let i = 0; i < n; i++) {
+          const ut = this.outcomeTransform.untransform(mean[i], variance[i]);
+          mean[i] = ut.mean;
+          variance[i] = ut.variance;
+        }
+      }
+      return { mean, variance };
+    }
+    /**
+     *
+     * Cov(f(x_i), f(x_ref)) = k(x_i, x_ref) - v_i · v_ref
+     * where v = L⁻¹ @ k(X, x)
+     *
+     * Note: returns covariance in the MODEL's transformed space (before outcome
+     * untransform). For Standardize this scales by std²; for nonlinear transforms
+     * the covariance in original space requires additional delta-method terms.
+     * For relativization, the Standardize scaling cancels out in the ratio.
+     */
+    predictCovarianceWith(testX, refX) {
+      const testXNorm = this.transformInputs(testX);
+      const refXNorm = this.transformInputs(refX);
+      const KstarTest = this.kernel.compute(testXNorm, this.trainXNorm);
+      const KstarRef = this.kernel.compute(refXNorm, this.trainXNorm);
+      const Vtest = this.computeV(KstarTest, testX.rows);
+      const Vref = this.computeV(KstarRef, refX.rows);
+      const Ktr = this.kernel.compute(testXNorm, refXNorm);
+      const n = testX.rows;
+      const covariance = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        let vDot = 0;
+        for (let j = 0; j < this.trainXNorm.rows; j++) {
+          vDot += Vtest.get(j, i) * Vref.get(j, 0);
+        }
+        covariance[i] = Ktr.get(i, 0) - vDot;
+      }
+      if (this.outcomeTransform) {
+        for (let i = 0; i < n; i++) {
+          covariance[i] = this.outcomeTransform.untransformCovariance(covariance[i]);
+        }
+      }
+      return covariance;
+    }
+  };
 
   // src/models/single_task.ts
   var SingleTaskGP = class {
@@ -1156,10 +1194,7 @@ var Ax = (() => {
       const kernel = buildKernel(state.kernel);
       const mean = new ConstantMean(state.mean_constant);
       const noiseVariance = Array.isArray(state.noise_variance) ? Float64Array.from(state.noise_variance) : state.noise_variance;
-      const inputTransform = state.input_transform ? new InputNormalize(
-        state.input_transform.offset,
-        state.input_transform.coefficient
-      ) : void 0;
+      const inputTransform = state.input_transform ? new InputNormalize(state.input_transform.offset, state.input_transform.coefficient) : void 0;
       const inputWarp = state.input_warp ? new InputWarp(
         state.input_warp.concentration0,
         state.input_warp.concentration1,
@@ -1211,6 +1246,82 @@ var Ax = (() => {
     }
   };
 
+  // src/models/ensemble_gp.ts
+  var EnsembleGP = class {
+    models;
+    constructor(state) {
+      if (!state.models || state.models.length === 0) {
+        throw new Error("EnsembleGP requires at least one model");
+      }
+      this.models = state.models.map((ms) => new SingleTaskGP(ms));
+    }
+    /** Number of ensemble members. */
+    get numModels() {
+      return this.models.length;
+    }
+    /** Expose GP internals for a specific ensemble member. */
+    getInternals(index) {
+      return this.models[index].getInternals();
+    }
+    predict(testPoints) {
+      if (testPoints.length === 0) {
+        throw new Error("testPoints must not be empty");
+      }
+      const results = this.models.map((m) => m.predict(testPoints));
+      const n = testPoints.length;
+      const K = results.length;
+      const mean = new Float64Array(n);
+      const variance = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        let sumMu = 0;
+        let sumVar = 0;
+        let sumMu2 = 0;
+        for (let k = 0; k < K; k++) {
+          const muK = results[k].mean[i];
+          sumMu += muK;
+          sumVar += results[k].variance[i];
+          sumMu2 += muK * muK;
+        }
+        mean[i] = sumMu / K;
+        variance[i] = sumVar / K + (sumMu2 / K - mean[i] * mean[i]);
+      }
+      return { mean, variance };
+    }
+    /**
+     * Posterior covariance with a reference point, averaged across ensemble.
+     *
+     * Law of total covariance:
+     *   Cov(f(a), f(b)) = E_k[Cov_k(f(a), f(b))] + Cov_k(mu_k(a), mu_k(b))
+     *
+     * First term: average within-model covariance.
+     * Second term: sample covariance of per-model means.
+     */
+    predictCovarianceWith(testPoints, refPoint) {
+      const K = this.models.length;
+      const n = testPoints.length;
+      const covs = this.models.map((m) => m.predictCovarianceWith(testPoints, refPoint));
+      const testResults = this.models.map((m) => m.predict(testPoints));
+      const refResults = this.models.map((m) => m.predict([refPoint]));
+      const result = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        let sumCov = 0;
+        let sumMuA = 0;
+        let sumMuB = 0;
+        let sumMuAB = 0;
+        for (let k = 0; k < K; k++) {
+          sumCov += covs[k][i];
+          const muA = testResults[k].mean[i];
+          const muB = refResults[k].mean[0];
+          sumMuA += muA;
+          sumMuB += muB;
+          sumMuAB += muA * muB;
+        }
+        result[i] = sumCov / K + (sumMuAB / K - sumMuA / K * (sumMuB / K));
+      }
+      return result;
+    }
+  };
+
   // src/models/model_list.ts
   var ModelListGP = class {
     outcomeNames;
@@ -1238,89 +1349,9 @@ var Ax = (() => {
      * Each sub-model is independent, so no cross-output covariance.
      */
     predictCovarianceWith(testPoints, refPoint) {
-      return this.models.map(
-        (m) => m.predictCovarianceWith(testPoints, refPoint)
-      );
+      return this.models.map((m) => m.predictCovarianceWith(testPoints, refPoint));
     }
   };
-
-  // src/linalg/lu.ts
-  function lu(A) {
-    const n = A.rows;
-    const M = A.clone();
-    const perm = Array.from({ length: n }, (_, i) => i);
-    for (let k = 0; k < n; k++) {
-      let maxVal = Math.abs(M.get(k, k));
-      let maxRow = k;
-      for (let i = k + 1; i < n; i++) {
-        const v = Math.abs(M.get(i, k));
-        if (v > maxVal) {
-          maxVal = v;
-          maxRow = i;
-        }
-      }
-      if (maxRow !== k) {
-        [perm[k], perm[maxRow]] = [perm[maxRow], perm[k]];
-        for (let j = 0; j < n; j++) {
-          const tmp = M.get(k, j);
-          M.set(k, j, M.get(maxRow, j));
-          M.set(maxRow, j, tmp);
-        }
-      }
-      const pivot = M.get(k, k);
-      if (Math.abs(pivot) < 1e-15) continue;
-      for (let i = k + 1; i < n; i++) {
-        const factor = M.get(i, k) / pivot;
-        M.set(i, k, factor);
-        for (let j = k + 1; j < n; j++) {
-          M.set(i, j, M.get(i, j) - factor * M.get(k, j));
-        }
-      }
-    }
-    const L = Matrix.eye(n);
-    const U = Matrix.zeros(n, n);
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j < n; j++) {
-        if (j < i) {
-          L.set(i, j, M.get(i, j));
-        } else {
-          U.set(i, j, M.get(i, j));
-        }
-      }
-    }
-    return { L, U, perm };
-  }
-  function solveLU(A, b) {
-    const n = A.rows;
-    const { L, U, perm } = lu(A);
-    const x = Matrix.zeros(n, b.cols);
-    for (let col = 0; col < b.cols; col++) {
-      const pb = new Float64Array(n);
-      for (let i = 0; i < n; i++) {
-        pb[i] = b.get(perm[i], col);
-      }
-      const y = new Float64Array(n);
-      for (let i = 0; i < n; i++) {
-        let s = pb[i];
-        for (let j = 0; j < i; j++) {
-          s -= L.get(i, j) * y[j];
-        }
-        y[i] = s;
-      }
-      const xCol = new Float64Array(n);
-      for (let i = n - 1; i >= 0; i--) {
-        let s = y[i];
-        for (let j = i + 1; j < n; j++) {
-          s -= U.get(i, j) * xCol[j];
-        }
-        xCol[i] = s / U.get(i, i);
-      }
-      for (let i = 0; i < n; i++) {
-        x.set(i, col, xCol[i]);
-      }
-    }
-    return x;
-  }
 
   // src/linalg/ops.ts
   function transpose(a) {
@@ -1337,140 +1368,15 @@ var Ax = (() => {
     for (let i = 0; i < a.rows; i++) {
       for (let k = 0; k < a.cols; k++) {
         const aik = a.data[i * a.cols + k];
-        if (aik === 0) continue;
+        if (aik === 0) {
+          continue;
+        }
         for (let j = 0; j < b.cols; j++) {
           result.data[i * b.cols + j] += aik * b.data[k * b.cols + j];
         }
       }
     }
     return result;
-  }
-
-  // src/models/pairwise_gp.ts
-  var PairwiseGP = class {
-    kernel;
-    mean;
-    inputTransform;
-    inputWarp;
-    trainXNorm;
-    alpha;
-    likelihoodHess;
-    CKI;
-    constructor(trainX, utility, kernel, mean, likelihoodHess, inputTransform, inputWarp) {
-      this.kernel = kernel;
-      this.mean = mean;
-      this.inputTransform = inputTransform ?? null;
-      this.inputWarp = inputWarp ?? null;
-      this.likelihoodHess = likelihoodHess;
-      let xNorm = inputTransform ? inputTransform.forward(trainX) : trainX.clone();
-      if (this.inputWarp) {
-        xNorm = this.inputWarp.forward(xNorm);
-      }
-      this.trainXNorm = xNorm;
-      const K = kernel.compute(this.trainXNorm, this.trainXNorm);
-      const L = cholesky(K);
-      const meanVals = mean.forward(this.trainXNorm);
-      const residuals = new Matrix(utility.rows, 1);
-      for (let i = 0; i < utility.rows; i++) {
-        residuals.data[i] = utility.get(i, 0) - meanVals.data[i];
-      }
-      this.alpha = solveCholesky(L, residuals);
-      const CK = matmul(likelihoodHess, K);
-      this.CKI = CK;
-      this.CKI.addDiag(1);
-    }
-    /** Transform inputs through normalize + warp pipeline. */
-    transformInputs(testX) {
-      let testXNorm = this.inputTransform ? this.inputTransform.forward(testX) : testX;
-      if (this.inputWarp) {
-        testXNorm = this.inputWarp.forward(testXNorm);
-      }
-      return testXNorm;
-    }
-    predict(testPoints) {
-      if (testPoints.length === 0) {
-        throw new Error("testPoints must not be empty");
-      }
-      if (testPoints[0].length !== this.trainXNorm.cols) {
-        throw new Error(
-          `Dimension mismatch: test has ${testPoints[0].length} dims, model trained on ${this.trainXNorm.cols}`
-        );
-      }
-      const testXNorm = this.transformInputs(Matrix.from2D(testPoints));
-      const Kstar = this.kernel.compute(testXNorm, this.trainXNorm);
-      const kssDiag = kernelDiag(this.kernel, testXNorm);
-      const meanPrior = this.mean.forward(testXNorm);
-      const mu = new Float64Array(testXNorm.rows);
-      for (let i = 0; i < testXNorm.rows; i++) {
-        let dot = 0;
-        for (let j = 0; j < this.trainXNorm.rows; j++) {
-          dot += Kstar.get(i, j) * this.alpha.get(j, 0);
-        }
-        mu[i] = meanPrior.data[i] + dot;
-      }
-      const KstarT = transpose(Kstar);
-      const C_KstarT = matmul(this.likelihoodHess, KstarT);
-      const fac = solveLU(this.CKI, C_KstarT);
-      const correction = matmul(Kstar, fac);
-      const variance = new Float64Array(testXNorm.rows);
-      for (let i = 0; i < testXNorm.rows; i++) {
-        variance[i] = Math.max(0, kssDiag[i] - correction.get(i, i));
-      }
-      return { mean: mu, variance };
-    }
-    /**
-     * Posterior covariance between each test point and a reference point.
-     *
-     * For PairwiseGP (Laplace approximation):
-     *   Cov(f(a), f(b)) = k(a,b) - K(a,X) @ (CK+I)⁻¹ @ C @ K(X,b)
-     *
-     * where C = likelihood Hessian, K = prior covariance, CK+I is NOT symmetric.
-     */
-    predictCovarianceWith(testPoints, refPoint) {
-      const testXNorm = this.transformInputs(Matrix.from2D(testPoints));
-      const refXNorm = this.transformInputs(Matrix.from2D([refPoint]));
-      const KstarTest = this.kernel.compute(testXNorm, this.trainXNorm);
-      const KstarRef = this.kernel.compute(refXNorm, this.trainXNorm);
-      const KstarRefT = transpose(KstarRef);
-      const C_KstarRefT = matmul(this.likelihoodHess, KstarRefT);
-      const facRef = solveLU(this.CKI, C_KstarRefT);
-      const Ktr = this.kernel.compute(testXNorm, refXNorm);
-      const n = testPoints.length;
-      const covariance = new Float64Array(n);
-      for (let i = 0; i < n; i++) {
-        let dot = 0;
-        for (let j = 0; j < this.trainXNorm.rows; j++) {
-          dot += KstarTest.get(i, j) * facRef.get(j, 0);
-        }
-        covariance[i] = Ktr.get(i, 0) - dot;
-      }
-      return covariance;
-    }
-  };
-  function createPairwiseGP(state) {
-    const trainX = Matrix.from2D(state.train_X);
-    const utility = Matrix.vector(state.utility);
-    const likelihoodHess = Matrix.from2D(state.likelihood_hess);
-    const kernel = buildKernel(state.kernel);
-    const mean = new ConstantMean(state.mean_constant);
-    const inputTransform = state.input_transform ? new InputNormalize(
-      state.input_transform.offset,
-      state.input_transform.coefficient
-    ) : void 0;
-    const inputWarp = state.input_warp ? new InputWarp(
-      state.input_warp.concentration0,
-      state.input_warp.concentration1,
-      state.input_warp.indices
-    ) : void 0;
-    return new PairwiseGP(
-      trainX,
-      utility,
-      kernel,
-      mean,
-      likelihoodHess,
-      inputTransform,
-      inputWarp
-    );
   }
 
   // src/kernels/multitask.ts
@@ -1523,19 +1429,16 @@ var Ax = (() => {
     taskFeature;
     constructor(dataKernel, covarFactor, diagVar, taskFeature = -1, varIsLog = true, precomputedMatrix) {
       this.dataKernel = dataKernel;
-      this.indexKernel = new IndexKernel(
-        covarFactor,
-        diagVar,
-        varIsLog,
-        precomputedMatrix
-      );
+      this.indexKernel = new IndexKernel(covarFactor, diagVar, varIsLog, precomputedMatrix);
       this.taskFeature = taskFeature;
     }
     splitDataTask(x) {
       const tf = this.taskFeature < 0 ? x.cols + this.taskFeature : this.taskFeature;
       const dataCols = [];
       for (let j = 0; j < x.cols; j++) {
-        if (j !== tf) dataCols.push(j);
+        if (j !== tf) {
+          dataCols.push(j);
+        }
       }
       const data = new Matrix(x.rows, dataCols.length);
       const tasks = new Matrix(x.rows, 1);
@@ -1592,12 +1495,9 @@ var Ax = (() => {
       if (Array.isArray(state.mean_constant)) {
         this.meanConstants = state.mean_constant;
       } else {
-        this.meanConstants = Array(state.num_tasks).fill(state.mean_constant);
+        this.meanConstants = new Array(state.num_tasks).fill(state.mean_constant);
       }
-      this.inputTransform = state.input_transform ? new InputNormalize(
-        state.input_transform.offset,
-        state.input_transform.coefficient
-      ) : null;
+      this.inputTransform = state.input_transform ? new InputNormalize(state.input_transform.offset, state.input_transform.coefficient) : null;
       this.inputWarp = state.input_warp ? new InputWarp(
         state.input_warp.concentration0,
         state.input_warp.concentration1,
@@ -1654,7 +1554,9 @@ var Ax = (() => {
       }
       const dataCols = [];
       for (let j = 0; j < this.trainXFull.cols; j++) {
-        if (j !== tf) dataCols.push(j);
+        if (j !== tf) {
+          dataCols.push(j);
+        }
       }
       const trainXData = new Array(n);
       for (let i = 0; i < n; i++) {
@@ -1674,7 +1576,9 @@ var Ax = (() => {
       const tf = this.taskFeature < 0 ? X.cols + this.taskFeature : this.taskFeature;
       const dataCols = [];
       for (let j = 0; j < X.cols; j++) {
-        if (j !== tf) dataCols.push(j);
+        if (j !== tf) {
+          dataCols.push(j);
+        }
       }
       let dataX = new Matrix(X.rows, dataCols.length);
       for (let i = 0; i < X.rows; i++) {
@@ -1799,92 +1703,212 @@ var Ax = (() => {
     }
   };
 
-  // src/models/ensemble_gp.ts
-  var EnsembleGP = class {
-    models;
-    constructor(state) {
-      if (!state.models || state.models.length === 0) {
-        throw new Error("EnsembleGP requires at least one model");
+  // src/linalg/lu.ts
+  function lu(A) {
+    const n = A.rows;
+    const M = A.clone();
+    const perm = Array.from({ length: n }, (_, i) => i);
+    for (let k = 0; k < n; k++) {
+      let maxVal = Math.abs(M.get(k, k));
+      let maxRow = k;
+      for (let i = k + 1; i < n; i++) {
+        const v = Math.abs(M.get(i, k));
+        if (v > maxVal) {
+          maxVal = v;
+          maxRow = i;
+        }
       }
-      this.models = state.models.map((ms) => new SingleTaskGP(ms));
+      if (maxRow !== k) {
+        [perm[k], perm[maxRow]] = [perm[maxRow], perm[k]];
+        for (let j = 0; j < n; j++) {
+          const tmp = M.get(k, j);
+          M.set(k, j, M.get(maxRow, j));
+          M.set(maxRow, j, tmp);
+        }
+      }
+      const pivot = M.get(k, k);
+      if (Math.abs(pivot) < 1e-15) {
+        continue;
+      }
+      for (let i = k + 1; i < n; i++) {
+        const factor = M.get(i, k) / pivot;
+        M.set(i, k, factor);
+        for (let j = k + 1; j < n; j++) {
+          M.set(i, j, M.get(i, j) - factor * M.get(k, j));
+        }
+      }
     }
-    /** Number of ensemble members. */
-    get numModels() {
-      return this.models.length;
+    const L = Matrix.eye(n);
+    const U = Matrix.zeros(n, n);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (j < i) {
+          L.set(i, j, M.get(i, j));
+        } else {
+          U.set(i, j, M.get(i, j));
+        }
+      }
     }
-    /** Expose GP internals for a specific ensemble member. */
-    getInternals(index) {
-      return this.models[index].getInternals();
+    return { L, U, perm };
+  }
+  function solveLU(A, b) {
+    const n = A.rows;
+    const { L, U, perm } = lu(A);
+    const x = Matrix.zeros(n, b.cols);
+    for (let col = 0; col < b.cols; col++) {
+      const pb = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        pb[i] = b.get(perm[i], col);
+      }
+      const y = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        let s = pb[i];
+        for (let j = 0; j < i; j++) {
+          s -= L.get(i, j) * y[j];
+        }
+        y[i] = s;
+      }
+      const xCol = new Float64Array(n);
+      for (let i = n - 1; i >= 0; i--) {
+        let s = y[i];
+        for (let j = i + 1; j < n; j++) {
+          s -= U.get(i, j) * xCol[j];
+        }
+        xCol[i] = s / U.get(i, i);
+      }
+      for (let i = 0; i < n; i++) {
+        x.set(i, col, xCol[i]);
+      }
+    }
+    return x;
+  }
+
+  // src/models/pairwise_gp.ts
+  var PairwiseGP = class {
+    kernel;
+    mean;
+    inputTransform;
+    inputWarp;
+    trainXNorm;
+    alpha;
+    likelihoodHess;
+    CKI;
+    constructor(trainX, utility, kernel, mean, likelihoodHess, inputTransform, inputWarp) {
+      this.kernel = kernel;
+      this.mean = mean;
+      this.inputTransform = inputTransform ?? null;
+      this.inputWarp = inputWarp ?? null;
+      this.likelihoodHess = likelihoodHess;
+      let xNorm = inputTransform ? inputTransform.forward(trainX) : trainX.clone();
+      if (this.inputWarp) {
+        xNorm = this.inputWarp.forward(xNorm);
+      }
+      this.trainXNorm = xNorm;
+      const K = kernel.compute(this.trainXNorm, this.trainXNorm);
+      const L = cholesky(K);
+      const meanVals = mean.forward(this.trainXNorm);
+      const residuals = new Matrix(utility.rows, 1);
+      for (let i = 0; i < utility.rows; i++) {
+        residuals.data[i] = utility.get(i, 0) - meanVals.data[i];
+      }
+      this.alpha = solveCholesky(L, residuals);
+      const CK = matmul(likelihoodHess, K);
+      this.CKI = CK;
+      this.CKI.addDiag(1);
+    }
+    /** Transform inputs through normalize + warp pipeline. */
+    transformInputs(testX) {
+      let testXNorm = this.inputTransform ? this.inputTransform.forward(testX) : testX;
+      if (this.inputWarp) {
+        testXNorm = this.inputWarp.forward(testXNorm);
+      }
+      return testXNorm;
     }
     predict(testPoints) {
       if (testPoints.length === 0) {
         throw new Error("testPoints must not be empty");
       }
-      const results = this.models.map((m) => m.predict(testPoints));
-      const n = testPoints.length;
-      const K = results.length;
-      const mean = new Float64Array(n);
-      const variance = new Float64Array(n);
-      for (let i = 0; i < n; i++) {
-        let sumMu = 0;
-        let sumVar = 0;
-        let sumMu2 = 0;
-        for (let k = 0; k < K; k++) {
-          const mu_k = results[k].mean[i];
-          sumMu += mu_k;
-          sumVar += results[k].variance[i];
-          sumMu2 += mu_k * mu_k;
-        }
-        mean[i] = sumMu / K;
-        variance[i] = sumVar / K + (sumMu2 / K - mean[i] * mean[i]);
+      if (testPoints[0].length !== this.trainXNorm.cols) {
+        throw new Error(
+          `Dimension mismatch: test has ${testPoints[0].length} dims, model trained on ${this.trainXNorm.cols}`
+        );
       }
-      return { mean, variance };
+      const testXNorm = this.transformInputs(Matrix.from2D(testPoints));
+      const Kstar = this.kernel.compute(testXNorm, this.trainXNorm);
+      const kssDiag = kernelDiag(this.kernel, testXNorm);
+      const meanPrior = this.mean.forward(testXNorm);
+      const mu = new Float64Array(testXNorm.rows);
+      for (let i = 0; i < testXNorm.rows; i++) {
+        let dot = 0;
+        for (let j = 0; j < this.trainXNorm.rows; j++) {
+          dot += Kstar.get(i, j) * this.alpha.get(j, 0);
+        }
+        mu[i] = meanPrior.data[i] + dot;
+      }
+      const KstarT = transpose(Kstar);
+      const C_KstarT = matmul(this.likelihoodHess, KstarT);
+      const fac = solveLU(this.CKI, C_KstarT);
+      const correction = matmul(Kstar, fac);
+      const variance = new Float64Array(testXNorm.rows);
+      for (let i = 0; i < testXNorm.rows; i++) {
+        variance[i] = Math.max(0, kssDiag[i] - correction.get(i, i));
+      }
+      return { mean: mu, variance };
     }
     /**
-     * Posterior covariance with a reference point, averaged across ensemble.
+     * Posterior covariance between each test point and a reference point.
      *
-     * Law of total covariance:
-     *   Cov(f(a), f(b)) = E_k[Cov_k(f(a), f(b))] + Cov_k(mu_k(a), mu_k(b))
+     * For PairwiseGP (Laplace approximation):
+     *   Cov(f(a), f(b)) = k(a,b) - K(a,X) @ (CK+I)⁻¹ @ C @ K(X,b)
      *
-     * First term: average within-model covariance.
-     * Second term: sample covariance of per-model means.
+     * where C = likelihood Hessian, K = prior covariance, CK+I is NOT symmetric.
      */
     predictCovarianceWith(testPoints, refPoint) {
-      const K = this.models.length;
+      const testXNorm = this.transformInputs(Matrix.from2D(testPoints));
+      const refXNorm = this.transformInputs(Matrix.from2D([refPoint]));
+      const KstarTest = this.kernel.compute(testXNorm, this.trainXNorm);
+      const KstarRef = this.kernel.compute(refXNorm, this.trainXNorm);
+      const KstarRefT = transpose(KstarRef);
+      const C_KstarRefT = matmul(this.likelihoodHess, KstarRefT);
+      const facRef = solveLU(this.CKI, C_KstarRefT);
+      const Ktr = this.kernel.compute(testXNorm, refXNorm);
       const n = testPoints.length;
-      const covs = this.models.map(
-        (m) => m.predictCovarianceWith(testPoints, refPoint)
-      );
-      const testResults = this.models.map((m) => m.predict(testPoints));
-      const refResults = this.models.map((m) => m.predict([refPoint]));
-      const result = new Float64Array(n);
+      const covariance = new Float64Array(n);
       for (let i = 0; i < n; i++) {
-        let sumCov = 0;
-        let sumMuA = 0;
-        let sumMuB = 0;
-        let sumMuAB = 0;
-        for (let k = 0; k < K; k++) {
-          sumCov += covs[k][i];
-          const muA = testResults[k].mean[i];
-          const muB = refResults[k].mean[0];
-          sumMuA += muA;
-          sumMuB += muB;
-          sumMuAB += muA * muB;
+        let dot = 0;
+        for (let j = 0; j < this.trainXNorm.rows; j++) {
+          dot += KstarTest.get(i, j) * facRef.get(j, 0);
         }
-        result[i] = sumCov / K + (sumMuAB / K - sumMuA / K * (sumMuB / K));
+        covariance[i] = Ktr.get(i, 0) - dot;
       }
-      return result;
+      return covariance;
     }
   };
+  function createPairwiseGP(state) {
+    const trainX = Matrix.from2D(state.train_X);
+    const utility = Matrix.vector(state.utility);
+    const likelihoodHess = Matrix.from2D(state.likelihood_hess);
+    const kernel = buildKernel(state.kernel);
+    const mean = new ConstantMean(state.mean_constant);
+    const inputTransform = state.input_transform ? new InputNormalize(state.input_transform.offset, state.input_transform.coefficient) : void 0;
+    const inputWarp = state.input_warp ? new InputWarp(
+      state.input_warp.concentration0,
+      state.input_warp.concentration1,
+      state.input_warp.indices
+    ) : void 0;
+    return new PairwiseGP(trainX, utility, kernel, mean, likelihoodHess, inputTransform, inputWarp);
+  }
 
   // src/io/deserialize.ts
   function validateNumericFields(state) {
     const check = (arr, label) => {
-      if (!arr) return;
+      if (!arr) {
+        return;
+      }
       const flat = Array.isArray(arr[0]) ? arr.flat() : arr;
       for (let i = 0; i < flat.length; i++) {
         if (!isFinite(flat[i])) {
-          throw new Error(
+          throw new TypeError(
             `Invalid ${label}[${i}] = ${flat[i]}. Model state contains NaN/Inf. Regenerate with: python python/generate_fixtures.py`
           );
         }
@@ -1900,16 +1924,23 @@ var Ax = (() => {
   function loadModel(state) {
     validateNumericFields(state);
     switch (state.model_type) {
-      case "ModelListGP":
+      case "ModelListGP": {
         return new ModelListGP(state);
-      case "PairwiseGP":
+      }
+      case "PairwiseGP": {
         return createPairwiseGP(state);
-      case "MultiTaskGP":
+      }
+      case "MultiTaskGP": {
         return new MultiTaskGP(state);
-      case "EnsembleGP":
+      }
+      case "EnsembleGP": {
         return new EnsembleGP(state);
-      default:
+      }
+      case "SingleTaskGP":
+      case "FixedNoiseGP":
+      default: {
         return new SingleTaskGP(state);
+      }
     }
   }
 
@@ -1955,7 +1986,40 @@ var Ax = (() => {
   };
 
   // src/sensitivity.ts
-  var PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71];
+  var PRIMES = [
+    2,
+    3,
+    5,
+    7,
+    11,
+    13,
+    17,
+    19,
+    23,
+    29,
+    31,
+    37,
+    41,
+    43,
+    47,
+    53,
+    59,
+    61,
+    67,
+    71,
+    73,
+    79,
+    83,
+    89,
+    97,
+    101,
+    103,
+    107,
+    109,
+    113,
+    127,
+    131
+  ];
   function haltonSequence(n, d, rng) {
     if (d > PRIMES.length) {
       throw new Error(`haltonSequence supports up to ${PRIMES.length} dimensions, got ${d}`);
@@ -1968,7 +2032,9 @@ var Ax = (() => {
       const dimPerms = [];
       for (let digitPos = 0; digitPos < 20; digitPos++) {
         const perm = [];
-        for (let k = 0; k < base; k++) perm.push(k);
+        for (let k = 0; k < base; k++) {
+          perm.push(k);
+        }
         for (let k = base - 1; k > 0; k--) {
           const j = Math.floor(r.uniform() * (k + 1));
           const tmp = perm[k];
@@ -2019,16 +2085,22 @@ var Ax = (() => {
     return spec.parameter_type === "int" ? Math.round(v) : v;
   }
   function categoricalCombinations(paramSpecs, catDims, maxCombinations, rng) {
-    if (catDims.length === 0) return [[]];
+    if (catDims.length === 0) {
+      return [[]];
+    }
     const valueSets = catDims.map((d) => {
       const vals = paramSpecs[d].values;
-      if (!vals) return [0];
+      if (!vals) {
+        return [0];
+      }
       return vals.map((_, i) => i);
     });
     let totalCombos = 1;
     for (const vs of valueSets) {
       totalCombos *= vs.length;
-      if (totalCombos > maxCombinations) break;
+      if (totalCombos > maxCombinations) {
+        break;
+      }
     }
     if (totalCombos <= maxCombinations) {
       const combos2 = [[]];
@@ -2122,7 +2194,9 @@ var Ax = (() => {
     const fA = new Float64Array(N);
     const fB = new Float64Array(N);
     const fAB = [];
-    for (let j = 0; j < dCont; j++) fAB.push(new Float64Array(N));
+    for (let j = 0; j < dCont; j++) {
+      fAB.push(new Float64Array(N));
+    }
     for (let cc = 0; cc < nCatCombos; cc++) {
       const base = cc * pointsPerCombo;
       for (let i = 0; i < N; i++) {
@@ -2206,16 +2280,24 @@ var Ax = (() => {
     };
   }
   function computeCategoricalSensitivity(dimIdx, catDims, catCombos, allY, N, pointsPerCombo, nCatCombos, varY) {
-    if (varY < 1e-30) return 0;
+    if (varY < 1e-30) {
+      return 0;
+    }
     const catPos = catDims.indexOf(dimIdx);
-    if (catPos < 0) return 0;
+    if (catPos === -1) {
+      return 0;
+    }
     const groups = /* @__PURE__ */ new Map();
     for (let cc = 0; cc < nCatCombos; cc++) {
       const val = catCombos[cc][catPos];
-      if (!groups.has(val)) groups.set(val, []);
+      if (!groups.has(val)) {
+        groups.set(val, []);
+      }
       groups.get(val).push(cc);
     }
-    if (groups.size <= 1) return 0;
+    if (groups.size <= 1) {
+      return 0;
+    }
     const condMeans = [];
     const condWeights = [];
     for (const [, combos] of groups) {
@@ -2306,10 +2388,7 @@ var Ax = (() => {
   var MaternDimIntegrator = class {
     integrator;
     constructor(nu, ell, nNodes = 128) {
-      this.integrator = new QuadratureDimIntegrator(
-        maternKernel1D(nu, ell),
-        nNodes
-      );
+      this.integrator = new QuadratureDimIntegrator(maternKernel1D(nu, ell), nNodes);
     }
     marginal(c) {
       return this.integrator.marginal(c);
@@ -2361,7 +2440,9 @@ var Ax = (() => {
         const dp2 = n * (p02 - x * p12) / (1 - x * x);
         const dx = p12 / dp2;
         x -= dx;
-        if (Math.abs(dx) < 1e-15) break;
+        if (Math.abs(dx) < 1e-15) {
+          break;
+        }
       }
       let p0 = 1;
       let p1 = x;
@@ -2416,31 +2497,27 @@ var Ax = (() => {
     if (baseKernel.type === "Additive" && baseKernel.kernels) {
       const components = [];
       for (const sub of baseKernel.kernels) {
-        const comp2 = extractSingleComponent(
-          sub,
-          paramSpecs,
-          warpParams,
-          outputscale
-        );
-        if (!comp2) return null;
+        const comp2 = extractSingleComponent(sub, paramSpecs, warpParams, outputscale);
+        if (!comp2) {
+          return null;
+        }
         components.push(comp2);
       }
       const seen = /* @__PURE__ */ new Set();
       for (const comp2 of components) {
         for (const d of comp2.activeDims) {
-          if (seen.has(d)) return null;
+          if (seen.has(d)) {
+            return null;
+          }
           seen.add(d);
         }
       }
       return components;
     }
-    const comp = extractSingleComponent(
-      baseKernel,
-      paramSpecs,
-      warpParams,
-      outputscale
-    );
-    if (!comp) return null;
+    const comp = extractSingleComponent(baseKernel, paramSpecs, warpParams, outputscale);
+    if (!comp) {
+      return null;
+    }
     return [comp];
   }
   function extractSingleComponent(kernelState, paramSpecs, warpParams, parentOutputscale) {
@@ -2457,7 +2534,9 @@ var Ax = (() => {
     const hasWarp = !!warpParams;
     if (baseKernel.type === "RBF" || baseKernel.type === "Matern") {
       const ls = baseKernel.lengthscale;
-      if (!ls) return null;
+      if (!ls) {
+        return null;
+      }
       const activeDims = baseKernel.active_dims ?? Array.from({ length: d }, (_, i) => i);
       const integrators = [];
       const nu = baseKernel.nu;
@@ -2466,13 +2545,9 @@ var Ax = (() => {
         const ell = ls[k];
         if (isWarpedDim(j, hasWarp, warpIndicesSet)) {
           if (baseKernel.type === "Matern" && nu !== void 0) {
-            integrators.push(
-              makeWarpedMaternIntegrator(j, nu, ell, warpParams)
-            );
+            integrators.push(makeWarpedMaternIntegrator(j, nu, ell, warpParams));
           } else {
-            integrators.push(
-              makeWarpedRbfIntegrator(j, ell, warpParams)
-            );
+            integrators.push(makeWarpedRbfIntegrator(j, ell, warpParams));
           }
         } else {
           if (baseKernel.type === "Matern" && nu !== void 0) {
@@ -2497,7 +2572,9 @@ var Ax = (() => {
         }
         if (subKernel.type === "RBF" || subKernel.type === "Matern") {
           const ls = subKernel.lengthscale;
-          if (!ls) return null;
+          if (!ls) {
+            return null;
+          }
           const dims = subKernel.active_dims ?? sub.active_dims ?? Array.from({ length: ls.length }, (_, i) => i);
           const nu = subKernel.nu;
           for (let k = 0; k < dims.length; k++) {
@@ -2506,13 +2583,9 @@ var Ax = (() => {
             activeDims.push(j);
             if (isWarpedDim(j, hasWarp, warpIndicesSet)) {
               if (subKernel.type === "Matern" && nu !== void 0) {
-                integrators.push(
-                  makeWarpedMaternIntegrator(j, nu, ell, warpParams)
-                );
+                integrators.push(makeWarpedMaternIntegrator(j, nu, ell, warpParams));
               } else {
-                integrators.push(
-                  makeWarpedRbfIntegrator(j, ell, warpParams)
-                );
+                integrators.push(makeWarpedRbfIntegrator(j, ell, warpParams));
               }
             } else {
               if (subKernel.type === "Matern" && nu !== void 0) {
@@ -2532,9 +2605,7 @@ var Ax = (() => {
             const nCats = spec.values?.length ?? 2;
             const ell = ls.length > 1 ? ls[k] : ls[0];
             activeDims.push(j);
-            integrators.push(
-              new CategoricalDimIntegrator(nCats, ell, numCatDims)
-            );
+            integrators.push(new CategoricalDimIntegrator(nCats, ell, numCatDims));
           }
         } else {
           return null;
@@ -2545,8 +2616,12 @@ var Ax = (() => {
     return null;
   }
   function isWarpedDim(dim, hasWarp, warpIndicesSet) {
-    if (!hasWarp) return false;
-    if (warpIndicesSet === null) return true;
+    if (!hasWarp) {
+      return false;
+    }
+    if (warpIndicesSet === null) {
+      return true;
+    }
     return warpIndicesSet.has(dim);
   }
   function makeWarpedMaternIntegrator(dim, nu, ell, warpParams) {
@@ -2604,10 +2679,7 @@ var Ax = (() => {
         W[li] = new Float64Array(n * n);
         for (let i = 0; i < n; i++) {
           for (let k = i; k < n; k++) {
-            const val = comp.integrators[li].cross(
-              trainX[i][gj],
-              trainX[k][gj]
-            );
+            const val = comp.integrators[li].cross(trainX[i][gj], trainX[k][gj]);
             W[li][i * n + k] = val;
             W[li][k * n + i] = val;
           }
@@ -2616,25 +2688,31 @@ var Ax = (() => {
       const productW = new Float64Array(n);
       for (let i = 0; i < n; i++) {
         let prod = 1;
-        for (let li = 0; li < nDims; li++) prod *= w[li][i];
+        for (let li = 0; li < nDims; li++) {
+          prod *= w[li][i];
+        }
         productW[i] = prod;
       }
       let sumAlphaM = 0;
-      for (let i = 0; i < n; i++) sumAlphaM += alpha[i] * os * productW[i];
+      for (let i = 0; i < n; i++) {
+        sumAlphaM += alpha[i] * os * productW[i];
+      }
       let crossSum = 0;
       for (let i = 0; i < n; i++) {
         for (let k = 0; k < n; k++) {
           let prod = 1;
-          for (let li = 0; li < nDims; li++) prod *= W[li][i * n + k];
+          for (let li = 0; li < nDims; li++) {
+            prod *= W[li][i * n + k];
+          }
           crossSum += alpha[i] * alpha[k] * prod;
         }
       }
       const varA = os * os * crossSum - sumAlphaM * sumAlphaM;
       return { w, W, productW, sumAlphaM, varA, os, nDims };
     });
-    let emu = meanConstant;
+    let _emu = meanConstant;
     for (let ci = 0; ci < components.length; ci++) {
-      emu += compData[ci].sumAlphaM;
+      _emu += compData[ci].sumAlphaM;
     }
     let varMu = 0;
     for (let ci = 0; ci < components.length; ci++) {
@@ -2656,7 +2734,6 @@ var Ax = (() => {
         continue;
       }
       const li = dimToLocalIdx[gj];
-      const comp = components[ci];
       const cd = compData[ci];
       const os = cd.os;
       const beta = new Float64Array(n);
@@ -2674,10 +2751,7 @@ var Ax = (() => {
           crossS += beta[m] * beta[p] * cd.W[li][m * n + p];
         }
       }
-      firstOrder[gj] = Math.max(
-        0,
-        (crossS - cd.sumAlphaM * cd.sumAlphaM) / varMu
-      );
+      firstOrder[gj] = Math.max(0, (crossS - cd.sumAlphaM * cd.sumAlphaM) / varMu);
       const gamma = new Float64Array(n);
       for (let m = 0; m < n; m++) {
         gamma[m] = os * alpha[m] * cd.w[li][m];
@@ -2687,7 +2761,9 @@ var Ax = (() => {
         for (let p = 0; p < n; p++) {
           let prod = 1;
           for (let lk = 0; lk < cd.nDims; lk++) {
-            if (lk !== li) prod *= cd.W[lk][m * n + p];
+            if (lk !== li) {
+              prod *= cd.W[lk][m * n + p];
+            }
           }
           crossT += gamma[m] * gamma[p] * prod;
         }
@@ -2696,14 +2772,18 @@ var Ax = (() => {
       for (let m = 0; m < n; m++) {
         let prod = 1;
         for (let lk = 0; lk < cd.nDims; lk++) {
-          if (lk !== li) prod *= cd.w[lk][m];
+          if (lk !== li) {
+            prod *= cd.w[lk][m];
+          }
         }
         sumGammaW += gamma[m] * prod;
       }
       const varReduced = crossT - sumGammaW * sumGammaW;
       let vNotI = varReduced;
       for (let bj = 0; bj < components.length; bj++) {
-        if (bj !== ci) vNotI += compData[bj].varA;
+        if (bj !== ci) {
+          vNotI += compData[bj].varA;
+        }
       }
       totalOrder[gj] = Math.max(0, 1 - vNotI / varMu);
     }
@@ -2727,7 +2807,9 @@ var Ax = (() => {
       }
     }
     const N = basis.length;
-    if (N > 2e3) return null;
+    if (N > 2e3) {
+      return null;
+    }
     const hasAnyWarp = models.some((m) => !!m.warpParams);
     let glNodes = null;
     let glWeights = null;
@@ -2737,14 +2819,18 @@ var Ax = (() => {
       glWeights = gl.weights;
     }
     const warpFns = models.map((m) => {
-      if (!m.warpParams) return new Array(d).fill(null);
+      if (!m.warpParams) {
+        return new Array(d).fill(null);
+      }
       const wp = m.warpParams;
       const indices = wp.indices ?? Array.from({ length: d }, (_, i) => i);
       const indicesSet = new Set(indices);
       const eps = 1e-7;
       const range = 1 - 2 * eps;
       return Array.from({ length: d }, (_, j) => {
-        if (!indicesSet.has(j)) return null;
+        if (!indicesSet.has(j)) {
+          return null;
+        }
         const wIdx = wp.indices ? wp.indices.indexOf(j) : j;
         const a = wp.concentration1[wIdx];
         const b = wp.concentration0[wIdx];
@@ -2786,13 +2872,13 @@ var Ax = (() => {
       return sum;
     }
     function cross1D(i, k, j) {
-      const mi_i = basis[i].modelIdx;
-      const mi_k = basis[k].modelIdx;
-      const wFn_i = warpFns[mi_i][j];
-      const wFn_k = warpFns[mi_k][j];
-      const isMatern_i = models[mi_i].kernelType === "Matern";
-      const isMatern_k = models[mi_k].kernelType === "Matern";
-      if (!wFn_i && !wFn_k && !isMatern_i && !isMatern_k) {
+      const miI = basis[i].modelIdx;
+      const miK = basis[k].modelIdx;
+      const wFnI = warpFns[miI][j];
+      const wFnK = warpFns[miK][j];
+      const isMaternI = models[miI].kernelType === "Matern";
+      const isMaternK = models[miK].kernelType === "Matern";
+      if (!wFnI && !wFnK && !isMaternI && !isMaternK) {
         return rbfGeneralizedCross(
           basis[i].center[j],
           basis[k].center[j],
@@ -2802,14 +2888,14 @@ var Ax = (() => {
       }
       const a = basis[i].center[j];
       const b = basis[k].center[j];
-      const kFn_i = modelKernel1D(mi_i, j);
-      const kFn_k = modelKernel1D(mi_k, j);
+      const kFnI = modelKernel1D(miI, j);
+      const kFnK = modelKernel1D(miK, j);
       let sum = 0;
       for (let q = 0; q < glNodes.length; q++) {
         const x = glNodes[q];
-        const wi = wFn_i ? wFn_i(x) : x;
-        const wk = wFn_k ? wFn_k(x) : x;
-        sum += glWeights[q] * kFn_i(wi, a) * kFn_k(wk, b);
+        const wi = wFnI ? wFnI(x) : x;
+        const wk = wFnK ? wFnK(x) : x;
+        sum += glWeights[q] * kFnI(wi, a) * kFnK(wk, b);
       }
       return sum;
     }
@@ -2876,10 +2962,7 @@ var Ax = (() => {
           crossS += beta[i] * beta[k] * crossCache[dim][i * N + k];
         }
       }
-      firstOrder[dim] = Math.max(
-        0,
-        (crossS - emuMinusMean * emuMinusMean) / varMu
-      );
+      firstOrder[dim] = Math.max(0, (crossS - emuMinusMean * emuMinusMean) / varMu);
       const gamma = new Float64Array(N);
       for (let i = 0; i < N; i++) {
         gamma[i] = basis[i].coeff * w[i][dim];
@@ -2889,7 +2972,9 @@ var Ax = (() => {
         for (let k = 0; k < N; k++) {
           let prod = 1;
           for (let j = 0; j < d; j++) {
-            if (j !== dim) prod *= crossCache[j][i * N + k];
+            if (j !== dim) {
+              prod *= crossCache[j][i * N + k];
+            }
           }
           crossT += gamma[i] * gamma[k] * prod;
         }
@@ -2898,7 +2983,9 @@ var Ax = (() => {
       for (let i = 0; i < N; i++) {
         let prod = 1;
         for (let j = 0; j < d; j++) {
-          if (j !== dim) prod *= w[i][j];
+          if (j !== dim) {
+            prod *= w[i][j];
+          }
         }
         sumGammaW += gamma[i] * prod;
       }
@@ -2929,9 +3016,7 @@ var Ax = (() => {
       this.model = loadModel(exported.model_state);
       this.paramSpecs = exported.search_space.parameters;
       this.paramNames = exported.search_space.parameters.map((p) => p.name);
-      this.paramBounds = exported.search_space.parameters.map(
-        (p) => p.bounds || [0, 1]
-      );
+      this.paramBounds = exported.search_space.parameters.map((p) => p.bounds || [0, 1]);
       this.statusQuoPoint = exported.status_quo?.point ?? null;
       if (exported.outcome_names) {
         this.outcomeNames = exported.outcome_names;
@@ -2974,10 +3059,7 @@ var Ax = (() => {
         const results = this.model.predict(points);
         const out = {};
         for (let k = 0; k < results.length; k++) {
-          out[this.outcomeNames[k]] = this.applyAdapterUntransform(
-            this.outcomeNames[k],
-            results[k]
-          );
+          out[this.outcomeNames[k]] = this.applyAdapterUntransform(this.outcomeNames[k], results[k]);
         }
         return out;
       }
@@ -2992,10 +3074,7 @@ var Ax = (() => {
       }
       const result = this.model.predict(points);
       return {
-        [this.outcomeNames[0]]: this.applyAdapterUntransform(
-          this.outcomeNames[0],
-          result
-        )
+        [this.outcomeNames[0]]: this.applyAdapterUntransform(this.outcomeNames[0], result)
       };
     }
     /**
@@ -3008,17 +3087,23 @@ var Ax = (() => {
      * support `predictCovarianceWith`.
      */
     getCovariances(outcomeName, points) {
-      if (!this.statusQuoPoint) return void 0;
+      if (!this.statusQuoPoint) {
+        return void 0;
+      }
       const sqPoint = this.statusQuoPoint;
       if (this.model instanceof ModelListGP) {
         const idx = this.outcomeNames.indexOf(outcomeName);
-        if (idx < 0) return void 0;
+        if (idx === -1) {
+          return void 0;
+        }
         const covs = this.model.predictCovarianceWith(points, sqPoint);
         return covs[idx];
       }
       if (this.model instanceof MultiTaskGP) {
         const taskIdx = this.outcomeNames.indexOf(outcomeName);
-        if (taskIdx < 0) return void 0;
+        if (taskIdx === -1) {
+          return void 0;
+        }
         return this.model.predictCovarianceWith(points, taskIdx, sqPoint);
       }
       const m = this.model;
@@ -3072,12 +3157,14 @@ var Ax = (() => {
       let looPred;
       if (this.model instanceof ModelListGP) {
         const idx = this.outcomeNames.indexOf(name);
-        if (idx < 0) throw new Error(`Unknown outcome: ${name}`);
+        if (idx === -1) {
+          throw new Error(`Unknown outcome: ${name}`);
+        }
         looPred = this.model.loocvPredictions()[idx];
       } else if (this.model instanceof SingleTaskGP) {
         looPred = this.model.loocvPredictions();
       } else {
-        throw new Error(
+        throw new TypeError(
           `loocv() is only supported for SingleTaskGP and ModelListGP, got ${this._state.model_state.model_type}`
         );
       }
@@ -3115,7 +3202,9 @@ var Ax = (() => {
      */
     rankDimensionsByImportance(outcomeName) {
       const ls = this.getLengthscales(outcomeName);
-      if (!ls) return [];
+      if (!ls) {
+        return [];
+      }
       const dims = ls.map((l, i) => ({
         dimIndex: i,
         paramName: this.paramNames[i] ?? `x${i}`,
@@ -3150,7 +3239,9 @@ var Ax = (() => {
       let d2 = 0;
       for (let j = 0; j < point.length; j++) {
         if (params[j] && params[j].type === "choice") {
-          if (point[j] !== refPoint[j]) d2 += 4;
+          if (point[j] !== refPoint[j]) {
+            d2 += 4;
+          }
           continue;
         }
         const offset = inputTf?.offset?.[j] ?? 0;
@@ -3193,7 +3284,9 @@ var Ax = (() => {
       const seed = options?.seed ?? 42;
       const cacheKey = `${name}:${numSamples}:${seed}`;
       const cached = this.sensitivityCache.get(cacheKey);
-      if (cached) return cached;
+      if (cached) {
+        return cached;
+      }
       const analyticResult = this.tryAnalyticSobol(name);
       if (analyticResult) {
         this.sensitivityCache.set(cacheKey, analyticResult);
@@ -3216,8 +3309,12 @@ var Ax = (() => {
      */
     tryAnalyticSobol(outcomeName) {
       const ms = this._state.model_state;
-      if (ms.model_type === "PairwiseGP") return null;
-      if (this.hasNonlinearAdapterTransforms(outcomeName)) return null;
+      if (ms.model_type === "PairwiseGP") {
+        return null;
+      }
+      if (this.hasNonlinearAdapterTransforms(outcomeName)) {
+        return null;
+      }
       if (ms.model_type === "EnsembleGP") {
         return this.tryAnalyticSobolEnsemble(ms);
       }
@@ -3228,18 +3325,22 @@ var Ax = (() => {
       return this.tryAnalyticSobolSingle(sub, outcomeName);
     }
     tryAnalyticSobolSingle(sub, outcomeName) {
-      if (hasNonlinearOutcomeTransform(sub.outcome_transform)) return null;
-      if (!sub.input_transform) return null;
-      const components = extractKernelComponents(
-        sub.kernel,
-        this.paramSpecs,
-        sub.input_warp
-      );
-      if (!components) return null;
+      if (hasNonlinearOutcomeTransform(sub.outcome_transform)) {
+        return null;
+      }
+      if (!sub.input_transform) {
+        return null;
+      }
+      const components = extractKernelComponents(sub.kernel, this.paramSpecs, sub.input_warp);
+      if (!components) {
+        return null;
+      }
       let internals;
       if (this.model instanceof ModelListGP) {
         const idx = this.outcomeNames.indexOf(outcomeName);
-        if (idx < 0) return null;
+        if (idx === -1) {
+          return null;
+        }
         internals = this.model.getInternals(idx);
       } else if (this.model instanceof SingleTaskGP) {
         internals = this.model.getInternals();
@@ -3255,17 +3356,23 @@ var Ax = (() => {
       );
     }
     tryAnalyticSobolMultiTask(outcomeName, ms) {
-      if (hasNonlinearOutcomeTransform(ms.outcome_transform)) return null;
-      if (!ms.input_transform) return null;
-      const components = extractKernelComponents(
-        ms.data_kernel,
-        this.paramSpecs,
-        ms.input_warp
-      );
-      if (!components) return null;
-      if (!(this.model instanceof MultiTaskGP)) return null;
+      if (hasNonlinearOutcomeTransform(ms.outcome_transform)) {
+        return null;
+      }
+      if (!ms.input_transform) {
+        return null;
+      }
+      const components = extractKernelComponents(ms.data_kernel, this.paramSpecs, ms.input_warp);
+      if (!components) {
+        return null;
+      }
+      if (!(this.model instanceof MultiTaskGP)) {
+        return null;
+      }
       const taskIdx = this.outcomeNames.indexOf(outcomeName);
-      if (taskIdx < 0) return null;
+      if (taskIdx === -1) {
+        return null;
+      }
       const internals = this.model.getInternals(taskIdx);
       return computeAnalyticSobolIndices(
         internals.alpha,
@@ -3276,16 +3383,26 @@ var Ax = (() => {
       );
     }
     tryAnalyticSobolEnsemble(ms) {
-      if (!(this.model instanceof EnsembleGP)) return null;
+      if (!(this.model instanceof EnsembleGP)) {
+        return null;
+      }
       const subModels = [];
       for (let mi = 0; mi < ms.models.length; mi++) {
         const sub = ms.models[mi];
-        if (hasNonlinearOutcomeTransform(sub.outcome_transform)) return null;
-        if (!sub.input_transform) return null;
+        if (hasNonlinearOutcomeTransform(sub.outcome_transform)) {
+          return null;
+        }
+        if (!sub.input_transform) {
+          return null;
+        }
         const ls = findLengthscales(sub.kernel);
-        if (!ls) return null;
+        if (!ls) {
+          return null;
+        }
         const kernelInfo = extractKernelOutputscale(sub.kernel);
-        if (!kernelInfo || kernelInfo.baseType !== "RBF" && kernelInfo.baseType !== "Matern") return null;
+        if (!kernelInfo || kernelInfo.baseType !== "RBF" && kernelInfo.baseType !== "Matern") {
+          return null;
+        }
         const nu = findMaternNu(sub.kernel);
         const internals = this.model.getInternals(mi);
         subModels.push({
@@ -3304,11 +3421,17 @@ var Ax = (() => {
     /** Check if there are nonlinear adapter transforms for this outcome. */
     hasNonlinearAdapterTransforms(outcomeName) {
       const transforms = this._state.adapter_transforms;
-      if (!transforms) return false;
+      if (!transforms) {
+        return false;
+      }
       for (const tf of transforms) {
-        if (tf.type === "StandardizeY") continue;
+        if (tf.type === "StandardizeY") {
+          continue;
+        }
         const metrics = "metrics" in tf && tf.metrics ? tf.metrics : this.outcomeNames;
-        if (metrics.includes(outcomeName)) return true;
+        if (metrics.includes(outcomeName)) {
+          return true;
+        }
       }
       return false;
     }
@@ -3333,9 +3456,13 @@ var Ax = (() => {
       return Y;
     }
     applyAdapterUntransform(outcomeName, result) {
-      if (!this.adapterUntransforms) return result;
+      if (!this.adapterUntransforms) {
+        return result;
+      }
       const untransform = this.adapterUntransforms.get(outcomeName);
-      if (!untransform) return result;
+      if (!untransform) {
+        return result;
+      }
       const n = result.mean.length;
       const mean = new Float64Array(n);
       const variance = new Float64Array(n);
@@ -3348,36 +3475,45 @@ var Ax = (() => {
     }
   };
   function buildAdapterUntransforms(transforms, outcomeNames) {
-    if (!transforms || transforms.length === 0) return null;
+    if (!transforms || transforms.length === 0) {
+      return null;
+    }
     const perMetric = /* @__PURE__ */ new Map();
     for (const tf of transforms) {
       const metrics = "metrics" in tf && tf.metrics ? tf.metrics : outcomeNames;
       switch (tf.type) {
-        case "LogY":
+        case "LogY": {
           for (const metric of metrics) {
-            if (!perMetric.has(metric)) perMetric.set(metric, []);
+            if (!perMetric.has(metric)) {
+              perMetric.set(metric, []);
+            }
             perMetric.get(metric).push(new LogUntransform());
           }
           break;
-        case "BilogY":
+        }
+        case "BilogY": {
           for (const metric of metrics) {
-            if (!perMetric.has(metric)) perMetric.set(metric, []);
+            if (!perMetric.has(metric)) {
+              perMetric.set(metric, []);
+            }
             perMetric.get(metric).push(new BilogUntransform());
           }
           break;
-        case "StandardizeY":
+        }
+        case "StandardizeY": {
           if (tf.Ymean && tf.Ystd) {
             for (const metric of metrics) {
               if (metric in tf.Ymean && metric in tf.Ystd) {
-                if (!perMetric.has(metric)) perMetric.set(metric, []);
-                perMetric.get(metric).push(
-                  new StandardizeUntransform(tf.Ymean[metric], tf.Ystd[metric])
-                );
+                if (!perMetric.has(metric)) {
+                  perMetric.set(metric, []);
+                }
+                perMetric.get(metric).push(new StandardizeUntransform(tf.Ymean[metric], tf.Ystd[metric]));
               }
             }
           }
           break;
-        case "PowerTransformY":
+        }
+        case "PowerTransformY": {
           if (tf.power_params) {
             for (const metric of metrics) {
               if (metric in tf.power_params) {
@@ -3385,15 +3521,20 @@ var Ax = (() => {
                 const lambdas = Array.isArray(entry) ? entry : entry.lambdas;
                 const scalerMean = Array.isArray(entry) ? void 0 : entry.scaler_mean?.[0];
                 const scalerScale = Array.isArray(entry) ? void 0 : entry.scaler_scale?.[0];
-                if (!perMetric.has(metric)) perMetric.set(metric, []);
+                if (!perMetric.has(metric)) {
+                  perMetric.set(metric, []);
+                }
                 perMetric.get(metric).push(new PowerUntransform(lambdas[0], scalerMean, scalerScale));
               }
             }
           }
           break;
+        }
       }
     }
-    if (perMetric.size === 0) return null;
+    if (perMetric.size === 0) {
+      return null;
+    }
     const map = /* @__PURE__ */ new Map();
     for (const [metric, tfs] of perMetric) {
       if (tfs.length === 1) {
@@ -3407,44 +3548,61 @@ var Ax = (() => {
   function getSubModel(ms, outcomeNames, outcomeName) {
     if (ms.model_type === "ModelListGP") {
       const idx = outcomeNames.indexOf(outcomeName);
-      if (idx < 0) {
-        throw new Error(
-          `Unknown outcome "${outcomeName}". Available: ${outcomeNames.join(", ")}`
-        );
+      if (idx === -1) {
+        throw new Error(`Unknown outcome "${outcomeName}". Available: ${outcomeNames.join(", ")}`);
       }
       return ms.models[idx];
     }
     return ms;
   }
   function findLengthscales(k) {
-    if (!k) return null;
-    if (k.lengthscale) return k.lengthscale;
-    if (k.base_kernel) return findLengthscales(k.base_kernel);
+    if (!k) {
+      return null;
+    }
+    if (k.lengthscale) {
+      return k.lengthscale;
+    }
+    if (k.base_kernel) {
+      return findLengthscales(k.base_kernel);
+    }
     if (k.kernels) {
       for (const sub of k.kernels) {
         const r = findLengthscales(sub);
-        if (r) return r;
+        if (r) {
+          return r;
+        }
       }
     }
     return null;
   }
   function findMaternNu(k) {
-    if (!k) return void 0;
-    if (k.type === "Matern" && k.nu !== void 0) return k.nu;
-    if (k.base_kernel) return findMaternNu(k.base_kernel);
+    if (!k) {
+      return void 0;
+    }
+    if (k.type === "Matern" && k.nu !== void 0) {
+      return k.nu;
+    }
+    if (k.base_kernel) {
+      return findMaternNu(k.base_kernel);
+    }
     if (k.kernels) {
       for (const sub of k.kernels) {
         const r = findMaternNu(sub);
-        if (r !== void 0) return r;
+        if (r !== void 0) {
+          return r;
+        }
       }
     }
     return void 0;
   }
   function hasNonlinearOutcomeTransform(tf) {
-    if (!tf) return false;
+    if (!tf) {
+      return false;
+    }
     if ("type" in tf) {
-      if (tf.type === "Log" || tf.type === "Bilog" || tf.type === "Power")
+      if (tf.type === "Log" || tf.type === "Bilog" || tf.type === "Power") {
         return true;
+      }
       if (tf.type === "Chained") {
         return tf.transforms.some(hasNonlinearOutcomeTransform);
       }
@@ -3458,13 +3616,15 @@ var Ax = (() => {
     return { outputscale: k.outputscale ?? 1, baseType: k.type };
   }
   function unstandardizeY(trainY, outTf) {
-    if (!outTf) return trainY.slice();
+    if (!outTf) {
+      return trainY.slice();
+    }
     if ("mean" in outTf && outTf.mean !== void 0 && "std" in outTf) {
       return trainY.map((y) => outTf.mean + outTf.std * y);
     }
     return trainY.slice();
   }
-  function validateModelState(state, numParams) {
+  function validateModelState(state, _numParams) {
     const models = [];
     if (state.model_type === "ModelListGP" && "models" in state) {
       models.push(...state.models);
@@ -3562,9 +3722,7 @@ var Ax = (() => {
       if (biasCorrection) {
         const corrFactor = 1 - semC * semC / (absMC * absMC);
         if (Math.abs(corrFactor) < 1e-15) {
-          throw new Error(
-            "Cannot unrelativize with bias correction: control SEM \u2248 |control mean|."
-          );
+          throw new Error("Cannot unrelativize with bias correction: control SEM \u2248 |control mean|.");
         }
         meanT /= corrFactor;
       }
@@ -3634,6 +3792,7 @@ var Ax;
     defaultParamValue: () => defaultParamValue,
     drawColorbar: () => drawColorbar,
     drawDataDot: () => drawDataDot,
+    estimateRange: () => estimateRange,
     findNearestDot: () => findNearestDot,
     formatParamValue: () => formatParamValue,
     hideTooltip: () => hideTooltip,
@@ -3642,6 +3801,7 @@ var Ax;
     isChoice: () => isChoice,
     isInteger: () => isInteger,
     normalizeFixture: () => normalizeFixture,
+    piYG: () => piYG,
     plasma: () => plasma,
     pointRelevance: () => pointRelevance,
     removeTooltip: () => removeTooltip,
@@ -3741,16 +3901,24 @@ var Ax;
 }
 `;
   function injectScopedStyles(container) {
-    if (typeof document === "undefined") return;
-    if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
-    if (container.querySelector("style[data-axjs]")) return;
+    if (typeof document === "undefined") {
+      return;
+    }
+    if (!container.id) {
+      container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    }
+    if (container.querySelector("style[data-axjs]")) {
+      return;
+    }
     const s = document.createElement("style");
-    s.setAttribute("data-axjs", "");
-    s.textContent = AXJS_STYLES.replace(/:scope/g, `#${container.id}`);
+    s.dataset.axjs = "";
+    s.textContent = AXJS_STYLES.replaceAll(":scope", `#${container.id}`);
     container.prepend(s);
   }
   function injectStyles() {
-    if (typeof document === "undefined") return;
+    if (typeof document === "undefined") {
+      return;
+    }
     injectScopedStyles(document.body);
   }
 
@@ -3796,13 +3964,33 @@ var Ax;
   function plasma(t) {
     return interpolateStops(t, PLASMA_STOPS);
   }
+  var PIYG_STOPS = [
+    [140, 0, 75],
+    [212, 0, 112],
+    [238, 65, 158],
+    [250, 148, 203],
+    [254, 214, 233],
+    [247, 247, 247],
+    [216, 248, 190],
+    [168, 232, 88],
+    [98, 198, 30],
+    [45, 162, 8],
+    [15, 115, 0]
+  ];
+  function piYG(t) {
+    return interpolateStops(t, PIYG_STOPS);
+  }
   function drawColorbar(canvasId, colorFn) {
     const cvs = document.getElementById(canvasId);
-    if (!cvs) return;
+    if (!cvs) {
+      return;
+    }
     cvs.width = cvs.offsetWidth || 200;
     cvs.height = cvs.offsetHeight || 24;
     const ctx = cvs.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) {
+      return;
+    }
     const w = cvs.width;
     const h = cvs.height;
     for (let i = 0; i < w; i++) {
@@ -3840,7 +4028,9 @@ var Ax;
 
   // src/viz/drawDataDot.ts
   function drawDataDot(ctx, x, y, alpha, isActive, isHovered, fillRGB = [217, 95, 78]) {
-    if (alpha < 0.04) return;
+    if (alpha < 0.04) {
+      return;
+    }
     const outerR = isActive || isHovered ? 7.5 : 5;
     const innerR = isActive || isHovered ? 4 : 2.5;
     ctx.beginPath();
@@ -3903,13 +4093,21 @@ var Ax;
     return p.type === "range" && p.parameter_type === "int";
   }
   function defaultParamValue(p) {
-    if (isChoice(p)) return p.values[0];
-    if (isInteger(p)) return Math.round((p.bounds[0] + p.bounds[1]) / 2);
+    if (isChoice(p)) {
+      return p.values[0];
+    }
+    if (isInteger(p)) {
+      return Math.round((p.bounds[0] + p.bounds[1]) / 2);
+    }
     return (p.bounds[0] + p.bounds[1]) / 2;
   }
   function formatParamValue(val, p) {
-    if (isChoice(p)) return String(val);
-    if (isInteger(p)) return String(Math.round(val));
+    if (isChoice(p)) {
+      return String(val);
+    }
+    if (isInteger(p)) {
+      return String(Math.round(val));
+    }
     return val.toFixed(3);
   }
   function normalizeFixture(data) {
@@ -3920,22 +4118,28 @@ var Ax;
         metadata: {
           name: data.experiment.name || "",
           description: data.experiment.description || "",
-          ...data.test?.metadata || {}
+          ...data.test?.metadata
         },
         test_points: data.test?.test_points || []
       };
-      if (data.experiment.outcome_names)
+      if (data.experiment.outcome_names) {
         result.outcome_names = data.experiment.outcome_names;
-      if (data.experiment.optimization_config)
+      }
+      if (data.experiment.optimization_config) {
         result.optimization_config = data.experiment.optimization_config;
-      if (data.experiment.status_quo)
+      }
+      if (data.experiment.status_quo) {
         result.status_quo = data.experiment.status_quo;
-      if (data.experiment.adapter_transforms)
+      }
+      if (data.experiment.adapter_transforms) {
         result.adapter_transforms = data.experiment.adapter_transforms;
-      if (data.experiment.observations)
+      }
+      if (data.experiment.observations) {
         result.observations = data.experiment.observations;
-      if (data.experiment.candidates)
+      }
+      if (data.experiment.candidates) {
         result.candidates = data.experiment.candidates;
+      }
       return result;
     }
     return data;
@@ -3953,7 +4157,9 @@ var Ax;
         if (order2.length < nDim) {
           const inOrder = new Set(order2);
           for (let i = 0; i < nDim; i++) {
-            if (!inOrder.has(i)) order2.push(i);
+            if (!inOrder.has(i)) {
+              order2.push(i);
+            }
           }
         }
         return order2;
@@ -3967,7 +4173,9 @@ var Ax;
     if (order.length < nDim) {
       const inRanked = new Set(order);
       for (let i = 0; i < nDim; i++) {
-        if (!inRanked.has(i)) order.push(i);
+        if (!inRanked.has(i)) {
+          order.push(i);
+        }
       }
     }
     return order;
@@ -3978,9 +4186,13 @@ var Ax;
     const warpRange = 1 - 2 * eps;
     let d2 = 0;
     for (let j = 0; j < fixedValues.length; j++) {
-      if (plottedDims.indexOf(j) >= 0) continue;
+      if (plottedDims.includes(j)) {
+        continue;
+      }
       if (params && params[j] && isChoice(params[j])) {
-        if (pt[j] !== fixedValues[j]) d2 += 4;
+        if (pt[j] !== fixedValues[j]) {
+          d2 += 4;
+        }
         continue;
       }
       const offset = inputTf?.offset?.[j] ?? 0;
@@ -4044,9 +4256,9 @@ var Ax;
       const opt = document.createElement("option");
       opt.value = name;
       opt.textContent = name;
-      selectEl.appendChild(opt);
+      selectEl.append(opt);
     });
-    selectEl.onchange = () => onChange(selectEl.value);
+    selectEl.addEventListener("change", () => onChange(selectEl.value));
   }
   function createParamSliders(predictor, params, container, currentValues, onChange, options) {
     container.innerHTML = "";
@@ -4055,7 +4267,9 @@ var Ax;
     const excludeDims = options?.excludeDims ?? /* @__PURE__ */ new Set();
     const order = options?.dimOrder ?? Array.from({ length: predictor.paramNames.length }, (_, i) => i);
     order.forEach((i) => {
-      if (excludeDims.has(i)) return;
+      if (excludeDims.has(i)) {
+        return;
+      }
       const name = predictor.paramNames[i];
       const p = params[i];
       const row = document.createElement("div");
@@ -4075,8 +4289,10 @@ var Ax;
           const o = document.createElement("option");
           o.value = String(v);
           o.textContent = String(v);
-          if (v == currentValues[i]) o.selected = true;
-          sel.appendChild(o);
+          if (v === currentValues[i]) {
+            o.selected = true;
+          }
+          sel.append(o);
         });
         sel.addEventListener("change", () => {
           const nv = +sel.value;
@@ -4084,9 +4300,9 @@ var Ax;
           val.textContent = formatParamValue(nv, p);
           onChange(i, nv);
         });
-        row.appendChild(lbl);
-        row.appendChild(sel);
-        row.appendChild(val);
+        row.append(lbl);
+        row.append(sel);
+        row.append(val);
       } else {
         const lo = predictor.paramBounds[i][0];
         const hi = predictor.paramBounds[i][1];
@@ -4113,20 +4329,24 @@ var Ax;
           val.textContent = formatParamValue(nv, p);
           onChange(i, nv);
         });
-        row.appendChild(lbl);
-        row.appendChild(sl);
-        row.appendChild(val);
+        row.append(lbl);
+        row.append(sl);
+        row.append(val);
       }
-      container.appendChild(row);
+      container.append(row);
     });
   }
   function setupFileUpload(inputId, callback) {
     const input = document.getElementById(inputId);
-    if (!input) return;
+    if (!input) {
+      return;
+    }
     input.addEventListener("change", () => {
       const file = input.files?.[0];
-      if (!file) return;
-      file.text().then((text) => callback(JSON.parse(text)));
+      if (!file) {
+        return;
+      }
+      void file.text().then((text) => callback(JSON.parse(text)));
     });
   }
   function showTooltip(el, html, screenX, screenY) {
@@ -4139,12 +4359,16 @@ var Ax;
     el.style.display = "none";
   }
   function createTooltipDiv(containerId) {
-    if (containerId) removeTooltip(containerId);
+    if (containerId) {
+      removeTooltip(containerId);
+    }
     const tooltip = document.createElement("div");
     tooltip.className = "axjs-tooltip";
-    if (containerId) tooltip.setAttribute("data-axjs-for", containerId);
+    if (containerId) {
+      tooltip.dataset.axjsFor = containerId;
+    }
     tooltip.style.cssText = "position:fixed;display:none;background:rgba(255,255,255,0.97);border:1px solid #d0d0d0;border-radius:6px;padding:8px 12px;font-size:12px;color:#333;pointer-events:none;z-index:10000;white-space:nowrap;";
-    document.body.appendChild(tooltip);
+    document.body.append(tooltip);
     return tooltip;
   }
   function positionTooltip(tooltip, clientX, clientY) {
@@ -4153,7 +4377,9 @@ var Ax;
   }
   function removeTooltip(containerId) {
     const stale = document.body.querySelector(`div[data-axjs-for="${containerId}"]`);
-    if (stale) stale.remove();
+    if (stale) {
+      stale.remove();
+    }
   }
   function makeSelectEl(label) {
     const wrapper = document.createElement("div");
@@ -4163,8 +4389,8 @@ var Ax;
     lbl.textContent = label;
     const select = document.createElement("select");
     select.className = "axjs-select";
-    wrapper.appendChild(lbl);
-    wrapper.appendChild(select);
+    wrapper.append(lbl);
+    wrapper.append(select);
     return { wrapper, select };
   }
 
@@ -4179,7 +4405,9 @@ var Ax;
       }
       const r = predictor.kernelCorrelation(dots[i].pt, dots[activeIdx].pt, outcome);
       rawRels.push(r);
-      if (r > maxRel) maxRel = r;
+      if (r > maxRel) {
+        maxRel = r;
+      }
     }
     return { raw: rawRels, max: maxRel };
   }
@@ -4191,7 +4419,9 @@ var Ax;
         d.el.setAttribute("stroke", "rgba(68,68,68,1)");
         d.el.setAttribute("stroke-width", "2");
         d.el.setAttribute("r", String(d.defaultR + 2));
-        if (d.whisker) d.whisker.setAttribute("stroke", "rgba(217,95,78,0.5)");
+        if (d.whisker) {
+          d.whisker.setAttribute("stroke", "rgba(217,95,78,0.5)");
+        }
       } else {
         const relNorm = rels.max > 0 ? rels.raw[i] / rels.max : 0;
         const fa = Math.max(0.08, Math.min(0.9, Math.sqrt(relNorm)));
@@ -4199,7 +4429,9 @@ var Ax;
         d.el.setAttribute("stroke", `rgba(68,68,68,${Math.max(0.15, fa * 0.6).toFixed(3)})`);
         d.el.setAttribute("stroke-width", "1");
         d.el.setAttribute("r", String(d.defaultR));
-        if (d.whisker) d.whisker.setAttribute("stroke", `rgba(217,95,78,${(fa * 0.35).toFixed(3)})`);
+        if (d.whisker) {
+          d.whisker.setAttribute("stroke", `rgba(217,95,78,${(fa * 0.35).toFixed(3)})`);
+        }
       }
     }
   }
@@ -4209,7 +4441,9 @@ var Ax;
       d.el.setAttribute("stroke", d.defaultStroke);
       d.el.setAttribute("stroke-width", "1");
       d.el.setAttribute("r", String(d.defaultR));
-      if (d.whisker) d.whisker.setAttribute("stroke", "rgba(217,95,78,0.3)");
+      if (d.whisker) {
+        d.whisker.setAttribute("stroke", "rgba(217,95,78,0.3)");
+      }
     }
   }
   function findNearestDot(dots, px, py, maxDist = 12) {
@@ -4230,7 +4464,9 @@ var Ax;
     let html = `<b>Trial ${idx}</b><br>`;
     for (const name of predictor.outcomeNames) {
       const td = predictor.getTrainingData(name);
-      if (idx >= td.Y.length) continue;
+      if (idx >= td.Y.length) {
+        continue;
+      }
       const isSel = name === selectedOutcome;
       const color = isSel ? "#4872f9" : "#666";
       html += `${isSel ? "<b>" : ""}${name} = <span style="color:${color}">${td.Y[idx].toFixed(4)}</span>${isSel ? "</b>" : ""}<br>`;
@@ -4313,11 +4549,306 @@ var Ax;
     return { getPinnedIdx };
   }
 
+  // src/sensitivity.ts
+  var PRIMES = [
+    2,
+    3,
+    5,
+    7,
+    11,
+    13,
+    17,
+    19,
+    23,
+    29,
+    31,
+    37,
+    41,
+    43,
+    47,
+    53,
+    59,
+    61,
+    67,
+    71,
+    73,
+    79,
+    83,
+    89,
+    97,
+    101,
+    103,
+    107,
+    109,
+    113,
+    127,
+    131
+  ];
+  function haltonSequence(n, d, rng) {
+    if (d > PRIMES.length) {
+      throw new Error(`haltonSequence supports up to ${PRIMES.length} dimensions, got ${d}`);
+    }
+    const r = rng ?? new Rng(42);
+    const result = [];
+    const permutations = [];
+    for (let dim = 0; dim < d; dim++) {
+      const base = PRIMES[dim];
+      const dimPerms = [];
+      for (let digitPos = 0; digitPos < 20; digitPos++) {
+        const perm = [];
+        for (let k = 0; k < base; k++) {
+          perm.push(k);
+        }
+        for (let k = base - 1; k > 0; k--) {
+          const j = Math.floor(r.uniform() * (k + 1));
+          const tmp = perm[k];
+          perm[k] = perm[j];
+          perm[j] = tmp;
+        }
+        dimPerms.push(perm);
+      }
+      permutations.push(dimPerms);
+    }
+    for (let i = 0; i < n; i++) {
+      const point = new Array(d);
+      for (let dim = 0; dim < d; dim++) {
+        const base = PRIMES[dim];
+        let val = 0;
+        let denom = 1;
+        let idx = i + 1;
+        let digitPos = 0;
+        while (idx > 0) {
+          denom *= base;
+          const digit = idx % base;
+          const scrambled = permutations[dim][digitPos % 20][digit];
+          val += scrambled / denom;
+          idx = Math.floor(idx / base);
+          digitPos++;
+        }
+        point[dim] = val;
+      }
+      result.push(point);
+    }
+    return result;
+  }
+
+  // src/viz/estimateRange.ts
+  var MAX_HALTON_D = 32;
+  function estimateRange(predictor, ciMultiplier = 1.96, outcomes) {
+    const names = outcomes ?? predictor.outcomeNames;
+    const result = {};
+    const d = predictor.paramNames.length;
+    const bounds = predictor.paramBounds;
+    const specs = predictor.paramSpecs;
+    const choiceDims = /* @__PURE__ */ new Set();
+    const choiceValues = /* @__PURE__ */ new Map();
+    if (specs) {
+      for (let j = 0; j < d; j++) {
+        if (isChoice(specs[j])) {
+          choiceDims.add(j);
+          choiceValues.set(j, specs[j].values.map(Number));
+        }
+      }
+    }
+    const contDims = [];
+    for (let j = 0; j < d; j++) {
+      if (!choiceDims.has(j)) {
+        contDims.push(j);
+      }
+    }
+    let activeDims = contDims;
+    const fixedDimValues = /* @__PURE__ */ new Map();
+    if (contDims.length > MAX_HALTON_D) {
+      let importantDims = null;
+      if (predictor.computeSensitivity) {
+        try {
+          const sens = predictor.computeSensitivity(names[0]);
+          const indexed = sens.totalOrder.map((v, i) => ({ i, v }));
+          indexed.sort((a, b) => b.v - a.v);
+          importantDims = indexed.map((x) => x.i).filter((i) => !choiceDims.has(i)).slice(0, MAX_HALTON_D);
+        } catch {
+        }
+      }
+      if (!importantDims) {
+        const ranked = predictor.rankDimensionsByImportance?.(names[0]);
+        if (ranked && ranked.length > 0) {
+          importantDims = ranked.map((r) => r.dimIndex).filter((i) => !choiceDims.has(i)).slice(0, MAX_HALTON_D);
+        }
+      }
+      if (importantDims && importantDims.length > 0) {
+        activeDims = importantDims;
+        for (const j of contDims) {
+          if (!activeDims.includes(j)) {
+            fixedDimValues.set(j, (bounds[j][0] + bounds[j][1]) / 2);
+          }
+        }
+      } else {
+        activeDims = contDims.slice(0, MAX_HALTON_D);
+        for (const j of contDims.slice(MAX_HALTON_D)) {
+          fixedDimValues.set(j, (bounds[j][0] + bounds[j][1]) / 2);
+        }
+      }
+    }
+    const dEff = activeDims.length;
+    const nInitial = dEff <= 6 ? 256 : dEff <= 12 ? 384 : 512;
+    const nStarts = dEff <= 6 ? 4 : 8;
+    const nSteps = dEff <= 6 ? 5 : 10;
+    const rng = new Rng(42);
+    const haltonD = Math.min(dEff, MAX_HALTON_D);
+    const haltonPts = haltonD > 0 ? haltonSequence(nInitial, haltonD, rng) : [];
+    const fullPoints = [];
+    for (let i = 0; i < nInitial; i++) {
+      const pt = new Array(d);
+      for (let ai = 0; ai < activeDims.length; ai++) {
+        const j = activeDims[ai];
+        const h = haltonD > 0 ? haltonPts[i][ai] : rng.uniform();
+        pt[j] = bounds[j][0] + h * (bounds[j][1] - bounds[j][0]);
+      }
+      for (const [j, v] of fixedDimValues) {
+        pt[j] = v;
+      }
+      for (const j of choiceDims) {
+        const vals = choiceValues.get(j);
+        pt[j] = vals[Math.floor(rng.uniform() * vals.length)];
+      }
+      fullPoints.push(pt);
+    }
+    const td0 = predictor.getTrainingData();
+    for (const pt of td0.X) {
+      fullPoints.push(pt);
+    }
+    const allPreds = predictor.predict(fullPoints);
+    for (const outcome of names) {
+      const pred = allPreds[outcome];
+      if (!pred) {
+        result[outcome] = { muMin: 0, muMax: 1, ciMin: 0, ciMax: 1 };
+        continue;
+      }
+      let muMin = Infinity, muMax = -Infinity;
+      let ciMin = Infinity, ciMax = -Infinity;
+      const maxCands = [];
+      const minCands = [];
+      for (let i = 0; i < fullPoints.length; i++) {
+        const mu = pred.mean[i];
+        const s = Math.sqrt(pred.variance[i]);
+        const up = mu + ciMultiplier * s;
+        const lo = mu - ciMultiplier * s;
+        if (mu < muMin) {
+          muMin = mu;
+        }
+        if (mu > muMax) {
+          muMax = mu;
+        }
+        if (lo < ciMin) {
+          ciMin = lo;
+        }
+        if (up > ciMax) {
+          ciMax = up;
+        }
+        if (i < nInitial) {
+          maxCands.push({ idx: i, ciUp: up, ciLo: lo });
+          minCands.push({ idx: i, ciUp: up, ciLo: lo });
+        }
+      }
+      maxCands.sort((a, b) => b.ciUp - a.ciUp);
+      minCands.sort((a, b) => a.ciLo - b.ciLo);
+      const maxStarts = maxCands.slice(0, nStarts).map((c) => fullPoints[c.idx].slice());
+      const minStarts = minCands.slice(0, nStarts).map((c) => fullPoints[c.idx].slice());
+      const eps = 1e-4;
+      const lr = 0.02;
+      const totalStarts = maxStarts.length + minStarts.length;
+      for (let step = 0; step < nSteps; step++) {
+        const batchPts = [];
+        const allStarts = [...maxStarts, ...minStarts];
+        for (const pt of allStarts) {
+          batchPts.push(pt.slice());
+          for (const j of activeDims) {
+            const ptP = pt.slice();
+            ptP[j] = Math.min(bounds[j][1], pt[j] + eps * (bounds[j][1] - bounds[j][0]));
+            batchPts.push(ptP);
+          }
+        }
+        const bPred = predictor.predict(batchPts)[outcome];
+        if (!bPred) {
+          break;
+        }
+        let offset = 0;
+        for (let si = 0; si < totalStarts; si++) {
+          const isMax = si < maxStarts.length;
+          const pt = isMax ? maxStarts[si] : minStarts[si - maxStarts.length];
+          const mu0 = bPred.mean[offset];
+          const s0 = Math.sqrt(bPred.variance[offset]);
+          const val0 = isMax ? mu0 + ciMultiplier * s0 : mu0 - ciMultiplier * s0;
+          if (mu0 > muMax) {
+            muMax = mu0;
+          }
+          if (mu0 < muMin) {
+            muMin = mu0;
+          }
+          if (mu0 + ciMultiplier * s0 > ciMax) {
+            ciMax = mu0 + ciMultiplier * s0;
+          }
+          if (mu0 - ciMultiplier * s0 < ciMin) {
+            ciMin = mu0 - ciMultiplier * s0;
+          }
+          const grad = [];
+          for (let ai = 0; ai < activeDims.length; ai++) {
+            const muJ = bPred.mean[offset + 1 + ai];
+            const sJ = Math.sqrt(bPred.variance[offset + 1 + ai]);
+            const valJ = isMax ? muJ + ciMultiplier * sJ : muJ - ciMultiplier * sJ;
+            grad.push(
+              (valJ - val0) / (eps * (bounds[activeDims[ai]][1] - bounds[activeDims[ai]][0]))
+            );
+          }
+          const gradNorm = Math.sqrt(grad.reduce((s, g) => s + g * g, 0));
+          if (gradNorm > 1e-8) {
+            for (let ai = 0; ai < activeDims.length; ai++) {
+              const j = activeDims[ai];
+              const range = bounds[j][1] - bounds[j][0];
+              const stepJ = lr * range * grad[ai] / gradNorm;
+              pt[j] = Math.max(
+                bounds[j][0],
+                Math.min(bounds[j][1], pt[j] + (isMax ? stepJ : -stepJ))
+              );
+            }
+          }
+          offset += 1 + activeDims.length;
+        }
+      }
+      const finalPts = [...maxStarts, ...minStarts];
+      if (finalPts.length > 0) {
+        const fPred = predictor.predict(finalPts)[outcome];
+        if (fPred) {
+          for (let i = 0; i < finalPts.length; i++) {
+            const mu = fPred.mean[i];
+            const s = Math.sqrt(fPred.variance[i]);
+            if (mu > muMax) {
+              muMax = mu;
+            }
+            if (mu < muMin) {
+              muMin = mu;
+            }
+            if (mu + ciMultiplier * s > ciMax) {
+              ciMax = mu + ciMultiplier * s;
+            }
+            if (mu - ciMultiplier * s < ciMin) {
+              ciMin = mu - ciMultiplier * s;
+            }
+          }
+        }
+      }
+      result[outcome] = { muMin, muMax, ciMin, ciMax };
+    }
+    return result;
+  }
+
   // src/viz/plots/_svg.ts
   var SVG_NS = "http://www.w3.org/2000/svg";
   function svgEl(tag, attrs) {
     const el = document.createElementNS(SVG_NS, tag);
-    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+    for (const [k, v] of Object.entries(attrs)) {
+      el.setAttribute(k, String(v));
+    }
     return el;
   }
 
@@ -4339,13 +4870,20 @@ var Ax;
     const initialMode = options?.mode ?? "lengthscale";
     if (!interactive) {
       if (initialMode === "sobol" && predictor.computeSensitivity) {
-        renderSobolStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0], options?.sobolSamples);
+        renderSobolStatic(
+          container,
+          predictor,
+          options?.outcome ?? predictor.outcomeNames[0],
+          options?.sobolSamples
+        );
       } else {
         renderLengthscaleStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0]);
       }
       return;
     }
-    if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    if (!container.id) {
+      container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    }
     removeTooltip(container.id);
     container.innerHTML = "";
     injectScopedStyles(container);
@@ -4356,15 +4894,15 @@ var Ax;
     const controlsDiv = document.createElement("div");
     controlsDiv.style.cssText = CTRL_CSS;
     const plotsDiv = document.createElement("div");
-    container.appendChild(controlsDiv);
-    container.appendChild(plotsDiv);
+    container.append(controlsDiv);
+    container.append(plotsDiv);
     if (predictor.outcomeNames.length > 1) {
       const { wrapper, select } = makeSelectEl("Outcome:");
       createOutcomeSelector(predictor, select, (name) => {
         selectedOutcome = name;
         redraw();
       });
-      controlsDiv.appendChild(wrapper);
+      controlsDiv.append(wrapper);
     }
     if (predictor.computeSensitivity) {
       let updateSegStyle2 = function() {
@@ -4389,9 +4927,9 @@ var Ax;
         updateSegStyle2();
         redraw();
       });
-      segDiv.appendChild(btnLs);
-      segDiv.appendChild(btnSobol);
-      controlsDiv.appendChild(segDiv);
+      segDiv.append(btnLs);
+      segDiv.append(btnSobol);
+      controlsDiv.append(segDiv);
     }
     function redraw() {
       plotsDiv.innerHTML = "";
@@ -4409,7 +4947,16 @@ var Ax;
       target.textContent = "No lengthscale data";
       return;
     }
-    const barColors = ["#4872f9", "#5478fa", "#6088fa", "#7098fb", "#85a8fb", "#9ab8fc", "#b0c8fc", "#c7d4fd"];
+    const barColors = [
+      "#4872f9",
+      "#5478fa",
+      "#6088fa",
+      "#7098fb",
+      "#85a8fb",
+      "#9ab8fc",
+      "#b0c8fc",
+      "#c7d4fd"
+    ];
     const importances = ranked.map((d) => 1 / d.lengthscale);
     const maxImp = Math.max(...importances);
     const W = Math.min((tooltipContainer ?? target).clientWidth || 500, 500);
@@ -4424,31 +4971,38 @@ var Ax;
       const y = i * (barH + rowGap) + 4;
       const pct = importances[i] / maxImp;
       const barW = Math.max(2, pct * trackW);
-      svg.appendChild(
-        Object.assign(svgEl("text", {
-          x: labelW - 8,
-          y: y + barH / 2 + 4,
-          fill: "#333",
-          "font-size": 13,
-          "text-anchor": "end"
-        }), { textContent: dim.paramName })
+      svg.append(
+        Object.assign(
+          svgEl("text", {
+            x: labelW - 8,
+            y: y + barH / 2 + 4,
+            fill: "#333",
+            "font-size": 13,
+            "text-anchor": "end"
+          }),
+          { textContent: dim.paramName }
+        )
       );
-      svg.appendChild(svgEl("rect", {
-        x: labelW,
-        y,
-        width: trackW,
-        height: barH,
-        rx: 4,
-        fill: "#f0f0f0"
-      }));
-      svg.appendChild(svgEl("rect", {
-        x: labelW,
-        y,
-        width: barW,
-        height: barH,
-        rx: 4,
-        fill: barColors[dim.dimIndex % barColors.length]
-      }));
+      svg.append(
+        svgEl("rect", {
+          x: labelW,
+          y,
+          width: trackW,
+          height: barH,
+          rx: 4,
+          fill: "#f0f0f0"
+        })
+      );
+      svg.append(
+        svgEl("rect", {
+          x: labelW,
+          y,
+          width: barW,
+          height: barH,
+          rx: 4,
+          fill: barColors[dim.dimIndex % barColors.length]
+        })
+      );
       if (tooltip) {
         const hoverRect = svgEl("rect", {
           x: labelW,
@@ -4469,20 +5023,23 @@ var Ax;
         hoverRect.addEventListener("mouseleave", () => {
           tooltip.style.display = "none";
         });
-        svg.appendChild(hoverRect);
+        svg.append(hoverRect);
       }
-      svg.appendChild(
-        Object.assign(svgEl("text", {
-          x: labelW + trackW + 4,
-          y: y + barH / 2 + 4,
-          fill: "#666",
-          "font-size": 11,
-          "text-anchor": "start",
-          "pointer-events": "none"
-        }), { textContent: `ls=${dim.lengthscale.toFixed(3)}` })
+      svg.append(
+        Object.assign(
+          svgEl("text", {
+            x: labelW + trackW + 4,
+            y: y + barH / 2 + 4,
+            fill: "#666",
+            "font-size": 11,
+            "text-anchor": "start",
+            "pointer-events": "none"
+          }),
+          { textContent: `ls=${dim.lengthscale.toFixed(3)}` }
+        )
       );
     });
-    target.appendChild(svg);
+    target.append(svg);
   }
   function signColors(sign) {
     return sign >= 0 ? SOBOL_COLORS.pos : SOBOL_COLORS.neg;
@@ -4492,7 +5049,10 @@ var Ax;
       target.textContent = "Sobol\u2019 analysis not available";
       return;
     }
-    const sens = predictor.computeSensitivity(outcome, sobolSamples ? { numSamples: sobolSamples } : void 0);
+    const sens = predictor.computeSensitivity(
+      outcome,
+      sobolSamples ? { numSamples: sobolSamples } : void 0
+    );
     if (!sens || sens.totalOrder.length === 0) {
       target.textContent = "No sensitivity data";
       return;
@@ -4521,58 +5081,69 @@ var Ax;
     const defs = svgEl("defs", {});
     dims.forEach((_, i) => {
       const clipPath = svgEl("clipPath", { id: `sobol-clip-${i}` });
-      clipPath.appendChild(svgEl("rect", {
-        x: labelW,
-        y: i * (barH + rowGap) + 4,
-        width: trackW,
-        height: barH,
-        rx: 4
-      }));
-      defs.appendChild(clipPath);
+      clipPath.append(
+        svgEl("rect", {
+          x: labelW,
+          y: i * (barH + rowGap) + 4,
+          width: trackW,
+          height: barH,
+          rx: 4
+        })
+      );
+      defs.append(clipPath);
     });
-    svg.appendChild(defs);
+    svg.append(defs);
     dims.forEach((dim, i) => {
       const y = i * (barH + rowGap) + 4;
       const firstW = Math.max(0, dim.first / maxST * trackW);
       const interW = Math.max(0, dim.interaction / maxST * trackW);
       const cols = signColors(dim.sign);
-      svg.appendChild(
-        Object.assign(svgEl("text", {
-          x: labelW - 8,
-          y: y + barH / 2 + 4,
-          fill: "#333",
-          "font-size": 13,
-          "text-anchor": "end"
-        }), { textContent: dim.name })
+      svg.append(
+        Object.assign(
+          svgEl("text", {
+            x: labelW - 8,
+            y: y + barH / 2 + 4,
+            fill: "#333",
+            "font-size": 13,
+            "text-anchor": "end"
+          }),
+          { textContent: dim.name }
+        )
       );
-      svg.appendChild(svgEl("rect", {
-        x: labelW,
-        y,
-        width: trackW,
-        height: barH,
-        rx: 4,
-        fill: "#f0f0f0"
-      }));
-      const g = svgEl("g", { "clip-path": `url(#sobol-clip-${i})` });
-      if (firstW > 0) {
-        g.appendChild(svgEl("rect", {
+      svg.append(
+        svgEl("rect", {
           x: labelW,
           y,
-          width: firstW,
+          width: trackW,
           height: barH,
-          fill: cols.first
-        }));
+          rx: 4,
+          fill: "#f0f0f0"
+        })
+      );
+      const g = svgEl("g", { "clip-path": `url(#sobol-clip-${i})` });
+      if (firstW > 0) {
+        g.append(
+          svgEl("rect", {
+            x: labelW,
+            y,
+            width: firstW,
+            height: barH,
+            fill: cols.first
+          })
+        );
       }
       if (interW > 0) {
-        g.appendChild(svgEl("rect", {
-          x: labelW + firstW,
-          y,
-          width: interW,
-          height: barH,
-          fill: cols.interaction
-        }));
+        g.append(
+          svgEl("rect", {
+            x: labelW + firstW,
+            y,
+            width: interW,
+            height: barH,
+            fill: cols.interaction
+          })
+        );
       }
-      svg.appendChild(g);
+      svg.append(g);
       if (tooltip) {
         const hoverRect = svgEl("rect", {
           x: labelW,
@@ -4593,10 +5164,10 @@ var Ax;
         hoverRect.addEventListener("mouseleave", () => {
           tooltip.style.display = "none";
         });
-        svg.appendChild(hoverRect);
+        svg.append(hoverRect);
       }
     });
-    target.appendChild(svg);
+    target.append(svg);
   }
 
   // src/viz/plots/cv.ts
@@ -4604,10 +5175,17 @@ var Ax;
   function renderCrossValidation(container, predictor, options) {
     const interactive = options?.interactive !== false;
     if (!interactive) {
-      renderCrossValidationStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0], options);
+      renderCrossValidationStatic(
+        container,
+        predictor,
+        options?.outcome ?? predictor.outcomeNames[0],
+        options
+      );
       return;
     }
-    if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    if (!container.id) {
+      container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    }
     removeTooltip(container.id);
     container.innerHTML = "";
     injectScopedStyles(container);
@@ -4618,26 +5196,26 @@ var Ax;
     controlsDiv.style.cssText = CTRL_CSS2;
     const plotsDiv = document.createElement("div");
     plotsDiv.style.cssText = "display:flex;gap:12px;flex-wrap:wrap";
-    container.appendChild(controlsDiv);
-    container.appendChild(plotsDiv);
+    container.append(controlsDiv);
+    container.append(plotsDiv);
     if (hasMulti) {
       const { wrapper, select } = makeSelectEl("Outcome:");
       const allOpt = document.createElement("option");
       allOpt.value = "__all__";
       allOpt.textContent = "All outcomes";
-      select.appendChild(allOpt);
+      select.append(allOpt);
       predictor.outcomeNames.forEach((name) => {
         const opt = document.createElement("option");
         opt.value = name;
         opt.textContent = name;
-        select.appendChild(opt);
+        select.append(opt);
       });
       select.value = selectedOutcome;
-      select.onchange = () => {
+      select.addEventListener("change", () => {
         selectedOutcome = select.value;
         redraw();
-      };
-      controlsDiv.appendChild(wrapper);
+      });
+      controlsDiv.append(wrapper);
     }
     let pinnedIdx = -1;
     let panels = [];
@@ -4653,14 +5231,15 @@ var Ax;
       pinnedIdx = -1;
       panels = [];
       if (selectedOutcome === "__all__") {
-        const tileW = 280, tileH = 280;
+        const tileW = 280;
+        const tileH = 280;
         for (const name of predictor.outcomeNames) {
           const tile = document.createElement("div");
           tile.style.cssText = `background:transparent;border:0.5px solid #e0e0e0;border-radius:8px;overflow:hidden;width:${tileW}px;height:${tileH + 28}px`;
           const title = document.createElement("div");
           title.style.cssText = "font-size:13px;font-weight:500;color:#333;text-align:center;padding:6px 0 0";
           title.textContent = name;
-          tile.appendChild(title);
+          tile.append(title);
           renderCVPanel(
             tile,
             predictor,
@@ -4677,7 +5256,7 @@ var Ax;
             broadcastHighlight,
             broadcastClear
           );
-          plotsDiv.appendChild(tile);
+          plotsDiv.append(tile);
         }
       } else {
         const W = options?.width ?? 440;
@@ -4700,7 +5279,7 @@ var Ax;
           broadcastHighlight,
           broadcastClear
         );
-        plotsDiv.appendChild(cvTile);
+        plotsDiv.append(cvTile);
       }
     }
     redraw();
@@ -4733,56 +5312,74 @@ var Ax;
     const sx = (v) => margin.left + (v - lo) / (hi - lo) * pw;
     const sy = (v) => margin.top + ph - (v - lo) / (hi - lo) * ph;
     const svg = svgEl("svg", { width: W, height: H });
-    svg.appendChild(svgEl("line", {
-      x1: margin.left,
-      x2: margin.left + pw,
-      y1: margin.top + ph,
-      y2: margin.top + ph,
-      stroke: "rgba(0,0,0,0.20)",
-      "stroke-width": 1
-    }));
-    svg.appendChild(svgEl("line", {
-      x1: margin.left,
-      x2: margin.left,
-      y1: margin.top,
-      y2: margin.top + ph,
-      stroke: "rgba(0,0,0,0.20)",
-      "stroke-width": 1
-    }));
-    svg.appendChild(svgEl("line", {
-      x1: sx(lo),
-      y1: sy(lo),
-      x2: sx(hi),
-      y2: sy(hi),
-      stroke: "rgba(0,0,0,0.20)",
-      "stroke-width": 1.5,
-      "stroke-dasharray": "6,4"
-    }));
+    svg.append(
+      svgEl("line", {
+        x1: margin.left,
+        x2: margin.left + pw,
+        y1: margin.top + ph,
+        y2: margin.top + ph,
+        stroke: "rgba(0,0,0,0.20)",
+        "stroke-width": 1
+      })
+    );
+    svg.append(
+      svgEl("line", {
+        x1: margin.left,
+        x2: margin.left,
+        y1: margin.top,
+        y2: margin.top + ph,
+        stroke: "rgba(0,0,0,0.20)",
+        "stroke-width": 1
+      })
+    );
+    svg.append(
+      svgEl("line", {
+        x1: sx(lo),
+        y1: sy(lo),
+        x2: sx(hi),
+        y2: sy(hi),
+        stroke: "rgba(0,0,0,0.20)",
+        "stroke-width": 1.5,
+        "stroke-dasharray": "6,4"
+      })
+    );
     const nTicks = isSmall ? 3 : 5;
     const tickFontSize = isSmall ? "8" : "10";
     for (let t = 0; t <= nTicks; t++) {
       const v = lo + (hi - lo) * t / nTicks;
-      svg.appendChild(svgEl("line", {
-        x1: margin.left,
-        x2: margin.left + pw,
-        y1: sy(v),
-        y2: sy(v),
-        stroke: "rgba(0,0,0,0.06)"
-      }));
-      svg.appendChild(Object.assign(svgEl("text", {
-        x: sx(v),
-        y: margin.top + ph + (isSmall ? 12 : 16),
-        fill: "#999",
-        "font-size": tickFontSize,
-        "text-anchor": "middle"
-      }), { textContent: v.toFixed(isSmall ? 0 : 2) }));
-      svg.appendChild(Object.assign(svgEl("text", {
-        x: margin.left - 4,
-        y: sy(v) + 3,
-        fill: "#999",
-        "font-size": tickFontSize,
-        "text-anchor": "end"
-      }), { textContent: v.toFixed(isSmall ? 0 : 2) }));
+      svg.append(
+        svgEl("line", {
+          x1: margin.left,
+          x2: margin.left + pw,
+          y1: sy(v),
+          y2: sy(v),
+          stroke: "rgba(0,0,0,0.06)"
+        })
+      );
+      svg.append(
+        Object.assign(
+          svgEl("text", {
+            x: sx(v),
+            y: margin.top + ph + (isSmall ? 12 : 16),
+            fill: "#999",
+            "font-size": tickFontSize,
+            "text-anchor": "middle"
+          }),
+          { textContent: v.toFixed(isSmall ? 0 : 2) }
+        )
+      );
+      svg.append(
+        Object.assign(
+          svgEl("text", {
+            x: margin.left - 4,
+            y: sy(v) + 3,
+            fill: "#999",
+            "font-size": tickFontSize,
+            "text-anchor": "end"
+          }),
+          { textContent: v.toFixed(isSmall ? 0 : 2) }
+        )
+      );
     }
     const td = predictor.getTrainingData(outcome);
     const dotR = isSmall ? 3 : 4;
@@ -4799,7 +5396,7 @@ var Ax;
         stroke: "rgba(217,95,78,0.3)",
         "stroke-width": isSmall ? 1 : 1.5
       });
-      svg.appendChild(whisker);
+      svg.append(whisker);
       const dot = svgEl("circle", {
         cx,
         cy,
@@ -4808,7 +5405,7 @@ var Ax;
         stroke: defaultStroke,
         "stroke-width": 1
       });
-      svg.appendChild(dot);
+      svg.append(dot);
       cvDots.push({
         cx,
         cy,
@@ -4822,30 +5419,45 @@ var Ax;
       });
     }
     if (!isSmall) {
-      svg.appendChild(Object.assign(svgEl("text", {
-        x: margin.left + pw / 2,
-        y: H - 6,
-        fill: "#666",
-        "font-size": 13,
-        "text-anchor": "middle"
-      }), { textContent: "Observed" }));
-      svg.appendChild(Object.assign(svgEl("text", {
-        x: 14,
-        y: margin.top + ph / 2,
-        fill: "#666",
-        "font-size": 13,
-        "text-anchor": "middle",
-        transform: `rotate(-90,14,${margin.top + ph / 2})`
-      }), { textContent: "LOO Predicted" }));
+      svg.append(
+        Object.assign(
+          svgEl("text", {
+            x: margin.left + pw / 2,
+            y: H - 6,
+            fill: "#666",
+            "font-size": 13,
+            "text-anchor": "middle"
+          }),
+          { textContent: "Observed" }
+        )
+      );
+      svg.append(
+        Object.assign(
+          svgEl("text", {
+            x: 14,
+            y: margin.top + ph / 2,
+            fill: "#666",
+            "font-size": 13,
+            "text-anchor": "middle",
+            transform: `rotate(-90,14,${margin.top + ph / 2})`
+          }),
+          { textContent: "LOO Predicted" }
+        )
+      );
     }
-    svg.appendChild(Object.assign(svgEl("text", {
-      x: margin.left + 6,
-      y: margin.top + (isSmall ? 14 : 18),
-      fill: "#4872f9",
-      "font-size": isSmall ? 11 : 14,
-      "font-weight": "600"
-    }), { textContent: `R\xB2 = ${r2.toFixed(4)}` }));
-    target.appendChild(svg);
+    svg.append(
+      Object.assign(
+        svgEl("text", {
+          x: margin.left + 6,
+          y: margin.top + (isSmall ? 14 : 18),
+          fill: "#4872f9",
+          "font-size": isSmall ? 11 : 14,
+          "font-weight": "600"
+        }),
+        { textContent: `R\xB2 = ${r2.toFixed(4)}` }
+      )
+    );
+    target.append(svg);
     function highlightDots(activeIdx, rels) {
       applyDotHighlight(cvDots, activeIdx, rels);
     }
@@ -4873,7 +5485,9 @@ var Ax;
         }
       } else {
         tooltip.style.display = "none";
-        if (getPinnedIdx() < 0) broadcastClear();
+        if (getPinnedIdx() < 0) {
+          broadcastClear();
+        }
       }
     });
     svg.addEventListener("click", (e) => {
@@ -4889,7 +5503,9 @@ var Ax;
     });
     svg.addEventListener("mouseleave", () => {
       tooltip.style.display = "none";
-      if (getPinnedIdx() < 0) broadcastClear();
+      if (getPinnedIdx() < 0) {
+        broadcastClear();
+      }
     });
   }
   function renderCrossValidationStatic(target, predictor, outcome, options) {
@@ -4897,7 +5513,9 @@ var Ax;
     const H = options?.height ?? 440;
     const panels = [];
     let pinnedIdx = -1;
-    if (!target.id) target.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    if (!target.id) {
+      target.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    }
     injectScopedStyles(target);
     const tooltip = createTooltipDiv(target.id);
     renderCVPanel(
@@ -4928,10 +5546,17 @@ var Ax;
   function renderOptimizationTrace(container, predictor, options) {
     const interactive = options?.interactive !== false;
     if (!interactive) {
-      renderOptimizationTraceStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0], options);
+      renderOptimizationTraceStatic(
+        container,
+        predictor,
+        options?.outcome ?? predictor.outcomeNames[0],
+        options
+      );
       return;
     }
-    if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    if (!container.id) {
+      container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    }
     removeTooltip(container.id);
     container.innerHTML = "";
     injectScopedStyles(container);
@@ -4940,19 +5565,26 @@ var Ax;
     const controlsDiv = document.createElement("div");
     controlsDiv.style.cssText = CTRL_CSS3;
     const plotsDiv = document.createElement("div");
-    container.appendChild(controlsDiv);
-    container.appendChild(plotsDiv);
+    container.append(controlsDiv);
+    container.append(plotsDiv);
     if (predictor.outcomeNames.length > 1) {
       const { wrapper, select } = makeSelectEl("Outcome:");
       createOutcomeSelector(predictor, select, (name) => {
         selectedOutcome = name;
         redraw();
       });
-      controlsDiv.appendChild(wrapper);
+      controlsDiv.append(wrapper);
     }
     function redraw() {
       plotsDiv.innerHTML = "";
-      renderOptimizationTraceStatic(plotsDiv, predictor, selectedOutcome, options, tooltip, container);
+      renderOptimizationTraceStatic(
+        plotsDiv,
+        predictor,
+        selectedOutcome,
+        options,
+        tooltip,
+        container
+      );
     }
     redraw();
   }
@@ -4983,51 +5615,66 @@ var Ax;
     const sx = (i) => margin.left + i / Math.max(1, n - 1) * pw;
     const sy = (v) => margin.top + ph - (v - yMin) / (yMax - yMin) * ph;
     const svg = svgEl("svg", { width: W, height: H });
-    svg.appendChild(svgEl("line", {
-      x1: margin.left,
-      x2: margin.left + pw,
-      y1: margin.top + ph,
-      y2: margin.top + ph,
-      stroke: "rgba(0,0,0,0.20)",
-      "stroke-width": 1
-    }));
-    svg.appendChild(svgEl("line", {
-      x1: margin.left,
-      x2: margin.left,
-      y1: margin.top,
-      y2: margin.top + ph,
-      stroke: "rgba(0,0,0,0.20)",
-      "stroke-width": 1
-    }));
+    svg.append(
+      svgEl("line", {
+        x1: margin.left,
+        x2: margin.left + pw,
+        y1: margin.top + ph,
+        y2: margin.top + ph,
+        stroke: "rgba(0,0,0,0.20)",
+        "stroke-width": 1
+      })
+    );
+    svg.append(
+      svgEl("line", {
+        x1: margin.left,
+        x2: margin.left,
+        y1: margin.top,
+        y2: margin.top + ph,
+        stroke: "rgba(0,0,0,0.20)",
+        "stroke-width": 1
+      })
+    );
     const nTicks = 5;
     for (let t = 0; t <= nTicks; t++) {
       const v = yMin + (yMax - yMin) * t / nTicks;
-      svg.appendChild(svgEl("line", {
-        x1: margin.left,
-        x2: margin.left + pw,
-        y1: sy(v),
-        y2: sy(v),
-        stroke: "rgba(0,0,0,0.06)"
-      }));
-      svg.appendChild(Object.assign(svgEl("text", {
-        x: margin.left - 8,
-        y: sy(v) + 4,
-        fill: "#999",
-        "font-size": 10,
-        "text-anchor": "end"
-      }), { textContent: v.toFixed(2) }));
+      svg.append(
+        svgEl("line", {
+          x1: margin.left,
+          x2: margin.left + pw,
+          y1: sy(v),
+          y2: sy(v),
+          stroke: "rgba(0,0,0,0.06)"
+        })
+      );
+      svg.append(
+        Object.assign(
+          svgEl("text", {
+            x: margin.left - 8,
+            y: sy(v) + 4,
+            fill: "#999",
+            "font-size": 10,
+            "text-anchor": "end"
+          }),
+          { textContent: v.toFixed(2) }
+        )
+      );
     }
     let bsfPath = `M ${sx(0)} ${sy(bestSoFar[0])}`;
     for (let i = 1; i < n; i++) {
       bsfPath += ` H ${sx(i)} V ${sy(bestSoFar[i])}`;
     }
-    svg.appendChild(Object.assign(svgEl("path", {
-      d: bsfPath,
-      stroke: "#444",
-      "stroke-width": 2.5,
-      fill: "none",
-      opacity: "0.7"
-    })));
+    svg.append(
+      Object.assign(
+        svgEl("path", {
+          d: bsfPath,
+          stroke: "#444",
+          "stroke-width": 2.5,
+          fill: "none",
+          opacity: "0.7"
+        })
+      )
+    );
     const traceDots = [];
     for (let i = 0; i < n; i++) {
       const isBest = bestSoFar[i] === yVals[i];
@@ -5041,7 +5688,7 @@ var Ax;
         stroke: dotStroke,
         "stroke-width": 1
       });
-      svg.appendChild(dot);
+      svg.append(dot);
       traceDots.push({
         cx: sx(i),
         cy: sy(yVals[i]),
@@ -5053,45 +5700,67 @@ var Ax;
         defaultR: 4
       });
     }
-    svg.appendChild(Object.assign(svgEl("text", {
-      x: margin.left + pw / 2,
-      y: H - 6,
-      fill: "#666",
-      "font-size": 13,
-      "text-anchor": "middle"
-    }), { textContent: "Trial" }));
-    svg.appendChild(Object.assign(svgEl("text", {
-      x: 14,
-      y: margin.top + ph / 2,
-      fill: "#666",
-      "font-size": 13,
-      "text-anchor": "middle",
-      transform: `rotate(-90,14,${margin.top + ph / 2})`
-    }), { textContent: `${outcome}${minimize ? " (min)" : " (max)"}` }));
+    svg.append(
+      Object.assign(
+        svgEl("text", {
+          x: margin.left + pw / 2,
+          y: H - 6,
+          fill: "#666",
+          "font-size": 13,
+          "text-anchor": "middle"
+        }),
+        { textContent: "Trial" }
+      )
+    );
+    svg.append(
+      Object.assign(
+        svgEl("text", {
+          x: 14,
+          y: margin.top + ph / 2,
+          fill: "#666",
+          "font-size": 13,
+          "text-anchor": "middle",
+          transform: `rotate(-90,14,${margin.top + ph / 2})`
+        }),
+        { textContent: `${outcome}${minimize ? " (min)" : " (max)"}` }
+      )
+    );
     const xStep = Math.max(1, Math.ceil(n / 10));
     for (let i = 0; i < n; i += xStep) {
-      svg.appendChild(Object.assign(svgEl("text", {
-        x: sx(i),
-        y: margin.top + ph + 18,
-        fill: "#999",
-        "font-size": 10,
-        "text-anchor": "middle"
-      }), { textContent: String(i) }));
+      svg.append(
+        Object.assign(
+          svgEl("text", {
+            x: sx(i),
+            y: margin.top + ph + 18,
+            fill: "#999",
+            "font-size": 10,
+            "text-anchor": "middle"
+          }),
+          { textContent: String(i) }
+        )
+      );
     }
-    svg.appendChild(svgEl("line", {
-      x1: margin.left + pw - 120,
-      x2: margin.left + pw - 100,
-      y1: margin.top + 12,
-      y2: margin.top + 12,
-      stroke: "#444",
-      "stroke-width": 2.5
-    }));
-    svg.appendChild(Object.assign(svgEl("text", {
-      x: margin.left + pw - 96,
-      y: margin.top + 16,
-      fill: "#666",
-      "font-size": 11
-    }), { textContent: "best so far" }));
+    svg.append(
+      svgEl("line", {
+        x1: margin.left + pw - 120,
+        x2: margin.left + pw - 100,
+        y1: margin.top + 12,
+        y2: margin.top + 12,
+        stroke: "#444",
+        "stroke-width": 2.5
+      })
+    );
+    svg.append(
+      Object.assign(
+        svgEl("text", {
+          x: margin.left + pw - 96,
+          y: margin.top + 16,
+          fill: "#666",
+          "font-size": 11
+        }),
+        { textContent: "best so far" }
+      )
+    );
     if (tooltip && tooltipContainer) {
       attachDotInteractivity(svg, traceDots, predictor, outcome, tooltip, tooltipContainer, {
         fallbackMouseMove: () => {
@@ -5099,63 +5768,66 @@ var Ax;
         }
       });
     }
-    target.appendChild(svg);
+    target.append(svg);
   }
 
   // src/viz/plots/slice.ts
   var CTRL_CSS4 = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
+  function resolveStatusQuo(predictor, options) {
+    return options?.statusQuoPoint ?? predictor.statusQuoPoint ?? null;
+  }
+  function deltaRelativize(mT, sT, mC, sC) {
+    const absC = Math.abs(mC);
+    const rHat = (mT - mC) / absC - sC * sC * mT / (absC * absC * absC);
+    const variance = (sT * sT + (mT / mC * sC) ** 2) / (mC * mC);
+    return [rHat * 100, Math.sqrt(Math.max(0, variance)) * 100];
+  }
+  function naiveRelPct(y, sqMean) {
+    return (y - sqMean) / Math.abs(sqMean) * 100;
+  }
+  function formatPct(v) {
+    const sign = v > 0 ? "+" : "";
+    const abs = Math.abs(v);
+    if (abs === 0) {
+      return "0.0%";
+    }
+    if (abs < 1e-3) {
+      return sign + v.toExponential(1) + "%";
+    }
+    if (abs < 0.1) {
+      return sign + v.toFixed(3) + "%";
+    }
+    if (abs < 1) {
+      return sign + v.toFixed(2) + "%";
+    }
+    if (abs < 100) {
+      return sign + v.toFixed(1) + "%";
+    }
+    return sign + v.toFixed(0) + "%";
+  }
   function getParamSpecs(predictor) {
-    if (predictor.paramSpecs) return predictor.paramSpecs;
+    if (predictor.paramSpecs) {
+      return predictor.paramSpecs;
+    }
     return predictor.paramBounds.map(([lo, hi]) => ({
       type: "range",
       bounds: [lo, hi]
     }));
   }
-  function precomputeYRange(predictor, params) {
-    const result = {};
-    const nSample = 200;
-    const bounds = predictor.paramBounds;
-    const pts = [];
-    for (let i = 0; i < nSample; i++) {
-      pts.push(params.map((p, j) => {
-        if (isChoice(p)) {
-          const vals = p.values.map(Number);
-          return vals[Math.floor(Math.random() * vals.length)];
-        }
-        if (isInteger(p)) return Math.round(bounds[j][0] + Math.random() * (bounds[j][1] - bounds[j][0]));
-        return bounds[j][0] + Math.random() * (bounds[j][1] - bounds[j][0]);
-      }));
-    }
-    for (const name of predictor.outcomeNames) {
-      const preds = predictor.predict(pts);
-      const pred = preds[name];
-      let lo = Infinity, hi = -Infinity;
-      for (let j = 0; j < nSample; j++) {
-        const s = Math.sqrt(pred.variance[j]);
-        const lower = pred.mean[j] - 2 * s;
-        const upper = pred.mean[j] + 2 * s;
-        if (lower < lo) lo = lower;
-        if (upper > hi) hi = upper;
-      }
-      const td = predictor.getTrainingData(name);
-      if (td.Y) {
-        for (const yv of td.Y) {
-          if (yv < lo) lo = yv;
-          if (yv > hi) hi = yv;
-        }
-      }
-      const pad = 0.05 * (hi - lo);
-      result[name] = { min: lo - pad, max: hi + pad };
-    }
-    return result;
-  }
   function renderSlicePlot(container, predictor, options) {
     const interactive = options?.interactive !== false;
     if (!interactive) {
-      renderSlicePlotStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0], options);
+      renderSlicePlotStatic(
+        container,
+        predictor,
+        options?.outcome ?? predictor.outcomeNames[0],
+        options
+      );
       return;
     }
-    if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    if (!container.id) {
+      container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    }
     removeTooltip(container.id);
     container.innerHTML = "";
     injectScopedStyles(container);
@@ -5163,11 +5835,50 @@ var Ax;
     const params = getParamSpecs(predictor);
     const td0 = predictor.getTrainingData();
     const fixedValues = options?.fixedValues?.slice() ?? (td0.X.length > 0 ? td0.X[0].slice() : params.map((p, j) => {
-      if (isChoice(p)) return p.values[0];
+      if (isChoice(p)) {
+        return p.values[0];
+      }
       return (predictor.paramBounds[j][0] + predictor.paramBounds[j][1]) / 2;
     }));
     const tooltip = createTooltipDiv(container.id);
-    const globalYRange = precomputeYRange(predictor, params);
+    const isRelative = options?.relative === true;
+    let sqStats;
+    if (isRelative) {
+      const sq = resolveStatusQuo(predictor, options);
+      if (sq) {
+        const sqPred = predictor.predict([sq]);
+        sqStats = {};
+        for (const name of predictor.outcomeNames) {
+          const p = sqPred[name];
+          if (p && Math.abs(p.mean[0]) >= 1e-15) {
+            sqStats[name] = { mean: p.mean[0], std: Math.sqrt(p.variance[0]) };
+          }
+        }
+        if (Object.keys(sqStats).length === 0) {
+          console.warn("ax-js: status quo mean \u2248 0 for all outcomes; falling back to absolute mode");
+          sqStats = void 0;
+        }
+      }
+    }
+    const rawRange = estimateRange(predictor);
+    const globalYRange = {};
+    for (const name of predictor.outcomeNames) {
+      const r = rawRange[name];
+      if (!r) {
+        continue;
+      }
+      const sq = sqStats?.[name];
+      let lo, hi;
+      if (sq) {
+        lo = naiveRelPct(r.ciMin, sq.mean);
+        hi = naiveRelPct(r.ciMax, sq.mean);
+      } else {
+        lo = r.ciMin;
+        hi = r.ciMax;
+      }
+      const pad = 0.05 * (hi - lo);
+      globalYRange[name] = { min: lo - pad, max: hi + pad };
+    }
     let slicePinnedIdx = -1;
     const controlsDiv = document.createElement("div");
     controlsDiv.style.cssText = CTRL_CSS4 + "padding:8px 16px;";
@@ -5175,19 +5886,23 @@ var Ax;
     slidersDiv.style.cssText = "margin-bottom:8px;padding:0 16px;";
     const plotsDiv = document.createElement("div");
     plotsDiv.style.cssText = "padding:4px 8px 12px;";
-    container.appendChild(controlsDiv);
-    container.appendChild(plotsDiv);
-    container.appendChild(slidersDiv);
+    container.append(controlsDiv);
+    container.append(plotsDiv);
+    container.append(slidersDiv);
     if (predictor.outcomeNames.length > 1) {
       const { wrapper, select } = makeSelectEl("Outcome:");
       createOutcomeSelector(predictor, select, (name) => {
         selectedOutcome = name;
         redraw();
       });
-      controlsDiv.appendChild(wrapper);
+      controlsDiv.append(wrapper);
     }
     function rebuildSliders() {
-      const dimOrd = computeDimOrder(predictor, predictor.paramNames.length, selectedOutcome);
+      const dimOrd = computeDimOrder(
+        predictor,
+        predictor.paramNames.length,
+        selectedOutcome
+      );
       createParamSliders(
         predictor,
         params,
@@ -5215,10 +5930,13 @@ var Ax;
           slicePinnedIdx = v;
         },
         (pt) => {
-          for (let j = 0; j < fixedValues.length; j++) fixedValues[j] = pt[j];
+          for (let j = 0; j < fixedValues.length; j++) {
+            fixedValues[j] = pt[j];
+          }
           rebuildSliders();
           redrawPlots();
-        }
+        },
+        sqStats
       );
     }
     function redraw() {
@@ -5227,7 +5945,7 @@ var Ax;
     }
     redraw();
   }
-  function renderSlicePlotStatic(target, predictor, outcome, options, fixedValuesOverride, tooltip, globalYRange, paramSpecs, getPinnedIdx, setPinnedIdx, onSnapToPoint) {
+  function renderSlicePlotStatic(target, predictor, outcome, options, fixedValuesOverride, tooltip, globalYRange, paramSpecs, getPinnedIdx, setPinnedIdx, onSnapToPoint, sqStats) {
     const numPoints = options?.numPoints ?? 80;
     const W = options?.width ?? 340;
     const H = options?.height ?? 220;
@@ -5236,10 +5954,12 @@ var Ax;
     const nDim = names.length;
     const params = paramSpecs ?? getParamSpecs(predictor);
     const fixedValues = fixedValuesOverride?.slice() ?? options?.fixedValues?.slice() ?? bounds.map(([lo, hi]) => (lo + hi) / 2);
+    const sqStat = sqStats?.[outcome];
+    const relativeActive = sqStat !== void 0;
     target.style.display = "flex";
     target.style.flexWrap = "wrap";
     target.style.gap = "8px";
-    const margin = { top: 24, right: 16, bottom: 32, left: 50 };
+    const margin = { top: 24, right: 16, bottom: 32, left: relativeActive ? 62 : 50 };
     const pw = W - margin.left - margin.right;
     const ph = H - margin.top - margin.bottom;
     const allSubplotDots = [];
@@ -5263,23 +5983,46 @@ var Ax;
         xLo = bounds[dim][0];
         xHi = bounds[dim][1];
         xs = [];
-        for (let iv = Math.ceil(xLo); iv <= Math.floor(xHi); iv++) xs.push(iv);
+        for (let iv = Math.ceil(xLo); iv <= Math.floor(xHi); iv++) {
+          xs.push(iv);
+        }
       } else {
         [xLo, xHi] = bounds[dim];
-        if (xLo === xHi) continue;
+        if (xLo === xHi) {
+          continue;
+        }
         xs = [];
-        for (let i = 0; i < numPoints; i++) xs.push(xLo + (xHi - xLo) * i / (numPoints - 1));
+        for (let i = 0; i < numPoints; i++) {
+          xs.push(xLo + (xHi - xLo) * i / (numPoints - 1));
+        }
       }
-      if (xs.length === 0) continue;
+      if (xs.length === 0) {
+        continue;
+      }
       const testPoints = xs.map((v) => {
         const pt = fixedValues.slice();
         pt[dim] = v;
         return pt;
       });
       const pred = predictor.predict(testPoints)[outcome];
-      if (!pred) continue;
-      const means = Array.from(pred.mean);
-      const stds = means.map((_, i) => Math.sqrt(pred.variance[i]));
+      if (!pred) {
+        continue;
+      }
+      const rawMeans = Array.from(pred.mean);
+      const rawStds = rawMeans.map((_, i) => Math.sqrt(pred.variance[i]));
+      let means, stds;
+      if (relativeActive) {
+        means = [];
+        stds = [];
+        for (let i = 0; i < rawMeans.length; i++) {
+          const [rm, rs] = deltaRelativize(rawMeans[i], rawStds[i], sqStat.mean, sqStat.std);
+          means.push(rm);
+          stds.push(rs);
+        }
+      } else {
+        means = rawMeans;
+        stds = rawStds;
+      }
       const upper = means.map((m, i) => m + 2 * stds[i]);
       const lower = means.map((m, i) => m - 2 * stds[i]);
       let yMin, yMax;
@@ -5303,47 +6046,93 @@ var Ax;
       const sy = (v) => margin.top + (1 - (v - yMin) / yRange) * ph;
       const svg = svgEl("svg", { width: W, height: H });
       svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-      svg.appendChild(svgEl("line", {
-        x1: margin.left,
-        x2: margin.left + pw,
-        y1: margin.top + ph,
-        y2: margin.top + ph,
-        stroke: "rgba(0,0,0,0.20)",
-        "stroke-width": 1
-      }));
-      svg.appendChild(svgEl("line", {
-        x1: margin.left,
-        x2: margin.left,
-        y1: margin.top,
-        y2: margin.top + ph,
-        stroke: "rgba(0,0,0,0.20)",
-        "stroke-width": 1
-      }));
-      svg.appendChild(Object.assign(
-        svgEl("text", { x: margin.left + pw / 2, y: 16, fill: "#555", "font-size": 12, "text-anchor": "middle" }),
-        { textContent: names[dim] }
-      ));
+      svg.append(
+        svgEl("line", {
+          x1: margin.left,
+          x2: margin.left + pw,
+          y1: margin.top + ph,
+          y2: margin.top + ph,
+          stroke: "rgba(0,0,0,0.20)",
+          "stroke-width": 1
+        })
+      );
+      svg.append(
+        svgEl("line", {
+          x1: margin.left,
+          x2: margin.left,
+          y1: margin.top,
+          y2: margin.top + ph,
+          stroke: "rgba(0,0,0,0.20)",
+          "stroke-width": 1
+        })
+      );
+      svg.append(
+        Object.assign(
+          svgEl("text", {
+            x: margin.left + pw / 2,
+            y: 16,
+            fill: "#555",
+            "font-size": 12,
+            "text-anchor": "middle"
+          }),
+          { textContent: names[dim] }
+        )
+      );
       if (dimIsChoice) {
         for (let ci = 0; ci < xs.length; ci++) {
           const cx = sx(ci), cyMu = sy(means[ci]);
           const cyUp = sy(upper[ci]), cyLo = sy(lower[ci]);
-          svg.appendChild(svgEl("line", { x1: cx, y1: cyUp, x2: cx, y2: cyLo, stroke: "rgba(72,114,249,0.4)", "stroke-width": 2 }));
+          svg.append(
+            svgEl("line", {
+              x1: cx,
+              y1: cyUp,
+              x2: cx,
+              y2: cyLo,
+              stroke: "rgba(72,114,249,0.4)",
+              "stroke-width": 2
+            })
+          );
           for (const capY of [cyUp, cyLo]) {
-            svg.appendChild(svgEl("line", { x1: cx - 4, y1: capY, x2: cx + 4, y2: capY, stroke: "rgba(72,114,249,0.4)", "stroke-width": 1.5 }));
+            svg.append(
+              svgEl("line", {
+                x1: cx - 4,
+                y1: capY,
+                x2: cx + 4,
+                y2: capY,
+                stroke: "rgba(72,114,249,0.4)",
+                "stroke-width": 1.5
+              })
+            );
           }
-          svg.appendChild(svgEl("circle", { cx, cy: cyMu, r: 5, fill: "#4872f9", stroke: "#444", "stroke-width": 1.5 }));
+          svg.append(
+            svgEl("circle", {
+              cx,
+              cy: cyMu,
+              r: 5,
+              fill: "#4872f9",
+              stroke: "#444",
+              "stroke-width": 1.5
+            })
+          );
         }
       } else {
         let bandD = `M ${sx(xs[0])} ${sy(upper[0])}`;
-        for (let i = 1; i < xs.length; i++) bandD += ` L ${sx(xs[i])} ${sy(upper[i])}`;
-        for (let i = xs.length - 1; i >= 0; i--) bandD += ` L ${sx(xs[i])} ${sy(lower[i])}`;
+        for (let i = 1; i < xs.length; i++) {
+          bandD += ` L ${sx(xs[i])} ${sy(upper[i])}`;
+        }
+        for (let i = xs.length - 1; i >= 0; i--) {
+          bandD += ` L ${sx(xs[i])} ${sy(lower[i])}`;
+        }
         bandD += " Z";
-        svg.appendChild(svgEl("path", { d: bandD, fill: "rgba(72,114,249,0.10)" }));
+        svg.append(svgEl("path", { d: bandD, fill: "rgba(72,114,249,0.10)" }));
         let lineD = `M ${sx(xs[0])} ${sy(means[0])}`;
-        for (let i = 1; i < xs.length; i++) lineD += ` L ${sx(xs[i])} ${sy(means[i])}`;
-        svg.appendChild(svgEl("path", { d: lineD, stroke: "#4872f9", "stroke-width": 2, fill: "none" }));
+        for (let i = 1; i < xs.length; i++) {
+          lineD += ` L ${sx(xs[i])} ${sy(means[i])}`;
+        }
+        svg.append(svgEl("path", { d: lineD, stroke: "#4872f9", "stroke-width": 2, fill: "none" }));
       }
       const td = predictor.getTrainingData(outcome);
+      const tdY = relativeActive ? td.Y.map((y) => naiveRelPct(y, sqStat.mean)) : td.Y;
       const sliceDots = [];
       if (td.X.length > 0) {
         for (let i = 0; i < td.X.length; i++) {
@@ -5365,7 +6154,7 @@ var Ax;
           } else {
             ptScreenX = sx(td.X[i][dim]);
           }
-          const ptScreenY = sy(td.Y[i]);
+          const ptScreenY = sy(tdY[i]);
           if (ptScreenY >= margin.top && ptScreenY <= H - margin.bottom) {
             const dot = svgEl("circle", {
               cx: ptScreenX,
@@ -5375,7 +6164,7 @@ var Ax;
               stroke: "rgba(68,68,68,0.35)",
               "stroke-width": 1
             });
-            svg.appendChild(dot);
+            svg.append(dot);
             sliceDots.push({
               cx: ptScreenX,
               cy: ptScreenY,
@@ -5391,54 +6180,125 @@ var Ax;
       }
       allSubplotDots.push(sliceDots);
       const nYTicks = 4;
+      const tickVals = [];
       for (let t = 0; t <= nYTicks; t++) {
-        const v = yMin + yRange * t / nYTicks;
+        tickVals.push(yMin + yRange * t / nYTicks);
+      }
+      if (relativeActive && yMin <= 0 && yMax >= 0 && !tickVals.some((v) => Math.abs(v) < yRange * 0.01)) {
+        tickVals.push(0);
+        tickVals.sort((a, b) => a - b);
+      }
+      for (const v of tickVals) {
         const yp = sy(v);
-        svg.appendChild(svgEl("line", { x1: margin.left, x2: margin.left + pw, y1: yp, y2: yp, stroke: "rgba(0,0,0,0.06)" }));
-        svg.appendChild(Object.assign(
-          svgEl("text", { x: margin.left - 6, y: yp + 4, fill: "#999", "font-size": 10, "text-anchor": "end" }),
-          { textContent: v.toFixed(2) }
-        ));
+        const isZeroLine = relativeActive && Math.abs(v) < 1e-10;
+        svg.append(
+          svgEl("line", {
+            x1: margin.left,
+            x2: margin.left + pw,
+            y1: yp,
+            y2: yp,
+            stroke: isZeroLine ? "rgba(0,0,0,0.25)" : "rgba(0,0,0,0.06)",
+            "stroke-width": isZeroLine ? 1 : 1,
+            ...isZeroLine ? { "stroke-dasharray": "4,3" } : {}
+          })
+        );
+        const label = relativeActive ? formatPct(v) : v.toFixed(2);
+        svg.append(
+          Object.assign(
+            svgEl("text", {
+              x: margin.left - 6,
+              y: yp + 4,
+              "font-size": 10,
+              "text-anchor": "end",
+              fill: isZeroLine ? "#555" : "#999",
+              "font-weight": isZeroLine ? "600" : "400"
+            }),
+            { textContent: label }
+          )
+        );
       }
       if (dimIsChoice) {
         for (let ci = 0; ci < xs.length; ci++) {
-          svg.appendChild(Object.assign(
-            svgEl("text", { x: sx(ci), y: H - margin.bottom + 16, fill: "#999", "font-size": 10, "text-anchor": "middle" }),
-            { textContent: String(p.values[ci]) }
-          ));
+          svg.append(
+            Object.assign(
+              svgEl("text", {
+                x: sx(ci),
+                y: H - margin.bottom + 16,
+                fill: "#999",
+                "font-size": 10,
+                "text-anchor": "middle"
+              }),
+              { textContent: String(p.values[ci]) }
+            )
+          );
         }
       } else {
         const nXTicks = dimIsInt ? Math.min(xs.length - 1, 4) : 4;
         for (let t = 0; t <= nXTicks; t++) {
           let xv = xLo + (xHi - xLo) * t / nXTicks;
-          if (dimIsInt) xv = Math.round(xv);
-          svg.appendChild(Object.assign(
-            svgEl("text", { x: sx(xv), y: H - margin.bottom + 16, fill: "#999", "font-size": 10, "text-anchor": "middle" }),
-            { textContent: dimIsInt ? String(xv) : xv.toFixed(2) }
-          ));
+          if (dimIsInt) {
+            xv = Math.round(xv);
+          }
+          svg.append(
+            Object.assign(
+              svgEl("text", {
+                x: sx(xv),
+                y: H - margin.bottom + 16,
+                fill: "#999",
+                "font-size": 10,
+                "text-anchor": "middle"
+              }),
+              { textContent: dimIsInt ? String(xv) : xv.toFixed(2) }
+            )
+          );
         }
       }
-      svg.appendChild(Object.assign(
-        svgEl("text", { x: margin.left + pw / 2, y: H - 4, fill: "#999", "font-size": 11, "text-anchor": "middle" }),
-        { textContent: names[dim] }
-      ));
-      const hoverLine = svgEl("line", { y1: margin.top, y2: margin.top + ph, stroke: "rgba(0,0,0,0.10)", "stroke-width": 1, "stroke-dasharray": "4,3" });
+      svg.append(
+        Object.assign(
+          svgEl("text", {
+            x: margin.left + pw / 2,
+            y: H - 4,
+            fill: "#999",
+            "font-size": 11,
+            "text-anchor": "middle"
+          }),
+          { textContent: names[dim] }
+        )
+      );
+      const hoverLine = svgEl("line", {
+        y1: margin.top,
+        y2: margin.top + ph,
+        stroke: "rgba(0,0,0,0.10)",
+        "stroke-width": 1,
+        "stroke-dasharray": "4,3"
+      });
       hoverLine.style.display = "none";
-      svg.appendChild(hoverLine);
-      const hoverDot = svgEl("circle", { r: 4, fill: "#4872f9", stroke: "#444", "stroke-width": 1.5 });
+      svg.append(hoverLine);
+      const hoverDot = svgEl("circle", {
+        r: 4,
+        fill: "#4872f9",
+        stroke: "#444",
+        "stroke-width": 1.5
+      });
       hoverDot.style.display = "none";
-      svg.appendChild(hoverDot);
+      svg.append(hoverDot);
       if (_getPinned() >= 0) {
         const pvIdx = sliceDots.findIndex((d) => d.idx === _getPinned());
-        if (pvIdx >= 0) {
-          applyDotHighlight(sliceDots, pvIdx, computeKernelRels(predictor, sliceDots, pvIdx, outcome));
+        if (pvIdx !== -1) {
+          applyDotHighlight(
+            sliceDots,
+            pvIdx,
+            computeKernelRels(predictor, sliceDots, pvIdx, outcome)
+          );
         }
       }
       if (tooltip) {
         let findHit2 = function(px, py) {
           for (let pi = 0; pi < sliceDots.length; pi++) {
             const dx = px - sliceDots[pi].cx, dy = py - sliceDots[pi].cy;
-            if (dx * dx + dy * dy < HOVER_R * HOVER_R) return pi;
+            if (dx * dx + dy * dy < HOVER_R * HOVER_R) {
+              return pi;
+            }
           }
           return -1;
         };
@@ -5462,12 +6322,19 @@ var Ax;
             hoverDot.style.display = "none";
             svg.style.cursor = "pointer";
             if (_getPinned() < 0) {
-              applyDotHighlight(sliceDots, hitVpIdx, computeKernelRels(predictor, sliceDots, hitVpIdx, outcome));
+              applyDotHighlight(
+                sliceDots,
+                hitVpIdx,
+                computeKernelRels(predictor, sliceDots, hitVpIdx, outcome)
+              );
               hoverHighlight = true;
             }
             let html = `<div style="font-size:11px;color:#999;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">training point #${hitPt.idx + 1}</div>`;
-            html += `<span style="color:#333;font-weight:500">y = ${td.Y[hitPt.idx].toFixed(4)}</span><br>`;
-            html += names.map((n, j) => `<span style="color:#666">${n}</span> = ${formatParamValue(td.X[hitPt.idx][j], params[j])}`).join("<br>");
+            const yLabel = relativeActive ? `\u0394 = ${formatPct(tdY[hitPt.idx])}` : `y = ${td.Y[hitPt.idx].toFixed(4)}`;
+            html += `<span style="color:#333;font-weight:500">${yLabel}</span><br>`;
+            html += names.map(
+              (n, j) => `<span style="color:#666">${n}</span> = ${formatParamValue(td.X[hitPt.idx][j], params[j])}`
+            ).join("<br>");
             tooltip.innerHTML = html;
             tooltip.style.display = "block";
             positionTooltip(tooltip, e.clientX, e.clientY);
@@ -5497,9 +6364,15 @@ var Ax;
             const xLabel = dimIsChoice ? String(p.values[idx]) : formatParamValue(xs[idx], p);
             let html = `<div style="font-size:11px;color:#999;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">${names[dim]}</div>`;
             html += `<span style="color:#666">${names[dim]}</span> = ${xLabel}<br>`;
-            html += `\u03BC = <span style="color:#4872f9;font-weight:500">${mu.toFixed(4)}</span><br>`;
-            html += `\u03C3 = ${s.toFixed(4)}<br>`;
-            html += `95% CI: [${(mu - 2 * s).toFixed(4)}, ${(mu + 2 * s).toFixed(4)}]`;
+            if (relativeActive) {
+              html += `\u0394 = <span style="color:#4872f9;font-weight:500">${formatPct(mu)}</span><br>`;
+              html += `\u03C3 = ${s.toFixed(1)}%<br>`;
+              html += `95% CI: [${formatPct(mu - 2 * s)}, ${formatPct(mu + 2 * s)}]`;
+            } else {
+              html += `\u03BC = <span style="color:#4872f9;font-weight:500">${mu.toFixed(4)}</span><br>`;
+              html += `\u03C3 = ${s.toFixed(4)}<br>`;
+              html += `95% CI: [${(mu - 2 * s).toFixed(4)}, ${(mu + 2 * s).toFixed(4)}]`;
+            }
             tooltip.innerHTML = html;
             tooltip.style.display = "block";
             positionTooltip(tooltip, e.clientX, e.clientY);
@@ -5521,7 +6394,11 @@ var Ax;
                 onSnapToPoint(sliceDots[hitVpIdx].pt);
                 return;
               }
-              applyDotHighlight(sliceDots, hitVpIdx, computeKernelRels(predictor, sliceDots, hitVpIdx, outcome));
+              applyDotHighlight(
+                sliceDots,
+                hitVpIdx,
+                computeKernelRels(predictor, sliceDots, hitVpIdx, outcome)
+              );
             }
           } else {
             if (_getPinned() >= 0) {
@@ -5535,10 +6412,14 @@ var Ax;
               clearDotHighlight(subDots);
             } else {
               const subActiveIdx = subDots.findIndex((d) => d.idx === _getPinned());
-              if (subActiveIdx >= 0) {
-                applyDotHighlight(subDots, subActiveIdx, computeKernelRels(predictor, subDots, subActiveIdx, outcome));
-              } else {
+              if (subActiveIdx === -1) {
                 clearDotHighlight(subDots);
+              } else {
+                applyDotHighlight(
+                  subDots,
+                  subActiveIdx,
+                  computeKernelRels(predictor, subDots, subActiveIdx, outcome)
+                );
               }
             }
           }
@@ -5554,13 +6435,44 @@ var Ax;
           }
         });
       }
-      target.appendChild(svg);
+      target.append(svg);
     }
   }
 
   // src/viz/plots/surface.ts
+  function resolveStatusQuo2(predictor, options) {
+    return options?.statusQuoPoint ?? predictor.statusQuoPoint ?? null;
+  }
+  function deltaRelativize2(mT, sT, mC, sC) {
+    const absC = Math.abs(mC);
+    const rHat = (mT - mC) / absC - sC * sC * mT / (absC * absC * absC);
+    const variance = (sT * sT + (mT / mC * sC) ** 2) / (mC * mC);
+    return [rHat * 100, Math.sqrt(Math.max(0, variance)) * 100];
+  }
+  function formatPct2(v) {
+    const sign = v > 0 ? "+" : "";
+    const abs = Math.abs(v);
+    if (abs === 0) {
+      return "0.0%";
+    }
+    if (abs < 1e-3) {
+      return sign + v.toExponential(1) + "%";
+    }
+    if (abs < 0.1) {
+      return sign + v.toFixed(3) + "%";
+    }
+    if (abs < 1) {
+      return sign + v.toFixed(2) + "%";
+    }
+    if (abs < 100) {
+      return sign + v.toFixed(1) + "%";
+    }
+    return sign + v.toFixed(0) + "%";
+  }
   function getParamSpecs2(predictor) {
-    if (predictor.paramSpecs) return predictor.paramSpecs;
+    if (predictor.paramSpecs) {
+      return predictor.paramSpecs;
+    }
     return predictor.paramBounds.map(([lo, hi]) => ({
       type: "range",
       bounds: [lo, hi]
@@ -5580,18 +6492,25 @@ var Ax;
       );
       return;
     }
-    if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    if (!container.id) {
+      container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    }
     removeTooltip(container.id);
     container.innerHTML = "";
     injectScopedStyles(container);
     let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
     const params = getParamSpecs2(predictor);
-    const initOrder = computeDimOrder(predictor, predictor.paramNames.length, selectedOutcome);
+    const initOrder = computeDimOrder(
+      predictor,
+      predictor.paramNames.length,
+      selectedOutcome
+    );
     const rangeDims = initOrder.filter((d) => !isChoice(params[d]));
     let selDimX = options?.dimX ?? rangeDims[0] ?? 0;
     let selDimY = options?.dimY ?? (rangeDims.length > 1 ? rangeDims[1] : 0);
     const fixedValues = options?.fixedValues?.slice() ?? params.map((p) => defaultParamValue(p));
     const tooltip = createTooltipDiv(container.id);
+    const globalRangeData = estimateRange(predictor);
     const controlsDiv = document.createElement("div");
     controlsDiv.style.cssText = CTRL_CSS5 + "padding:8px 16px;";
     const plotsDiv = document.createElement("div");
@@ -5600,55 +6519,60 @@ var Ax;
     axisDiv.style.cssText = CTRL_CSS5 + "padding:4px 16px 0;";
     const slidersDiv = document.createElement("div");
     slidersDiv.style.cssText = "margin-bottom:8px;padding:0 16px;";
-    container.appendChild(controlsDiv);
-    container.appendChild(plotsDiv);
-    container.appendChild(axisDiv);
-    container.appendChild(slidersDiv);
+    container.append(controlsDiv);
+    container.append(plotsDiv);
+    container.append(axisDiv);
+    container.append(slidersDiv);
     if (predictor.outcomeNames.length > 1) {
       const { wrapper, select } = makeSelectEl("Outcome:");
       createOutcomeSelector(predictor, select, (name) => {
         selectedOutcome = name;
         redraw();
       });
-      controlsDiv.appendChild(wrapper);
+      controlsDiv.append(wrapper);
     }
-    let selXEl;
-    let selYEl;
+    const axisSelects = {};
     function makeDimSelect(label, initial, onChange) {
       const { wrapper, select } = makeSelectEl(label);
       predictor.paramNames.forEach((name, i) => {
         const opt = document.createElement("option");
         opt.value = String(i);
         opt.textContent = name;
-        if (i === initial) opt.selected = true;
-        select.appendChild(opt);
+        if (i === initial) {
+          opt.selected = true;
+        }
+        select.append(opt);
       });
-      select.onchange = () => {
+      select.addEventListener("change", () => {
         onChange(+select.value);
         redraw();
-      };
-      axisDiv.appendChild(wrapper);
+      });
+      axisDiv.append(wrapper);
       return select;
     }
-    selXEl = makeDimSelect("X axis:", selDimX, (v) => {
+    axisSelects.x = makeDimSelect("X axis:", selDimX, (v) => {
       selDimX = v;
       if (selDimX === selDimY) {
         selDimY = (selDimX + 1) % params.length;
-        selYEl.value = String(selDimY);
+        axisSelects.y.value = String(selDimY);
       }
       rebuildSliders();
     });
-    selYEl = makeDimSelect("Y axis:", selDimY, (v) => {
+    axisSelects.y = makeDimSelect("Y axis:", selDimY, (v) => {
       selDimY = v;
       if (selDimX === selDimY) {
         selDimX = (selDimY + 1) % params.length;
-        selXEl.value = String(selDimX);
+        axisSelects.x.value = String(selDimX);
       }
       rebuildSliders();
     });
     let rsPinnedIdx = -1;
     function rebuildSliders() {
-      const dimOrd = computeDimOrder(predictor, predictor.paramNames.length, selectedOutcome);
+      const dimOrd = computeDimOrder(
+        predictor,
+        predictor.paramNames.length,
+        selectedOutcome
+      );
       createParamSliders(
         predictor,
         params,
@@ -5663,6 +6587,28 @@ var Ax;
     rebuildSliders();
     function redraw() {
       plotsDiv.innerHTML = "";
+      const er = globalRangeData[selectedOutcome];
+      let range;
+      if (er) {
+        const estStdMax = (er.ciMax - er.muMax) / 1.96;
+        if (options?.relative) {
+          const sq = options.statusQuoPoint ?? predictor.statusQuoPoint ?? null;
+          if (sq) {
+            const sqPred = predictor.predict([sq])[selectedOutcome];
+            if (sqPred && Math.abs(sqPred.mean[0]) >= 1e-15) {
+              const sqM = sqPred.mean[0];
+              const sqS = Math.sqrt(sqPred.variance[0]);
+              const [relMin] = deltaRelativize2(er.muMin, 0, sqM, sqS);
+              const [relMax] = deltaRelativize2(er.muMax, 0, sqM, sqS);
+              const relStdMax = estStdMax / Math.abs(sqM) * 100;
+              const maxAbs = Math.max(Math.abs(relMin), Math.abs(relMax));
+              range = { meanMin: -maxAbs, meanMax: maxAbs, stdMax: relStdMax };
+            }
+          }
+        } else {
+          range = { meanMin: er.muMin, meanMax: er.muMax, stdMax: Math.max(0, estStdMax) };
+        }
+      }
       renderResponseSurfaceStatic(
         plotsDiv,
         predictor,
@@ -5674,30 +6620,59 @@ var Ax;
         tooltip,
         container,
         (pt) => {
-          for (let j = 0; j < fixedValues.length; j++) fixedValues[j] = pt[j];
+          for (let j = 0; j < fixedValues.length; j++) {
+            fixedValues[j] = pt[j];
+          }
           rebuildSliders();
           redraw();
         },
         () => rsPinnedIdx,
         (v) => {
           rsPinnedIdx = v;
-        }
+        },
+        range
       );
     }
     redraw();
   }
-  function drawVerticalColorbar(ctx, x, y, w, h, vMin, vMax, colorFn) {
+  function drawVerticalColorbar(ctx, x, y, w, h, vMin, vMax, colorFn, formatLabel, isRelative) {
     for (let i = 0; i < h; i++) {
       const t = 1 - i / h;
       const rgb = colorFn(t);
       ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
       ctx.fillRect(x, y + i, w, 1);
     }
+    const fmt = formatLabel ?? ((v) => v.toFixed(2));
     ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
     ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.textAlign = "left";
-    ctx.fillText(vMax.toFixed(2), x + w + 3, y + 8);
-    ctx.fillText(vMin.toFixed(2), x + w + 3, y + h);
+    ctx.fillText(fmt(vMax), x + w + 3, y + 8);
+    ctx.fillText(fmt(vMin), x + w + 3, y + h);
+    const vCenter = (vMin + vMax) / 2;
+    const centerY = y + h / 2;
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.fillRect(x, centerY, w, 1);
+    ctx.fillStyle = "rgba(0,0,0,0.50)";
+    ctx.fillText(fmt(vCenter), x + w + 3, centerY + 3);
+    if (isRelative && vMin < 0 && vMax > 0) {
+      const range = vMax - vMin;
+      const zeroFrac = (vMax - 0) / range;
+      const zeroY = y + zeroFrac * h;
+      if (Math.abs(zeroFrac - 0.5) > 0.1 && zeroFrac > 0.08 && zeroFrac < 0.92) {
+        ctx.strokeStyle = "rgba(0,0,0,0.4)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        ctx.beginPath();
+        ctx.moveTo(x, zeroY);
+        ctx.lineTo(x + w, zeroY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "rgba(0,0,0,0.55)";
+        ctx.font = "bold 9px -apple-system, BlinkMacSystemFont, sans-serif";
+        ctx.fillText("0%", x + w + 3, zeroY + 3);
+        ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
+      }
+    }
   }
   function drawAxes(ctx, ML, MT, N, xlo, xhi, ylo, yhi, xName, yName, showYAxis, xLabels, yLabels) {
     ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
@@ -5729,7 +6704,9 @@ var Ax;
     ctx.fillStyle = "rgba(0,0,0,0.6)";
     ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
     ctx.fillText(xName, ML + N / 2, MT + N + 30);
-    if (!showYAxis) return;
+    if (!showYAxis) {
+      return;
+    }
     ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.font = "10px -apple-system, BlinkMacSystemFont, sans-serif";
     ctx.textAlign = "right";
@@ -5781,7 +6758,7 @@ var Ax;
       }
     }
   }
-  function renderResponseSurfaceStatic(target, predictor, outcome, dimX, dimY, options, fixedValuesOverride, tooltip, tooltipContainer, onSnapToPoint, getPinnedIdx, setPinnedIdx) {
+  function renderResponseSurfaceStatic(target, predictor, outcome, dimX, dimY, options, fixedValuesOverride, tooltip, tooltipContainer, onSnapToPoint, getPinnedIdx, setPinnedIdx, globalRange) {
     const gridSize = options?.gridSize ?? 80;
     const bounds = predictor.paramBounds;
     const names = predictor.paramNames;
@@ -5792,14 +6769,13 @@ var Ax;
     const MB = 38;
     const CB_W = 14;
     const CB_GAP = 4;
-    const CB_LBL = 36;
+    const CB_LBL = options?.relative ? 52 : 36;
     const MR = CB_GAP + CB_W + CB_LBL;
     const totalW = options?.width ?? 800;
     const panelW = Math.floor((totalW - 12) / 2);
     const defaultH = options?.height ?? 380;
     const ML2 = 10;
     const N = Math.min(panelW - ML - MR, defaultH - MT - MB);
-    const CW = N + ML + MR;
     const CH = N + MT + MB;
     const [xlo, xhi] = bounds[dimX];
     const [ylo, yhi] = bounds[dimY];
@@ -5823,26 +6799,69 @@ var Ax;
       target.textContent = "No prediction data for outcome: " + outcome;
       return;
     }
-    const means = Array.from(pred.mean);
-    const stds = means.map((_, i) => Math.sqrt(pred.variance[i]));
-    const meanMin = Math.min(...means);
-    const meanMax = Math.max(...means);
+    const rawMeans = Array.from(pred.mean);
+    const rawStds = rawMeans.map((_, i) => Math.sqrt(pred.variance[i]));
+    const isRelative = options?.relative === true;
+    let sqMean = 0;
+    let sqStd = 0;
+    let relativeActive = false;
+    if (isRelative) {
+      const sq = resolveStatusQuo2(predictor, options);
+      if (sq) {
+        const sqPred = predictor.predict([sq])[outcome];
+        if (sqPred) {
+          sqMean = sqPred.mean[0];
+          sqStd = Math.sqrt(sqPred.variance[0]);
+          if (Math.abs(sqMean) >= 1e-15) {
+            relativeActive = true;
+          } else {
+            console.warn("ax-js: status quo mean \u2248 0; falling back to absolute mode");
+          }
+        }
+      }
+    }
+    let means;
+    let stds;
+    if (relativeActive) {
+      means = [];
+      stds = [];
+      for (let i = 0; i < rawMeans.length; i++) {
+        const [rm, rs] = deltaRelativize2(rawMeans[i], rawStds[i], sqMean, sqStd);
+        means.push(rm);
+        stds.push(rs);
+      }
+    } else {
+      means = rawMeans;
+      stds = rawStds;
+    }
+    let meanMin, meanMax;
+    if (globalRange) {
+      meanMin = globalRange.meanMin;
+      meanMax = globalRange.meanMax;
+    } else if (relativeActive) {
+      const maxAbs = Math.max(Math.abs(Math.min(...means)), Math.abs(Math.max(...means)));
+      meanMin = -maxAbs;
+      meanMax = maxAbs;
+    } else {
+      meanMin = Math.min(...means);
+      meanMax = Math.max(...means);
+    }
     const stdMin = 0;
-    const stdMax = Math.max(...stds);
+    const stdMax = globalRange?.stdMax ?? Math.max(...stds);
     const td = predictor.getTrainingData(outcome);
     const xRange = xhi - xlo || 1;
     const yRange = yhi - ylo || 1;
     function normX(val) {
       if (xIsChoice) {
         const idx = xVals.indexOf(val);
-        return idx >= 0 ? (idx + 0.5) / nColsX : 0;
+        return idx === -1 ? 0 : (idx + 0.5) / nColsX;
       }
       return (val - xlo) / xRange;
     }
     function normY(val) {
       if (yIsChoice) {
         const idx = yVals.indexOf(val);
-        return idx >= 0 ? (idx + 0.5) / nColsY : 0;
+        return idx === -1 ? 0 : (idx + 0.5) / nColsY;
       }
       return 1 - (val - ylo) / yRange;
     }
@@ -5889,11 +6908,31 @@ var Ax;
       }
       return img;
     }
-    const meanImg = buildHeatmap(means, meanMin, meanMax, viridis);
+    const meanColorFn = relativeActive ? piYG : viridis;
+    const meanImg = buildHeatmap(means, meanMin, meanMax, meanColorFn);
     const stdImg = buildHeatmap(stds, stdMin, stdMax, plasma);
+    const meanFmtLabel = relativeActive ? formatPct2 : void 0;
     const panels = [
-      { title: "posterior mean", img: meanImg, colorFn: viridis, vMin: meanMin, vMax: meanMax, values: means },
-      { title: "predictive std", img: stdImg, colorFn: plasma, vMin: stdMin, vMax: stdMax, values: stds }
+      {
+        title: relativeActive ? "% change vs control" : "posterior mean",
+        img: meanImg,
+        colorFn: meanColorFn,
+        vMin: meanMin,
+        vMax: meanMax,
+        values: means,
+        formatLabel: meanFmtLabel,
+        isRelative: relativeActive
+      },
+      {
+        title: "predictive std",
+        img: stdImg,
+        colorFn: plasma,
+        vMin: stdMin,
+        vMax: stdMax,
+        values: stds,
+        formatLabel: relativeActive ? (v) => v.toFixed(1) + "%" : void 0,
+        isRelative: false
+      }
     ];
     const panelWrap = document.createElement("div");
     panelWrap.style.cssText = "display:flex;gap:12px";
@@ -5909,20 +6948,47 @@ var Ax;
       canvas.style.display = "block";
       canvas.style.cursor = "crosshair";
       const ctx = canvas.getContext("2d");
-      if (!ctx) continue;
+      if (!ctx) {
+        continue;
+      }
       ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.fillStyle = "rgba(0,0,0,0.45)";
       ctx.textAlign = "center";
       ctx.fillText(panel.title, pML + N / 2, 12);
       ctx.putImageData(panel.img, pML, MT);
-      drawVerticalColorbar(ctx, pML + N + CB_GAP, MT, CB_W, N, panel.vMin, panel.vMax, panel.colorFn);
+      drawVerticalColorbar(
+        ctx,
+        pML + N + CB_GAP,
+        MT,
+        CB_W,
+        N,
+        panel.vMin,
+        panel.vMax,
+        panel.colorFn,
+        panel.formatLabel,
+        panel.isRelative
+      );
       const xLabels = xIsChoice ? params[dimX].values.map(String) : void 0;
       const yLabels = yIsChoice ? params[dimY].values.map(String).reverse() : void 0;
-      drawAxes(ctx, pML, MT, N, xlo, xhi, ylo, yhi, names[dimX], names[dimY], isFirst, xLabels, yLabels);
-      canvasRefs.push({ canvas, ctx, img: panel.img, ml: pML });
+      drawAxes(
+        ctx,
+        pML,
+        MT,
+        N,
+        xlo,
+        xhi,
+        ylo,
+        yhi,
+        names[dimX],
+        names[dimY],
+        isFirst,
+        xLabels,
+        yLabels
+      );
+      canvasRefs.push({ canvas, ctx, img: panel.img, ml: pML, panelIdx: pi });
       const col = document.createElement("div");
-      col.appendChild(canvas);
-      panelWrap.appendChild(col);
+      col.append(canvas);
+      panelWrap.append(col);
     }
     function redrawAllDots() {
       for (const ref of canvasRefs) {
@@ -5946,7 +7012,9 @@ var Ax;
         }
         const r = predictor.kernelCorrelation(dotData[i].pt, dotData[activeIdx].pt, outcome);
         rels.raw.push(r);
-        if (r > rels.max) rels.max = r;
+        if (r > rels.max) {
+          rels.max = r;
+        }
       }
       for (let i = 0; i < dotData.length; i++) {
         if (i === activeIdx) {
@@ -5958,11 +7026,15 @@ var Ax;
       }
     }
     function clearCanvasHighlight() {
-      for (const d of dotData) d.alpha = 0.85;
+      for (const d of dotData) {
+        d.alpha = 0.85;
+      }
     }
     if (_getPinned() >= 0) {
       const pvIdx = dotData.findIndex((d) => d.idx === _getPinned());
-      if (pvIdx >= 0) applyCanvasHighlight(pvIdx);
+      if (pvIdx !== -1) {
+        applyCanvasHighlight(pvIdx);
+      }
     }
     redrawAllDots();
     if (tooltip && tooltipContainer) {
@@ -5988,6 +7060,19 @@ var Ax;
           const cRect = ref.canvas.getBoundingClientRect();
           const mx = e.clientX - cRect.left;
           const my = e.clientY - cRect.top;
+          const cbX0 = rml + N + CB_GAP;
+          const cbX1 = cbX0 + CB_W + CB_LBL;
+          if (mx >= cbX0 && mx <= cbX1 && my >= MT && my <= MT + N) {
+            ref.canvas.style.cursor = "default";
+            const frac = 1 - (my - MT) / N;
+            const panel = panels[ref.panelIdx];
+            const val = panel.vMin + frac * (panel.vMax - panel.vMin);
+            const fmt = panel.formatLabel ?? ((v) => v.toFixed(4));
+            tooltip.innerHTML = `<span style="color:#333;font-weight:500">${fmt(val)}</span>`;
+            tooltip.style.display = "block";
+            positionTooltip(tooltip, e.clientX, e.clientY);
+            return;
+          }
           if (mx < rml || mx > rml + N || my < MT || my > MT + N) {
             tooltip.style.display = "none";
             return;
@@ -6017,7 +7102,9 @@ var Ax;
             const idx = gj * nColsX + gi;
             const mu = means[idx] ?? 0;
             const s = stds[idx] ?? 0;
-            tooltip.innerHTML = `<b>${names[dimX]}</b>: ${formatParamValue(xVal, params[dimX])}<br><b>${names[dimY]}</b>: ${formatParamValue(yVal, params[dimY])}<br>\u03BC = ${mu.toFixed(4)}<br>\u03C3 = ${s.toFixed(4)}`;
+            const muLabel = relativeActive ? `\u0394 = ${formatPct2(mu)}` : `\u03BC = ${mu.toFixed(4)}`;
+            const sLabel = relativeActive ? `\u03C3 = ${s.toFixed(1)}%` : `\u03C3 = ${s.toFixed(4)}`;
+            tooltip.innerHTML = `<b>${names[dimX]}</b>: ${formatParamValue(xVal, params[dimX])}<br><b>${names[dimY]}</b>: ${formatParamValue(yVal, params[dimY])}<br>${muLabel}<br>${sLabel}`;
             tooltip.style.display = "block";
             positionTooltip(tooltip, e.clientX, e.clientY);
           }
@@ -6060,7 +7147,7 @@ var Ax;
         });
       }
     }
-    target.appendChild(panelWrap);
+    target.append(panelWrap);
   }
   return __toCommonJS(viz_exports);
 })();

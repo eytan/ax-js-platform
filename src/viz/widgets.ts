@@ -1,4 +1,7 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { ParamSpec, EmbeddingPredictor } from "./types";
+
 import { isChoice, isInteger, formatParamValue } from "./params";
 import { injectScopedStyles } from "./styles";
 
@@ -20,9 +23,9 @@ export function createOutcomeSelector(
     const opt = document.createElement("option");
     opt.value = name;
     opt.textContent = name;
-    selectEl.appendChild(opt);
+    selectEl.append(opt);
   });
-  selectEl.onchange = () => onChange(selectEl.value);
+  selectEl.addEventListener("change", () => onChange(selectEl.value));
 }
 
 /**
@@ -34,23 +37,24 @@ export function createOutcomeSelector(
  */
 export function createParamSliders(
   predictor: EmbeddingPredictor,
-  params: ParamSpec[],
+  params: Array<ParamSpec>,
   container: HTMLElement,
-  currentValues: (number | string | boolean)[],
+  currentValues: Array<number | string | boolean>,
   onChange: (dimIndex: number, value: number | string | boolean) => void,
-  options?: { excludeDims?: Set<number>; dimOrder?: number[] },
+  options?: { excludeDims?: Set<number>; dimOrder?: Array<number> },
 ): void {
   container.innerHTML = "";
   // Inject scoped styles into nearest ancestor with an id, or the container itself
-  const styleTarget = container.closest("[id]") as HTMLElement ?? container;
+  const styleTarget = (container.closest("[id]") as HTMLElement) ?? container;
   injectScopedStyles(styleTarget);
   const excludeDims = options?.excludeDims ?? new Set<number>();
   const order =
-    options?.dimOrder ??
-    Array.from({ length: predictor.paramNames.length }, (_, i) => i);
+    options?.dimOrder ?? Array.from({ length: predictor.paramNames.length }, (_, i) => i);
 
   order.forEach((i) => {
-    if (excludeDims.has(i)) return;
+    if (excludeDims.has(i)) {
+      return;
+    }
     const name = predictor.paramNames[i];
     const p = params[i];
     const row = document.createElement("div");
@@ -75,8 +79,10 @@ export function createParamSliders(
         const o = document.createElement("option");
         o.value = String(v);
         o.textContent = String(v);
-        if (v == currentValues[i]) o.selected = true;
-        sel.appendChild(o);
+        if (v === currentValues[i]) {
+          o.selected = true;
+        }
+        sel.append(o);
       });
       sel.addEventListener("change", () => {
         const nv = +sel.value;
@@ -84,9 +90,9 @@ export function createParamSliders(
         val.textContent = formatParamValue(nv, p);
         onChange(i, nv);
       });
-      row.appendChild(lbl);
-      row.appendChild(sel);
-      row.appendChild(val);
+      row.append(lbl);
+      row.append(sel);
+      row.append(val);
     } else {
       const lo = predictor.paramBounds[i][0];
       const hi = predictor.paramBounds[i][1];
@@ -103,46 +109,48 @@ export function createParamSliders(
       sl.step = isInteger(p) ? "1" : String((hi - lo) / 200);
       sl.value = String(currentValues[i]);
       // Stop propagation so notebook/nbconvert drag handlers don't intercept
-      sl.addEventListener("pointerdown", (e: Event) => { e.stopPropagation(); });
-      sl.addEventListener("mousedown", (e: Event) => { e.stopPropagation(); });
-      sl.addEventListener("touchstart", (e: Event) => { e.stopPropagation(); });
+      sl.addEventListener("pointerdown", (e: Event) => {
+        e.stopPropagation();
+      });
+      sl.addEventListener("mousedown", (e: Event) => {
+        e.stopPropagation();
+      });
+      sl.addEventListener("touchstart", (e: Event) => {
+        e.stopPropagation();
+      });
       sl.addEventListener("input", () => {
         const nv = isInteger(p) ? Math.round(+sl.value) : +sl.value;
         currentValues[i] = nv;
         val.textContent = formatParamValue(nv, p);
         onChange(i, nv);
       });
-      row.appendChild(lbl);
-      row.appendChild(sl);
-      row.appendChild(val);
+      row.append(lbl);
+      row.append(sl);
+      row.append(val);
     }
-    container.appendChild(row);
+    container.append(row);
   });
 }
 
 /**
  * Wire up a `<input type="file">` element to parse JSON and invoke a callback.
  */
-export function setupFileUpload(
-  inputId: string,
-  callback: (data: unknown) => void,
-): void {
+export function setupFileUpload(inputId: string, callback: (data: unknown) => void): void {
   const input = document.getElementById(inputId) as HTMLInputElement | null;
-  if (!input) return;
+  if (!input) {
+    return;
+  }
   input.addEventListener("change", () => {
     const file = input.files?.[0];
-    if (!file) return;
-    file.text().then((text) => callback(JSON.parse(text)));
+    if (!file) {
+      return;
+    }
+    void file.text().then((text) => callback(JSON.parse(text)));
   });
 }
 
 /** Show a tooltip element at the given screen coordinates. */
-export function showTooltip(
-  el: HTMLElement,
-  html: string,
-  screenX: number,
-  screenY: number,
-): void {
+export function showTooltip(el: HTMLElement, html: string, screenX: number, screenY: number): void {
   el.innerHTML = html;
   el.style.display = "block";
   el.style.left = screenX + 16 + "px";
@@ -162,17 +170,21 @@ export function hideTooltip(el: HTMLElement): void {
  */
 export function createTooltipDiv(containerId?: string): HTMLDivElement {
   // Remove any stale tooltip for this container
-  if (containerId) removeTooltip(containerId);
+  if (containerId) {
+    removeTooltip(containerId);
+  }
   const tooltip = document.createElement("div");
   tooltip.className = "axjs-tooltip";
-  if (containerId) tooltip.setAttribute("data-axjs-for", containerId);
+  if (containerId) {
+    tooltip.dataset.axjsFor = containerId;
+  }
   // Inline all styles — tooltip lives in body, outside any scoped CSS container
   tooltip.style.cssText =
     "position:fixed;display:none;background:rgba(255,255,255,0.97);" +
     "border:1px solid #d0d0d0;border-radius:6px;padding:8px 12px;" +
     "font-size:12px;color:#333;pointer-events:none;" +
     "z-index:10000;white-space:nowrap;";
-  document.body.appendChild(tooltip);
+  document.body.append(tooltip);
   return tooltip;
 }
 
@@ -181,8 +193,8 @@ export function createTooltipDiv(containerId?: string): HTMLDivElement {
  * Uses viewport coordinates directly — no container-relative math needed.
  */
 export function positionTooltip(tooltip: HTMLDivElement, clientX: number, clientY: number): void {
-  tooltip.style.left = (clientX + 16) + "px";
-  tooltip.style.top = (clientY - 10) + "px";
+  tooltip.style.left = clientX + 16 + "px";
+  tooltip.style.top = clientY - 10 + "px";
 }
 
 /**
@@ -191,10 +203,15 @@ export function positionTooltip(tooltip: HTMLDivElement, clientX: number, client
  */
 export function removeTooltip(containerId: string): void {
   const stale = document.body.querySelector(`div[data-axjs-for="${containerId}"]`);
-  if (stale) stale.remove();
+  if (stale) {
+    stale.remove();
+  }
 }
 
-export function makeSelectEl(label: string): { wrapper: HTMLDivElement; select: HTMLSelectElement } {
+export function makeSelectEl(label: string): {
+  wrapper: HTMLDivElement;
+  select: HTMLSelectElement;
+} {
   const wrapper = document.createElement("div");
   wrapper.style.cssText = "display:flex;align-items:center;gap:4px";
   const lbl = document.createElement("span");
@@ -202,7 +219,7 @@ export function makeSelectEl(label: string): { wrapper: HTMLDivElement; select: 
   lbl.textContent = label;
   const select = document.createElement("select");
   select.className = "axjs-select";
-  wrapper.appendChild(lbl);
-  wrapper.appendChild(select);
+  wrapper.append(lbl);
+  wrapper.append(select);
   return { wrapper, select };
 }

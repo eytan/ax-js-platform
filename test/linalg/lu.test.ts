@@ -1,6 +1,9 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import { describe, it, expect } from "vitest";
-import { Matrix } from "../../src/linalg/matrix.js";
+
 import { lu, solveLU } from "../../src/linalg/lu.js";
+import { Matrix } from "../../src/linalg/matrix.js";
 import { matmul } from "../../src/linalg/ops.js";
 
 describe("LU decomposition", () => {

@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 /**
  * **ax-js** — Client-side Gaussian Process predictions mirroring Ax/BoTorch.
  *
@@ -30,18 +32,11 @@ export { loadModel } from "./io/deserialize.js";
 export type { AnyModel } from "./io/deserialize.js";
 
 // Input transform helpers (for constructing synthetic model states)
-export {
-  identityInputTransform,
-  boundsInputTransform,
-} from "./transforms/normalize.js";
+export { identityInputTransform, boundsInputTransform } from "./transforms/normalize.js";
 export type { InputTransformState } from "./transforms/normalize.js";
 
 // Relativization (% change vs status quo)
-export {
-  relativize,
-  unrelativize,
-  relativizePredictions,
-} from "./transforms/relativize.js";
+export { relativize, unrelativize, relativizePredictions } from "./transforms/relativize.js";
 export type { RelativizeResult, RelativizeOptions } from "./transforms/relativize.js";
 
 // Sensitivity analysis

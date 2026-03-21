@@ -1,4 +1,7 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import { describe, it, expect } from "vitest";
+
 import {
   relativize,
   unrelativize,
@@ -82,8 +85,10 @@ describe("relativize", () => {
 
 describe("unrelativize", () => {
   it("inverts relativize (no bias correction)", () => {
-    const meanC = 100, semC = 5;
-    const meanT = 150, semT = 10;
+    const meanC = 100,
+      semC = 5;
+    const meanT = 150,
+      semT = 10;
     const rel = relativize(meanT, semT, meanC, semC, { biasCorrection: false });
     const abs = unrelativize(rel.mean, rel.sem, meanC, semC, {
       biasCorrection: false,
@@ -93,8 +98,10 @@ describe("unrelativize", () => {
   });
 
   it("inverts relativize (with bias correction)", () => {
-    const meanC = 100, semC = 5;
-    const meanT = 150, semT = 10;
+    const meanC = 100,
+      semC = 5;
+    const meanT = 150,
+      semT = 10;
     const rel = relativize(meanT, semT, meanC, semC, { biasCorrection: true });
     const abs = unrelativize(rel.mean, rel.sem, meanC, semC, {
       biasCorrection: true,
@@ -104,8 +111,10 @@ describe("unrelativize", () => {
   });
 
   it("inverts relativize (constant control)", () => {
-    const meanC = 100, semC = 5;
-    const meanT = 150, semT = 10;
+    const meanC = 100,
+      semC = 5;
+    const meanT = 150,
+      semT = 10;
     const rel = relativize(meanT, semT, meanC, semC, {
       controlAsConstant: true,
     });
@@ -121,7 +130,8 @@ describe("relativizePredictions", () => {
   it("batch relativizes predictions vs status quo", () => {
     const means = new Float64Array([110, 120, 130]);
     const variances = new Float64Array([4, 9, 16]); // SEMs: 2, 3, 4
-    const sqMean = 100, sqVariance = 1; // SEM: 1
+    const sqMean = 100,
+      sqVariance = 1; // SEM: 1
 
     const result = relativizePredictions(means, variances, sqMean, sqVariance, {
       biasCorrection: false,
@@ -136,9 +146,7 @@ describe("relativizePredictions", () => {
   });
 
   it("returns Float64Arrays", () => {
-    const result = relativizePredictions(
-      [100], [1], 100, 1,
-    );
+    const result = relativizePredictions([100], [1], 100, 1);
     expect(result.mean).toBeInstanceOf(Float64Array);
     expect(result.variance).toBeInstanceOf(Float64Array);
   });

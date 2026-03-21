@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { RGB } from "./types";
 
 /**
@@ -20,7 +22,9 @@ export function drawDataDot(
   isHovered: boolean,
   fillRGB: RGB = [217, 95, 78],
 ): void {
-  if (alpha < 0.04) return;
+  if (alpha < 0.04) {
+    return;
+  }
   const outerR = isActive || isHovered ? 7.5 : 5;
   const innerR = isActive || isHovered ? 4 : 2.5;
   ctx.beginPath();

@@ -1,5 +1,7 @@
-import { Matrix } from "../linalg/matrix.js";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import { cholesky } from "../linalg/cholesky.js";
+import { Matrix } from "../linalg/matrix.js";
 
 /**
  * Simple xoshiro128** PRNG for reproducible random number generation.
@@ -12,10 +14,10 @@ export class Rng {
     // Initialize state via splitmix32
     this.s = new Uint32Array(4);
     for (let i = 0; i < 4; i++) {
-      seed += 0x9e3779b9;
+      seed += 0x9e_37_79_b9;
       let t = seed;
-      t = Math.imul(t ^ (t >>> 16), 0x21f0aaad);
-      t = Math.imul(t ^ (t >>> 15), 0x735a2d97);
+      t = Math.imul(t ^ (t >>> 16), 0x21_f0_aa_ad);
+      t = Math.imul(t ^ (t >>> 15), 0x73_5a_2d_97);
       this.s[i] = (t ^ (t >>> 15)) >>> 0;
     }
   }
@@ -30,7 +32,7 @@ export class Rng {
     this.s[0] ^= this.s[3];
     this.s[2] ^= t;
     this.s[3] = (this.s[3] << 11) | (this.s[3] >>> 21);
-    return (result >>> 0) / 4294967296;
+    return (result >>> 0) / 4_294_967_296;
   }
 
   /** Standard normal via Box-Muller transform. */

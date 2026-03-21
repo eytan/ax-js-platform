@@ -1,6 +1,10 @@
-import { describe, it, expect } from "vitest";
-import { MultiTaskGP } from "../../src/models/multi_task.js";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { MultiTaskGPModelState } from "../../src/models/types.js";
+
+import { describe, it, expect } from "vitest";
+
+import { MultiTaskGP } from "../../src/models/multi_task.js";
 
 function makeState(): MultiTaskGPModelState {
   return {
@@ -15,20 +19,20 @@ function makeState(): MultiTaskGPModelState {
       [0.6, 0.7, 1],
       [0.8, 0.9, 1],
     ],
-    train_Y: [1.0, 1.5, 2.0, 2.5, 0.5, 1.0, 1.5, 2.0],
+    train_Y: [1, 1.5, 2, 2.5, 0.5, 1, 1.5, 2],
     task_feature: -1,
     num_tasks: 2,
     data_kernel: {
       type: "Matern",
       lengthscale: [0.5, 0.5],
       nu: 2.5,
-      outputscale: 1.0,
+      outputscale: 1,
     },
     task_covar: {
       covar_factor: [[0.7], [0.4]],
-      log_var: [-1.0, -0.5],
+      log_var: [-1, -0.5],
     },
-    mean_constant: 1.0,
+    mean_constant: 1,
     noise_variance: 0.01,
   };
 }
@@ -54,8 +58,8 @@ describe("MultiTaskGP", () => {
       [0.9, 0.9],
     ];
     const result = model.predict(testPts, 0);
-    for (let i = 0; i < result.variance.length; i++) {
-      expect(result.variance[i]).toBeGreaterThanOrEqual(0);
+    for (const v of result.variance) {
+      expect(v).toBeGreaterThanOrEqual(0);
     }
   });
 

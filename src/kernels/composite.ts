@@ -1,10 +1,13 @@
-import { Matrix } from "../linalg/matrix.js";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { Kernel } from "./types.js";
+
+import { Matrix } from "../linalg/matrix.js";
 
 /**
  * Extracts a subset of columns (active dimensions) from a matrix.
  */
-export function extractActiveDims(x: Matrix, activeDims: number[]): Matrix {
+export function extractActiveDims(x: Matrix, activeDims: Array<number>): Matrix {
   const result = new Matrix(x.rows, activeDims.length);
   for (let i = 0; i < x.rows; i++) {
     for (let j = 0; j < activeDims.length; j++) {
@@ -20,9 +23,9 @@ export function extractActiveDims(x: Matrix, activeDims: number[]): Matrix {
  */
 export class ActiveDimsKernel implements Kernel {
   readonly base: Kernel;
-  readonly activeDims: number[];
+  readonly activeDims: Array<number>;
 
-  constructor(base: Kernel, activeDims: number[]) {
+  constructor(base: Kernel, activeDims: Array<number>) {
     this.base = base;
     this.activeDims = activeDims;
   }
@@ -40,7 +43,9 @@ export class ActiveDimsKernel implements Kernel {
     }
     const K = this.compute(x, x);
     const diag = new Float64Array(x.rows);
-    for (let i = 0; i < x.rows; i++) diag[i] = K.get(i, i);
+    for (let i = 0; i < x.rows; i++) {
+      diag[i] = K.get(i, i);
+    }
     return diag;
   }
 }
@@ -49,9 +54,9 @@ export class ActiveDimsKernel implements Kernel {
  * Additive kernel: k(x1, x2) = k1(x1, x2) + k2(x1, x2).
  */
 export class AdditiveKernel implements Kernel {
-  readonly kernels: Kernel[];
+  readonly kernels: Array<Kernel>;
 
-  constructor(kernels: Kernel[]) {
+  constructor(kernels: Array<Kernel>) {
     this.kernels = kernels;
   }
 
@@ -70,7 +75,9 @@ export class AdditiveKernel implements Kernel {
     const diag = kernelDiag(this.kernels[0], x);
     for (let k = 1; k < this.kernels.length; k++) {
       const d = kernelDiag(this.kernels[k], x);
-      for (let i = 0; i < diag.length; i++) diag[i] += d[i];
+      for (let i = 0; i < diag.length; i++) {
+        diag[i] += d[i];
+      }
     }
     return diag;
   }
@@ -82,9 +89,9 @@ export class AdditiveKernel implements Kernel {
  *   ScaleKernel(RBFKernel(active_dims=[0,1]) * CategoricalKernel(active_dims=[2]))
  */
 export class ProductKernel implements Kernel {
-  readonly kernels: Kernel[];
+  readonly kernels: Array<Kernel>;
 
-  constructor(kernels: Kernel[]) {
+  constructor(kernels: Array<Kernel>) {
     this.kernels = kernels;
   }
 
@@ -103,7 +110,9 @@ export class ProductKernel implements Kernel {
     const diag = kernelDiag(this.kernels[0], x);
     for (let k = 1; k < this.kernels.length; k++) {
       const d = kernelDiag(this.kernels[k], x);
-      for (let i = 0; i < diag.length; i++) diag[i] *= d[i];
+      for (let i = 0; i < diag.length; i++) {
+        diag[i] *= d[i];
+      }
     }
     return diag;
   }
@@ -119,6 +128,8 @@ export function kernelDiag(kernel: Kernel, x: Matrix): Float64Array {
   }
   const K = kernel.compute(x, x);
   const diag = new Float64Array(x.rows);
-  for (let i = 0; i < x.rows; i++) diag[i] = K.get(i, i);
+  for (let i = 0; i < x.rows; i++) {
+    diag[i] = K.get(i, i);
+  }
   return diag;
 }

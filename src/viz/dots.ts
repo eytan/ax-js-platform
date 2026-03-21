@@ -1,31 +1,37 @@
-import type { DotInfo, RenderPredictor } from "./types";
-import { positionTooltip } from "./widgets";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
 
-export type { DotInfo };
+import type { DotInfo, RenderPredictor } from "./types";
+
+import { positionTooltip } from "./widgets";
 
 /** Compute kernel correlations from a reference point to all dots. */
 export function computeKernelRels(
   predictor: RenderPredictor,
-  dots: DotInfo[],
+  dots: Array<DotInfo>,
   activeIdx: number,
   outcome: string,
-): { raw: number[]; max: number } {
-  const rawRels: number[] = [];
+): { raw: Array<number>; max: number } {
+  const rawRels: Array<number> = [];
   let maxRel = 0;
   for (let i = 0; i < dots.length; i++) {
-    if (i === activeIdx) { rawRels.push(1); continue; }
+    if (i === activeIdx) {
+      rawRels.push(1);
+      continue;
+    }
     const r = predictor.kernelCorrelation(dots[i].pt, dots[activeIdx].pt, outcome);
     rawRels.push(r);
-    if (r > maxRel) maxRel = r;
+    if (r > maxRel) {
+      maxRel = r;
+    }
   }
   return { raw: rawRels, max: maxRel };
 }
 
 /** Apply kernel-distance-based highlight styling to SVG dot elements. */
 export function applyDotHighlight(
-  dots: DotInfo[],
+  dots: Array<DotInfo>,
   activeIdx: number,
-  rels: { raw: number[]; max: number },
+  rels: { raw: Array<number>; max: number },
 ): void {
   for (let i = 0; i < dots.length; i++) {
     const d = dots[i];
@@ -34,39 +40,48 @@ export function applyDotHighlight(
       d.el.setAttribute("stroke", "rgba(68,68,68,1)");
       d.el.setAttribute("stroke-width", "2");
       d.el.setAttribute("r", String(d.defaultR + 2));
-      if (d.whisker) d.whisker.setAttribute("stroke", "rgba(217,95,78,0.5)");
+      if (d.whisker) {
+        d.whisker.setAttribute("stroke", "rgba(217,95,78,0.5)");
+      }
     } else {
       const relNorm = rels.max > 0 ? rels.raw[i] / rels.max : 0;
-      const fa = Math.max(0.08, Math.min(0.90, Math.sqrt(relNorm)));
+      const fa = Math.max(0.08, Math.min(0.9, Math.sqrt(relNorm)));
       d.el.setAttribute("fill", `rgba(217,95,78,${fa.toFixed(3)})`);
       d.el.setAttribute("stroke", `rgba(68,68,68,${Math.max(0.15, fa * 0.6).toFixed(3)})`);
       d.el.setAttribute("stroke-width", "1");
       d.el.setAttribute("r", String(d.defaultR));
-      if (d.whisker) d.whisker.setAttribute("stroke", `rgba(217,95,78,${(fa * 0.35).toFixed(3)})`);
+      if (d.whisker) {
+        d.whisker.setAttribute("stroke", `rgba(217,95,78,${(fa * 0.35).toFixed(3)})`);
+      }
     }
   }
 }
 
 /** Reset all dots to their default style. */
-export function clearDotHighlight(dots: DotInfo[]): void {
+export function clearDotHighlight(dots: Array<DotInfo>): void {
   for (const d of dots) {
     d.el.setAttribute("fill", d.defaultFill);
     d.el.setAttribute("stroke", d.defaultStroke);
     d.el.setAttribute("stroke-width", "1");
     d.el.setAttribute("r", String(d.defaultR));
-    if (d.whisker) d.whisker.setAttribute("stroke", "rgba(217,95,78,0.3)");
+    if (d.whisker) {
+      d.whisker.setAttribute("stroke", "rgba(217,95,78,0.3)");
+    }
   }
 }
 
 /** Find nearest dot within a pixel radius. Returns index or -1. */
-export function findNearestDot(dots: DotInfo[], px: number, py: number, maxDist = 12): number {
+export function findNearestDot(dots: Array<DotInfo>, px: number, py: number, maxDist = 12): number {
   let best = -1;
   let bestD = maxDist * maxDist;
   for (let i = 0; i < dots.length; i++) {
     const dx = px - dots[i].cx;
     const dy = py - dots[i].cy;
     const d2 = dx * dx + dy * dy;
-    if (d2 < bestD) { bestD = d2; best = i; }
+    if (d2 < bestD) {
+      bestD = d2;
+      best = i;
+    }
   }
   return best;
 }
@@ -80,7 +95,9 @@ export function buildPointTooltipHtml(
   let html = `<b>Trial ${idx}</b><br>`;
   for (const name of predictor.outcomeNames) {
     const td = predictor.getTrainingData(name);
-    if (idx >= td.Y.length) continue;
+    if (idx >= td.Y.length) {
+      continue;
+    }
     const isSel = name === selectedOutcome;
     const color = isSel ? "#4872f9" : "#666";
     html += `${isSel ? "<b>" : ""}${name} = <span style="color:${color}">${td.Y[idx].toFixed(4)}</span>${isSel ? "</b>" : ""}<br>`;
@@ -101,7 +118,7 @@ export function buildPointTooltipHtml(
  */
 export function attachDotInteractivity(
   svg: SVGSVGElement,
-  dots: DotInfo[],
+  dots: Array<DotInfo>,
   predictor: RenderPredictor,
   outcome: string,
   tooltip: HTMLDivElement,
@@ -117,7 +134,11 @@ export function attachDotInteractivity(
   let hoverHighlight = false;
 
   const getPinnedIdx = options?.getPinnedIdx ?? (() => localPinnedIdx);
-  const setPinnedIdx = options?.setPinnedIdx ?? ((v: number) => { localPinnedIdx = v; });
+  const setPinnedIdx =
+    options?.setPinnedIdx ??
+    ((v: number) => {
+      localPinnedIdx = v;
+    });
 
   svg.addEventListener("mousemove", (e: MouseEvent) => {
     const rect = svg.getBoundingClientRect();
@@ -185,3 +206,5 @@ export function attachDotInteractivity(
 
   return { getPinnedIdx };
 }
+
+export { type DotInfo } from "./types";

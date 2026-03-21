@@ -1,4 +1,7 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import { describe, it, expect } from "vitest";
+
 import {
   LogUntransform,
   BilogUntransform,
@@ -35,7 +38,8 @@ describe("LogUntransform (exact log-normal)", () => {
 
   it("variance uses exact log-normal: expm1(var) * exp(2*mu + var)", () => {
     // Var[exp(X)] = (exp(sigma²) - 1) * exp(2*mu + sigma²)
-    const mu = 1, v = 0.5;
+    const mu = 1,
+      v = 0.5;
     const expected = Math.expm1(v) * Math.exp(2 * mu + v);
     expect(tf.untransform(mu, v).variance).toBeCloseTo(expected, 10);
   });
@@ -66,7 +70,8 @@ describe("BilogUntransform (delta method)", () => {
   });
 
   it("variance uses delta method: exp(2|mu|) * var", () => {
-    const mu = 2, v = 0.5;
+    const mu = 2,
+      v = 0.5;
     // (f⁻¹)'(mu) = exp(|mu|) = exp(2), so Var = exp(4) * 0.5
     const expected = Math.exp(4) * 0.5;
     expect(tf.untransform(mu, v).variance).toBeCloseTo(expected, 10);
@@ -87,7 +92,8 @@ describe("PowerUntransform (Yeo-Johnson, CI-width matching)", () => {
 
   it("λ=0 variance: positive and larger than delta method for large variance", () => {
     const tf = new PowerUntransform(0);
-    const z = 1, v = 0.5;
+    const z = 1,
+      v = 0.5;
     const result = tf.untransform(z, v);
     // CI-width matching gives larger variance than delta method for exp inverse
     const deltaVar = Math.exp(2 * z) * v; // delta method: (deriv)² * v
@@ -102,7 +108,8 @@ describe("PowerUntransform (Yeo-Johnson, CI-width matching)", () => {
 
   it("λ=0 tiny variance: CI-width ≈ delta method", () => {
     const tf = new PowerUntransform(0);
-    const z = 1, v = 1e-8;
+    const z = 1,
+      v = 1e-8;
     const deltaVar = Math.exp(2 * z) * v;
     expect(tf.untransform(z, v).variance).toBeCloseTo(deltaVar, 4);
   });
@@ -125,7 +132,8 @@ describe("PowerUntransform (Yeo-Johnson, CI-width matching)", () => {
   it("λ=0.5 variance: positive for nonzero input", () => {
     const lam = 0.5;
     const tf = new PowerUntransform(lam);
-    const z = 1, v = 0.3;
+    const z = 1,
+      v = 0.3;
     const result = tf.untransform(z, v);
     expect(result.variance).toBeGreaterThan(0);
   });
@@ -133,7 +141,8 @@ describe("PowerUntransform (Yeo-Johnson, CI-width matching)", () => {
   it("λ=0.5 tiny variance: CI-width ≈ delta method", () => {
     const lam = 0.5;
     const tf = new PowerUntransform(lam);
-    const z = 1, v = 1e-8;
+    const z = 1,
+      v = 1e-8;
     const deriv = Math.pow(z * lam + 1, 1 / lam - 1);
     const deltaVar = deriv * deriv * v;
     expect(tf.untransform(z, v).variance).toBeCloseTo(deltaVar, 4);
@@ -141,11 +150,11 @@ describe("PowerUntransform (Yeo-Johnson, CI-width matching)", () => {
 
   it("with scaler: un-standardizes before inverse YJ", () => {
     const lam = 0.5;
-    const scalerMean = 2.0;
+    const scalerMean = 2;
     const scalerScale = 0.5;
     const tf = new PowerUntransform(lam, scalerMean, scalerScale);
     // For mean only (variance=0): z → z*0.5+2.0 → inverse YJ
-    const z = 1.0;
+    const z = 1;
     const unstd = z * scalerScale + scalerMean;
     const expected = Math.pow(unstd * lam + 1, 1 / lam) - 1;
     expect(tf.untransform(z, 0).mean).toBeCloseTo(expected, 10);
@@ -165,7 +174,8 @@ describe("ChainedOutcomeUntransform", () => {
     // Log⁻¹ mean: exp(2 + 0.9/2) = exp(2.45)
     // Log⁻¹ variance: expm1(0.9) * exp(2*2 + 0.9)
     const r = chain.untransform(0, 0.1);
-    const afterStdMu = 2, afterStdVar = 9 * 0.1;
+    const afterStdMu = 2,
+      afterStdVar = 9 * 0.1;
     const expectedMean = Math.exp(afterStdMu + afterStdVar / 2);
     const expectedVar = Math.expm1(afterStdVar) * Math.exp(2 * afterStdMu + afterStdVar);
     expect(r.mean).toBeCloseTo(expectedMean, 10);

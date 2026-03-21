@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 /**
  * Float64Array-backed matrix class with row-major storage.
  * Matches BoTorch's default float64 precision.
@@ -13,7 +15,7 @@ export class Matrix {
     this.data = data ?? new Float64Array(rows * cols);
   }
 
-  static from2D(arr: number[][]): Matrix {
+  static from2D(arr: Array<Array<number>>): Matrix {
     const rows = arr.length;
     const cols = arr[0]?.length ?? 0;
     const m = new Matrix(rows, cols);
@@ -25,7 +27,7 @@ export class Matrix {
     return m;
   }
 
-  static fromFlat(rows: number, cols: number, data: number[]): Matrix {
+  static fromFlat(rows: number, cols: number, data: Array<number>): Matrix {
     return new Matrix(rows, cols, Float64Array.from(data));
   }
 
@@ -35,11 +37,13 @@ export class Matrix {
 
   static eye(n: number): Matrix {
     const m = new Matrix(n, n);
-    for (let i = 0; i < n; i++) m.data[i * n + i] = 1;
+    for (let i = 0; i < n; i++) {
+      m.data[i * n + i] = 1;
+    }
     return m;
   }
 
-  static vector(arr: number[]): Matrix {
+  static vector(arr: Array<number>): Matrix {
     return new Matrix(arr.length, 1, Float64Array.from(arr));
   }
 
@@ -57,7 +61,9 @@ export class Matrix {
 
   col(j: number): Float64Array {
     const c = new Float64Array(this.rows);
-    for (let i = 0; i < this.rows; i++) c[i] = this.data[i * this.cols + j];
+    for (let i = 0; i < this.rows; i++) {
+      c[i] = this.data[i * this.cols + j];
+    }
     return c;
   }
 
@@ -68,7 +74,7 @@ export class Matrix {
     }
   }
 
-  addDiagVec(values: number[] | Float64Array): void {
+  addDiagVec(values: Array<number> | Float64Array): void {
     const n = Math.min(this.rows, this.cols, values.length);
     for (let i = 0; i < n; i++) {
       this.data[i * this.cols + i] += values[i];
@@ -79,8 +85,8 @@ export class Matrix {
     return new Matrix(this.rows, this.cols, new Float64Array(this.data));
   }
 
-  toArray(): number[][] {
-    const result: number[][] = [];
+  toArray(): Array<Array<number>> {
+    const result: Array<Array<number>> = [];
     for (let i = 0; i < this.rows; i++) {
       result.push(Array.from(this.row(i)));
     }

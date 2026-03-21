@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 /** RGB triplet in 0-255 range. */
 export type RGB = [number, number, number];
 
@@ -5,24 +7,45 @@ export type RGB = [number, number, number];
 export interface ParamSpec {
   type: "range" | "choice";
   bounds?: [number, number];
-  values?: (string | number | boolean)[];
+  values?: Array<string | number | boolean>;
   parameter_type?: "int" | "float";
 }
 
 /** Structural type for the predictor methods used by render functions. */
 export interface RenderPredictor {
-  readonly outcomeNames: string[];
-  readonly paramNames: string[];
-  readonly paramBounds: [number, number][];
+  readonly outcomeNames: Array<string>;
+  readonly paramNames: Array<string>;
+  readonly paramBounds: Array<[number, number]>;
   /** Full parameter specs (type, values, parameter_type). Optional for backward compat. */
-  readonly paramSpecs?: ParamSpec[];
-  predict(points: number[][]): Record<string, { mean: Float64Array; variance: Float64Array }>;
-  getTrainingData(outcomeName?: string): { X: number[][]; Y: number[]; paramNames: string[] };
-  loocv(outcomeName?: string): { observed: number[]; mean: number[]; variance: number[] };
-  rankDimensionsByImportance(outcomeName?: string): { dimIndex: number; paramName: string; lengthscale: number }[];
-  kernelCorrelation(point: number[], refPoint: number[], outcomeName?: string): number;
-  computeSensitivity?(outcomeName?: string, options?: { numSamples?: number; seed?: number }):
-    { firstOrder: number[]; totalOrder: number[]; paramNames: string[]; numEvaluations: number };
+  readonly paramSpecs?: Array<ParamSpec>;
+  /** Status quo baseline point for relative mode. */
+  readonly statusQuoPoint?: Array<number> | null;
+  predict(
+    points: Array<Array<number>>,
+  ): Record<string, { mean: Float64Array; variance: Float64Array }>;
+  getTrainingData(outcomeName?: string): {
+    X: Array<Array<number>>;
+    Y: Array<number>;
+    paramNames: Array<string>;
+  };
+  loocv(outcomeName?: string): {
+    observed: Array<number>;
+    mean: Array<number>;
+    variance: Array<number>;
+  };
+  rankDimensionsByImportance(
+    outcomeName?: string,
+  ): Array<{ dimIndex: number; paramName: string; lengthscale: number }>;
+  kernelCorrelation(point: Array<number>, refPoint: Array<number>, outcomeName?: string): number;
+  computeSensitivity?(
+    outcomeName?: string,
+    options?: { numSamples?: number; seed?: number },
+  ): {
+    firstOrder: Array<number>;
+    totalOrder: Array<number>;
+    paramNames: Array<string>;
+    numEvaluations: number;
+  };
 }
 
 /** Info tracked for each visible training dot in an SVG plot. */
@@ -30,7 +53,7 @@ export interface DotInfo {
   cx: number;
   cy: number;
   idx: number;
-  pt: number[];
+  pt: Array<number>;
   el: SVGCircleElement;
   /** Optional whisker element (CV plot). */
   whisker?: SVGLineElement;
@@ -75,12 +98,16 @@ export interface OptimizationTraceOptions {
 /** Options for renderSlicePlot. */
 export interface SlicePlotOptions {
   outcome?: string;
-  fixedValues?: number[];
+  fixedValues?: Array<number>;
   numPoints?: number;
   width?: number;
   height?: number;
   interactive?: boolean;
   backgroundColor?: string;
+  /** Show predictions as % change vs status quo. Default: false. */
+  relative?: boolean;
+  /** Override the status quo reference point. Falls back to predictor.statusQuoPoint. */
+  statusQuoPoint?: Array<number>;
 }
 
 /** Options for renderResponseSurface. */
@@ -88,26 +115,31 @@ export interface ResponseSurfaceOptions {
   outcome?: string;
   dimX?: number;
   dimY?: number;
-  fixedValues?: number[];
+  fixedValues?: Array<number>;
   gridSize?: number;
   width?: number;
   height?: number;
   interactive?: boolean;
   backgroundColor?: string;
+  /** Show predictions as % change vs status quo. Default: false. */
+  relative?: boolean;
+  /** Override the status quo reference point. Falls back to predictor.statusQuoPoint. */
+  statusQuoPoint?: Array<number>;
 }
 
 /** Minimal predictor shape for dimension ranking. */
 export interface DimensionRanker {
-  rankDimensionsByImportance(
-    outcome?: string,
-  ): { dimIndex: number }[] | null;
-  computeSensitivity?(outcomeName?: string):
-    { firstOrder: number[]; totalOrder: number[]; paramNames: string[] };
+  rankDimensionsByImportance(outcome?: string): Array<{ dimIndex: number }> | null;
+  computeSensitivity?(outcomeName?: string): {
+    firstOrder: Array<number>;
+    totalOrder: Array<number>;
+    paramNames: Array<string>;
+  };
 }
 
 /** Minimal predictor shape accepted by embedding helpers. */
 export interface EmbeddingPredictor {
-  readonly outcomeNames: string[];
-  readonly paramNames: string[];
-  readonly paramBounds: [number, number][];
+  readonly outcomeNames: Array<string>;
+  readonly paramNames: Array<string>;
+  readonly paramBounds: Array<[number, number]>;
 }

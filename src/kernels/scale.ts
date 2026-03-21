@@ -1,5 +1,7 @@
-import { Matrix } from "../linalg/matrix.js";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { Kernel } from "./types.js";
+import type { Matrix } from "../linalg/matrix.js";
 
 /**
  * ScaleKernel wraps a base kernel and multiplies by outputscale.
@@ -25,12 +27,16 @@ export class ScaleKernel implements Kernel {
   computeDiag(x: Matrix): Float64Array {
     if (this.base.computeDiag) {
       const diag = this.base.computeDiag(x);
-      for (let i = 0; i < diag.length; i++) diag[i] *= this.outputscale;
+      for (let i = 0; i < diag.length; i++) {
+        diag[i] *= this.outputscale;
+      }
       return diag;
     }
     const K = this.base.compute(x, x);
     const diag = new Float64Array(x.rows);
-    for (let i = 0; i < x.rows; i++) diag[i] = K.get(i, i) * this.outputscale;
+    for (let i = 0; i < x.rows; i++) {
+      diag[i] = K.get(i, i) * this.outputscale;
+    }
     return diag;
   }
 }

@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { GPModel, AcquisitionFunction } from "./types.js";
 
 /**
@@ -11,11 +13,11 @@ import type { GPModel, AcquisitionFunction } from "./types.js";
  */
 export class UpperConfidenceBound implements AcquisitionFunction {
   constructor(
-    private model: GPModel,
-    private beta: number = 2.0,
+    private readonly model: GPModel,
+    private readonly beta: number = 2,
   ) {}
 
-  evaluate(candidates: number[][]): Float64Array {
+  evaluate(candidates: Array<Array<number>>): Float64Array {
     const { mean, variance } = this.model.predict(candidates);
     const n = mean.length;
     const values = new Float64Array(n);

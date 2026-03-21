@@ -1,14 +1,18 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
+import { readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+
 import { Predictor } from "../src/predictor.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixturesDir = join(__dirname, "fixtures");
 
-function loadFixture(name: string) {
-  return JSON.parse(readFileSync(join(fixturesDir, name), "utf-8"));
+function loadFixture(name: string): any {
+  return JSON.parse(readFileSync(join(fixturesDir, name), "utf8"));
 }
 
 const TOLERANCE = 1e-6;
@@ -47,7 +51,9 @@ describe("Predictor", () => {
     it("predictions match expected values", () => {
       const preds = predictor.predict(fixture.test.test_points);
       for (let i = 0; i < fixture.test.expected.mean.length; i++) {
-        expect(Math.abs(preds["y"].mean[i] - fixture.test.expected.mean[i])).toBeLessThan(TOLERANCE);
+        expect(Math.abs(preds["y"].mean[i] - fixture.test.expected.mean[i])).toBeLessThan(
+          TOLERANCE,
+        );
       }
     });
   });
@@ -71,7 +77,7 @@ describe("Predictor", () => {
 
     it("predictions match expected values for all outcomes", () => {
       const preds = predictor.predict(fixture.test.test_points);
-      const expectedMeans = fixture.test.expected.mean as number[][];
+      const expectedMeans = fixture.test.expected.mean as Array<Array<number>>;
       for (let k = 0; k < predictor.outcomeNames.length; k++) {
         const name = predictor.outcomeNames[k];
         for (let i = 0; i < expectedMeans[k].length; i++) {
@@ -107,7 +113,9 @@ describe("Predictor", () => {
       const predictor = new Predictor(fixture.experiment);
       const preds = predictor.predict(fixture.test.test_points);
       for (let i = 0; i < fixture.test.expected.mean.length; i++) {
-        expect(Math.abs(preds["y"].mean[i] - fixture.test.expected.mean[i])).toBeLessThan(TOLERANCE);
+        expect(Math.abs(preds["y"].mean[i] - fixture.test.expected.mean[i])).toBeLessThan(
+          TOLERANCE,
+        );
       }
     });
 
@@ -129,15 +137,17 @@ describe("Predictor", () => {
     });
 
     it("StandardizeY adapter transform reverses standardization", () => {
-      const Ymean = 10.0;
+      const Ymean = 10;
       const Ystd = 2.5;
       const predictor = new Predictor({
         ...fixture.experiment,
-        adapter_transforms: [{
-          type: "StandardizeY" as const,
-          Ymean: { y: Ymean },
-          Ystd: { y: Ystd },
-        }],
+        adapter_transforms: [
+          {
+            type: "StandardizeY" as const,
+            Ymean: { y: Ymean },
+            Ystd: { y: Ystd },
+          },
+        ],
       });
       const rawPredictor = new Predictor(fixture.experiment);
       const rawPreds = rawPredictor.predict(fixture.test.test_points);
@@ -248,7 +258,7 @@ describe("Predictor", () => {
         const fixture = loadFixture("branin_matern25.json");
         const predictor = new Predictor(fixture.experiment);
         const pt = fixture.experiment.model_state.train_X[0];
-        expect(predictor.kernelCorrelation(pt, pt)).toBeCloseTo(1.0, 10);
+        expect(predictor.kernelCorrelation(pt, pt)).toBeCloseTo(1, 10);
       });
 
       it("returns value in (0, 1) for different points", () => {
@@ -273,7 +283,9 @@ describe("Predictor", () => {
         // LOO predictions should NOT be identical to observed (GP interpolates, LOO doesn't)
         let allSame = true;
         for (let i = 0; i < loo.observed.length; i++) {
-          if (Math.abs(loo.mean[i] - loo.observed[i]) > 1e-4) allSame = false;
+          if (Math.abs(loo.mean[i] - loo.observed[i]) > 1e-4) {
+            allSame = false;
+          }
           expect(loo.variance[i]).toBeGreaterThan(0);
         }
         expect(allSame).toBe(false);
@@ -286,8 +298,8 @@ describe("Predictor", () => {
         expect(loo.observed.length).toBeGreaterThan(0);
         expect(loo.mean.length).toBe(loo.observed.length);
         // LOO variance should be positive
-        for (let i = 0; i < loo.variance.length; i++) {
-          expect(loo.variance[i]).toBeGreaterThan(0);
+        for (const v of loo.variance) {
+          expect(v).toBeGreaterThan(0);
         }
       });
 
@@ -303,6 +315,5 @@ describe("Predictor", () => {
         expect(r2).toBeGreaterThan(0);
       });
     });
-
   });
 });

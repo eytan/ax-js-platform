@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 /**
  * Visualization utilities for ax-js.
  *
@@ -21,7 +23,7 @@ export type {
 export { injectStyles, injectScopedStyles } from "./styles";
 
 // ── Colormaps ─────────────────────────────────────────────────────────────
-export { viridis, plasma, drawColorbar, renderHeatmap } from "./colormaps";
+export { viridis, plasma, piYG, drawColorbar, renderHeatmap } from "./colormaps";
 
 // ── Data point rendering ──────────────────────────────────────────────────
 export { drawDataDot } from "./drawDataDot";
@@ -57,6 +59,10 @@ export {
   buildPointTooltipHtml,
   attachDotInteractivity,
 } from "./dots";
+
+// ── Range estimation ─────────────────────────────────────────────────
+export { estimateRange } from "./estimateRange";
+export type { EstimatedRange } from "./estimateRange";
 
 // ── Embeddable render functions ───────────────────────────────────────────
 export { renderFeatureImportance } from "./plots/importance";

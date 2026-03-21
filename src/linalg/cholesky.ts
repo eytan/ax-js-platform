@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import { Matrix } from "./matrix.js";
 
 /**
@@ -7,14 +9,18 @@ import { Matrix } from "./matrix.js";
  */
 export function cholesky(A: Matrix): Matrix {
   const result = choleskyRaw(A);
-  if (result !== null) return result;
+  if (result !== null) {
+    return result;
+  }
 
   const jitters = [1e-6, 1e-5, 1e-4, 1e-3];
   for (const jitter of jitters) {
     const Aj = A.clone();
     Aj.addDiag(jitter);
-    const result = choleskyRaw(Aj);
-    if (result !== null) return result;
+    const jittered = choleskyRaw(Aj);
+    if (jittered !== null) {
+      return jittered;
+    }
   }
   throw new Error("Cholesky decomposition failed even with jitter 1e-3");
 }
@@ -30,7 +36,9 @@ function choleskyRaw(A: Matrix): Matrix | null {
         s -= L.get(i, k) * L.get(j, k);
       }
       if (i === j) {
-        if (s <= 0) return null;
+        if (s <= 0) {
+          return null;
+        }
         L.set(i, j, Math.sqrt(s));
       } else {
         L.set(i, j, s / L.get(j, j));

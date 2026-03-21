@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 /**
  * BoTorch-level parity tests — low-level model math consistency.
  *
@@ -8,17 +10,19 @@
  * NOT authoritative for end-user predictions. For Ax-level parity (what users
  * actually see after adapter transforms), see predictor_parity.test.ts.
  */
-import { describe, it, expect } from "vitest";
-import { readFileSync, existsSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
-import { loadModel } from "../../src/io/deserialize.js";
-import { SingleTaskGP } from "../../src/models/single_task.js";
-import { ModelListGP } from "../../src/models/model_list.js";
-import { PairwiseGP } from "../../src/models/pairwise_gp.js";
-import { MultiTaskGP } from "../../src/models/multi_task.js";
-import { EnsembleGP } from "../../src/models/ensemble_gp.js";
+import type { SingleTaskGP } from "../../src/models/single_task.js";
 import type { FixtureData, Manifest, PredictionResult } from "../../src/models/types.js";
+
+import { readFileSync, existsSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { describe, it, expect } from "vitest";
+
+import { loadModel } from "../../src/io/deserialize.js";
+import { EnsembleGP } from "../../src/models/ensemble_gp.js";
+import { ModelListGP } from "../../src/models/model_list.js";
+import { MultiTaskGP } from "../../src/models/multi_task.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixturesDir = join(__dirname, "..", "fixtures");
@@ -30,8 +34,8 @@ const MINIMUM_FIXTURES = 32;
 const TOLERANCE = 1e-6;
 
 function loadFixture(filename: string): FixtureData {
-  const raw = readFileSync(join(fixturesDir, filename), "utf-8");
-  return JSON.parse(raw);
+  const raw = readFileSync(join(fixturesDir, filename), "utf8");
+  return JSON.parse(raw) as FixtureData;
 }
 
 function isConsistencyOnly(fixture: FixtureData): boolean {
@@ -50,7 +54,9 @@ function validateFixture(fixture: FixtureData, name: string): void {
     throw new Error(`Fixture "${name}": missing or invalid test.test_points`);
   }
   // Consistency-only fixtures have null expected values
-  if (isConsistencyOnly(fixture)) return;
+  if (isConsistencyOnly(fixture)) {
+    return;
+  }
   if (!fixture.test.expected?.mean || !fixture.test.expected?.variance) {
     throw new Error(`Fixture "${name}": missing test.expected.mean or test.expected.variance`);
   }
@@ -59,14 +65,16 @@ function validateFixture(fixture: FixtureData, name: string): void {
   // A fixture where all means ≈ 0 is vacuous — any constant-zero predictor would pass.
   const TRIVIAL_THRESHOLD = 1e-5;
   const means = fixture.test.expected.mean;
-  const flatMeans: number[] = Array.isArray(means)
-    ? (Array.isArray(means[0]) ? (means as number[][]).flat() : (means as number[]))
-    : Object.values(means as Record<string, number[]>).flat();
+  const flatMeans: Array<number> = Array.isArray(means)
+    ? Array.isArray(means[0])
+      ? (means as Array<Array<number>>).flat()
+      : (means as Array<number>)
+    : Object.values(means).flat();
   const maxAbsMean = Math.max(...flatMeans.map(Math.abs));
   if (maxAbsMean < TRIVIAL_THRESHOLD) {
     throw new Error(
       `Fixture "${name}": all expected means are near-zero (max |mean| = ${maxAbsMean}). ` +
-      `This makes the parity test vacuous — any constant predictor would pass.`,
+        `This makes the parity test vacuous — any constant predictor would pass.`,
     );
   }
 }
@@ -78,8 +86,8 @@ interface DiffStats {
 }
 
 function computeDiffStats(
-  actual: Float64Array | number[],
-  expected: number[],
+  actual: Float64Array | Array<number>,
+  expected: Array<number>,
 ): DiffStats {
   let sum = 0;
   let max = 0;
@@ -89,17 +97,19 @@ function computeDiffStats(
     const scale = TOLERANCE + TOLERANCE * Math.abs(expected[i]);
     const relDiff = absDiff / scale;
     sum += relDiff;
-    if (relDiff > max) max = relDiff;
+    if (relDiff > max) {
+      max = relDiff;
+    }
   }
   return { mean: sum / expected.length, max, n: expected.length };
 }
 
 function expectAllClose(
-  actual: Float64Array | number[],
-  expected: number[],
+  actual: Float64Array | Array<number>,
+  expected: Array<number>,
   atol: number,
   label: string,
-) {
+): void {
   expect(actual.length).toBe(expected.length);
   for (let i = 0; i < expected.length; i++) {
     const absDiff = Math.abs(actual[i] - expected[i]);
@@ -114,37 +124,35 @@ function expectAllClose(
 }
 
 // Collect report card data across all fixtures
-const reportCard: {
+const reportCard: Array<{
   name: string;
   model: string;
   nTest: number;
   meanDiff: DiffStats;
   varDiff: DiffStats;
-}[] = [];
+}> = [];
 
 // Load manifest — failure is a hard error, not a silent skip
 let manifest: Manifest;
 try {
-  manifest = JSON.parse(
-    readFileSync(join(fixturesDir, "manifest.json"), "utf-8"),
-  );
-} catch (e) {
+  manifest = JSON.parse(readFileSync(join(fixturesDir, "manifest.json"), "utf8"));
+} catch (error) {
   throw new Error(
-    `Failed to load manifest.json: ${e}. Run: python python/generate_fixtures.py`,
+    `Failed to load manifest.json: ${String(error)}. Run: python python/generate_fixtures.py`,
   );
 }
 
 if (manifest.fixtures.length === 0) {
-  throw new Error(
-    "No fixtures found — run: python python/generate_fixtures.py",
-  );
+  throw new Error("No fixtures found — run: python python/generate_fixtures.py");
 }
 
 // Count BoTorch-level parity fixtures (exclude consistency-only and ax-level)
 const parityFixtures = manifest.fixtures.filter((entry) => {
   const fp = join(fixturesDir, entry.file);
-  if (!existsSync(fp)) return true; // will fail below
-  const f = JSON.parse(readFileSync(fp, "utf-8"));
+  if (!existsSync(fp)) {
+    return true;
+  } // will fail below
+  const f = JSON.parse(readFileSync(fp, "utf8"));
   return f.test.expected.mean !== null && !f.test.metadata?.ax_level;
 });
 
@@ -176,12 +184,26 @@ function predictAndReport(
   model: ReturnType<typeof loadModel>,
   fixture: FixtureData,
   entryName: string,
-): { results: { mean: Float64Array | number[]; variance: Float64Array | number[]; expectedMean: number[]; expectedVar: number[]; label: string }[] } {
+): {
+  results: Array<{
+    mean: Float64Array | Array<number>;
+    variance: Float64Array | Array<number>;
+    expectedMean: Array<number>;
+    expectedVar: Array<number>;
+    label: string;
+  }>;
+} {
   if (model instanceof ModelListGP) {
     const results = model.predict(fixture.test.test_points);
-    const expectedMeans = fixture.test.expected.mean as number[][];
-    const expectedVars = fixture.test.expected.variance as number[][];
-    const out: { mean: Float64Array | number[]; variance: Float64Array | number[]; expectedMean: number[]; expectedVar: number[]; label: string }[] = [];
+    const expectedMeans = fixture.test.expected.mean as Array<Array<number>>;
+    const expectedVars = fixture.test.expected.variance as Array<Array<number>>;
+    const out: Array<{
+      mean: Float64Array | Array<number>;
+      variance: Float64Array | Array<number>;
+      expectedMean: Array<number>;
+      expectedVar: Array<number>;
+      label: string;
+    }> = [];
     for (let k = 0; k < results.length; k++) {
       reportCard.push({
         name: `${entryName}[${k}]`,
@@ -212,12 +234,12 @@ function predictAndReport(
     result = model.predict(fixture.test.test_points);
     modelName = "EnsembleGP";
   } else {
-    result = (model as SingleTaskGP | PairwiseGP).predict(fixture.test.test_points);
+    result = model.predict(fixture.test.test_points);
     modelName = fixture.experiment.model_state.model_type;
   }
 
-  const expectedMean = fixture.test.expected.mean as number[];
-  const expectedVar = fixture.test.expected.variance as number[];
+  const expectedMean = fixture.test.expected.mean as Array<number>;
+  const expectedVar = fixture.test.expected.variance as Array<number>;
   reportCard.push({
     name: entryName,
     model: modelName,
@@ -227,13 +249,15 @@ function predictAndReport(
   });
 
   return {
-    results: [{
-      mean: result.mean,
-      variance: result.variance,
-      expectedMean,
-      expectedVar,
-      label: "",
-    }],
+    results: [
+      {
+        mean: result.mean,
+        variance: result.variance,
+        expectedMean,
+        expectedVar,
+        label: "",
+      },
+    ],
   };
 }
 
@@ -243,10 +267,14 @@ describe("BoTorch parity", () => {
     validateFixture(fixture, entry.name);
 
     // Skip consistency-only fixtures (Bilog/Power) — tested separately
-    if (isConsistencyOnly(fixture)) continue;
+    if (isConsistencyOnly(fixture)) {
+      continue;
+    }
 
     // Skip ax-level fixtures — tested in predictor_parity.test.ts
-    if (isAxLevel(fixture)) continue;
+    if (isAxLevel(fixture)) {
+      continue;
+    }
 
     describe(`fixture: ${entry.name}`, () => {
       const model = loadModel(fixture.experiment.model_state);
@@ -338,20 +366,16 @@ describe("BoTorch parity", () => {
 
       const worstMean = Math.max(...reportCard.map((r) => r.meanDiff.max));
       const worstVar = Math.max(...reportCard.map((r) => r.varDiff.max));
-      console.log(
-        `Worst-case: mean=${formatSci(worstMean)}, variance=${formatSci(worstVar)}`,
-      );
-      console.log(
-        `Tolerance: ${formatSci(TOLERANCE)} (global)`,
-      );
+      console.log(`Worst-case: mean=${formatSci(worstMean)}, variance=${formatSci(worstVar)}`);
+      console.log(`Tolerance: ${formatSci(TOLERANCE)} (global)`);
       console.log(
         "Diffs normalized: |a-b| / (atol + rtol*|b|) with atol=rtol=1e-6; values \u2264 1.0 pass",
       );
       console.log(sep + "\n");
 
       // DiffStats are now normalized: value <= 1.0 means within tolerance
-      expect(worstMean).toBeLessThanOrEqual(1.0);
-      expect(worstVar).toBeLessThanOrEqual(1.0);
+      expect(worstMean).toBeLessThanOrEqual(1);
+      expect(worstVar).toBeLessThanOrEqual(1);
     });
   });
 });

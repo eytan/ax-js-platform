@@ -1,15 +1,18 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import { describe, it, expect } from "vitest";
-import { Matrix } from "../../src/linalg/matrix.js";
-import { ExactGP } from "../../src/models/gp.js";
+
 import { RBFKernel } from "../../src/kernels/rbf.js";
 import { ScaleKernel } from "../../src/kernels/scale.js";
+import { Matrix } from "../../src/linalg/matrix.js";
 import { ConstantMean } from "../../src/means/constant.js";
+import { ExactGP } from "../../src/models/gp.js";
 
 describe("ExactGP", () => {
   it("predicts at training points with near-zero variance", () => {
     const trainX = Matrix.from2D([[0], [0.5], [1]]);
     const trainY = Matrix.vector([0, 1, 0]);
-    const kernel = new ScaleKernel(new RBFKernel([0.3]), 1.0);
+    const kernel = new ScaleKernel(new RBFKernel([0.3]), 1);
     const mean = new ConstantMean(0);
 
     const gp = new ExactGP(trainX, trainY, kernel, mean, 1e-6);
@@ -29,12 +32,12 @@ describe("ExactGP", () => {
   it("has higher variance far from training data", () => {
     const trainX = Matrix.from2D([[0], [1]]);
     const trainY = Matrix.vector([0, 1]);
-    const kernel = new ScaleKernel(new RBFKernel([0.3]), 1.0);
+    const kernel = new ScaleKernel(new RBFKernel([0.3]), 1);
     const mean = new ConstantMean(0);
 
     const gp = new ExactGP(trainX, trainY, kernel, mean, 1e-6);
     const nearResult = gp.predict(Matrix.from2D([[0.5]]));
-    const farResult = gp.predict(Matrix.from2D([[5.0]]));
+    const farResult = gp.predict(Matrix.from2D([[5]]));
 
     expect(farResult.variance[0]).toBeGreaterThan(nearResult.variance[0]);
   });
@@ -42,7 +45,7 @@ describe("ExactGP", () => {
   it("mean reverts to prior far from data", () => {
     const trainX = Matrix.from2D([[0]]);
     const trainY = Matrix.vector([5]);
-    const kernel = new ScaleKernel(new RBFKernel([0.1]), 1.0);
+    const kernel = new ScaleKernel(new RBFKernel([0.1]), 1);
     const mean = new ConstantMean(0);
 
     const gp = new ExactGP(trainX, trainY, kernel, mean, 1e-6);

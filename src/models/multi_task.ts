@@ -1,14 +1,17 @@
-import { Matrix } from "../linalg/matrix.js";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
+import type { GPInternals, MultiTaskGPModelState, PredictionResult } from "./types.js";
+import type { OutcomeUntransform } from "../transforms/outcome.js";
+
+import { buildKernel } from "../kernels/build.js";
+import { kernelDiag } from "../kernels/composite.js";
+import { MultitaskKernel } from "../kernels/multitask.js";
 import { cholesky } from "../linalg/cholesky.js";
+import { Matrix } from "../linalg/matrix.js";
 import { forwardSolve, solveCholesky } from "../linalg/solve.js";
+import { buildOutcomeUntransform } from "../transforms/build_outcome.js";
 import { InputNormalize } from "../transforms/normalize.js";
 import { InputWarp } from "../transforms/warp.js";
-import type { OutcomeUntransform } from "../transforms/outcome.js";
-import { buildOutcomeUntransform } from "../transforms/build_outcome.js";
-import { buildKernel } from "../kernels/build.js";
-import { MultitaskKernel } from "../kernels/multitask.js";
-import { kernelDiag } from "../kernels/composite.js";
-import type { GPInternals, MultiTaskGPModelState, PredictionResult } from "./types.js";
 
 /**
  * Multi-task GP using ICM (Intrinsic Coregionalization Model).
@@ -22,16 +25,16 @@ import type { GPInternals, MultiTaskGPModelState, PredictionResult } from "./typ
  * 3. Standard GP prediction
  */
 export class MultiTaskGP {
-  private kernel: MultitaskKernel;
-  private meanConstants: number[];
-  private inputTransform: InputNormalize | null;
-  private inputWarp: InputWarp | null;
-  private outcomeTransform: OutcomeUntransform | null;
-  private trainXFull: Matrix;
-  private L: Matrix;
-  private alpha: Matrix;
-  private taskFeature: number;
-  private dataDim: number;
+  private readonly kernel: MultitaskKernel;
+  private readonly meanConstants: Array<number>;
+  private readonly inputTransform: InputNormalize | null;
+  private readonly inputWarp: InputWarp | null;
+  private readonly outcomeTransform: OutcomeUntransform | null;
+  private readonly trainXFull: Matrix;
+  private readonly L: Matrix;
+  private readonly alpha: Matrix;
+  private readonly taskFeature: number;
+  private readonly dataDim: number;
   readonly numTasks: number;
 
   constructor(state: MultiTaskGPModelState) {
@@ -44,14 +47,11 @@ export class MultiTaskGP {
     if (Array.isArray(state.mean_constant)) {
       this.meanConstants = state.mean_constant;
     } else {
-      this.meanConstants = Array(state.num_tasks).fill(state.mean_constant);
+      this.meanConstants = new Array(state.num_tasks).fill(state.mean_constant);
     }
 
     this.inputTransform = state.input_transform
-      ? new InputNormalize(
-          state.input_transform.offset,
-          state.input_transform.coefficient,
-        )
+      ? new InputNormalize(state.input_transform.offset, state.input_transform.coefficient)
       : null;
 
     this.inputWarp = state.input_warp
@@ -100,10 +100,7 @@ export class MultiTaskGP {
 
     // Alpha: subtract per-task mean from targets
     const trainY = Matrix.vector(state.train_Y);
-    const tf =
-      this.taskFeature < 0
-        ? this.trainXFull.cols + this.taskFeature
-        : this.taskFeature;
+    const tf = this.taskFeature < 0 ? this.trainXFull.cols + this.taskFeature : this.taskFeature;
     const residuals = new Matrix(trainY.rows, 1);
     for (let i = 0; i < trainY.rows; i++) {
       const taskIdx = Math.round(this.trainXFull.get(i, tf));
@@ -121,10 +118,7 @@ export class MultiTaskGP {
    * Returns data-dimension-only training inputs (task column removed).
    */
   getInternals(taskIndex: number): GPInternals {
-    const tf =
-      this.taskFeature < 0
-        ? this.trainXFull.cols + this.taskFeature
-        : this.taskFeature;
+    const tf = this.taskFeature < 0 ? this.trainXFull.cols + this.taskFeature : this.taskFeature;
     const n = this.trainXFull.rows;
     const B = this.kernel.indexKernel.taskCovar;
 
@@ -136,13 +130,15 @@ export class MultiTaskGP {
     }
 
     // Extract data-only columns (remove task column)
-    const dataCols: number[] = [];
+    const dataCols: Array<number> = [];
     for (let j = 0; j < this.trainXFull.cols; j++) {
-      if (j !== tf) dataCols.push(j);
+      if (j !== tf) {
+        dataCols.push(j);
+      }
     }
-    const trainXData: number[][] = new Array(n);
+    const trainXData: Array<Array<number>> = new Array(n);
     for (let i = 0; i < n; i++) {
-      const row = new Array(dataCols.length);
+      const row: Array<number> = new Array(dataCols.length);
       for (let j = 0; j < dataCols.length; j++) {
         row[j] = this.trainXFull.get(i, dataCols[j]);
       }
@@ -157,13 +153,14 @@ export class MultiTaskGP {
   }
 
   private applyTransforms(X: Matrix): Matrix {
-    const tf =
-      this.taskFeature < 0 ? X.cols + this.taskFeature : this.taskFeature;
+    const tf = this.taskFeature < 0 ? X.cols + this.taskFeature : this.taskFeature;
 
     // Extract data columns and task column
-    const dataCols: number[] = [];
+    const dataCols: Array<number> = [];
     for (let j = 0; j < X.cols; j++) {
-      if (j !== tf) dataCols.push(j);
+      if (j !== tf) {
+        dataCols.push(j);
+      }
     }
 
     let dataX = new Matrix(X.rows, dataCols.length);
@@ -198,15 +195,10 @@ export class MultiTaskGP {
   }
 
   /** Prepare test points with task index and apply transforms. */
-  private prepareTestPoints(
-    testPoints: number[][],
-    taskIndex: number,
-  ): Matrix {
+  private prepareTestPoints(testPoints: Array<Array<number>>, taskIndex: number): Matrix {
     const tf =
-      this.taskFeature < 0
-        ? testPoints[0].length + 1 + this.taskFeature
-        : this.taskFeature;
-    const testWithTask: number[][] = testPoints.map((pt) => {
+      this.taskFeature < 0 ? testPoints[0].length + 1 + this.taskFeature : this.taskFeature;
+    const testWithTask: Array<Array<number>> = testPoints.map((pt) => {
       const row = [...pt];
       row.splice(tf, 0, taskIndex);
       return row;
@@ -225,7 +217,7 @@ export class MultiTaskGP {
     return forwardSolve(this.L, KstarT);
   }
 
-  predict(testPoints: number[][], taskIndex: number): PredictionResult {
+  predict(testPoints: Array<Array<number>>, taskIndex: number): PredictionResult {
     if (testPoints.length === 0) {
       throw new Error("testPoints must not be empty");
     }
@@ -280,9 +272,9 @@ export class MultiTaskGP {
    * Cov(f(x_i, t), f(x_ref, t)) = K_mt(x_i_t, x_ref_t) - v_i · v_ref
    */
   predictCovarianceWith(
-    testPoints: number[][],
+    testPoints: Array<Array<number>>,
     taskIndex: number,
-    refPoint: number[],
+    refPoint: Array<number>,
   ): Float64Array {
     const testXNorm = this.prepareTestPoints(testPoints, taskIndex);
     const refXNorm = this.prepareTestPoints([refPoint], taskIndex);

@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 /**
  * Relativization: compute percentage change vs. a status quo (baseline) arm.
  *
@@ -169,9 +171,7 @@ export function unrelativize(
       // Undo bias correction: m_t = m_t_raw / (1 - (s_c/|m_c|)²)
       const corrFactor = 1 - (semC * semC) / (absMC * absMC);
       if (Math.abs(corrFactor) < 1e-15) {
-        throw new Error(
-          "Cannot unrelativize with bias correction: control SEM ≈ |control mean|.",
-        );
+        throw new Error("Cannot unrelativize with bias correction: control SEM ≈ |control mean|.");
       }
       meanT /= corrFactor;
     }
@@ -204,12 +204,12 @@ export function unrelativize(
  * @returns           Arrays of relative means and relative variances (NOT SEM)
  */
 export function relativizePredictions(
-  means: Float64Array | number[],
-  variances: Float64Array | number[],
+  means: Float64Array | Array<number>,
+  variances: Float64Array | Array<number>,
   sqMean: number,
   sqVariance: number,
   opts: RelativizeOptions = {},
-  covariances?: Float64Array | number[],
+  covariances?: Float64Array | Array<number>,
 ): { mean: Float64Array; variance: Float64Array } {
   const n = means.length;
   const relMeans = new Float64Array(n);

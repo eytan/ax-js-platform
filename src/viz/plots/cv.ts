@@ -1,14 +1,25 @@
-import type { RenderPredictor, CrossValidationOptions, DotInfo } from "../types";
-import { svgEl } from "./_svg";
-import { createOutcomeSelector, createTooltipDiv, positionTooltip, removeTooltip, makeSelectEl } from "../widgets";
-import { computeKernelRels, applyDotHighlight, clearDotHighlight, findNearestDot, buildPointTooltipHtml } from "../dots";
-import { injectScopedStyles } from "../styles";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
 
-const CTRL_CSS = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
+import type { RenderPredictor, CrossValidationOptions, DotInfo } from "../types";
+
+import {
+  computeKernelRels,
+  applyDotHighlight,
+  clearDotHighlight,
+  findNearestDot,
+  buildPointTooltipHtml,
+} from "../dots";
+import { injectScopedStyles } from "../styles";
+import { createTooltipDiv, positionTooltip, removeTooltip, makeSelectEl } from "../widgets";
+
+import { svgEl } from "./_svg";
+
+const CTRL_CSS =
+  "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
 
 /** Panel interface for cross-panel highlight coordination. */
 interface HighlightPanel {
-  highlight(idx: number, rels: { raw: number[]; max: number }): void;
+  highlight(idx: number, rels: { raw: Array<number>; max: number }): void;
   clear(): void;
 }
 
@@ -27,11 +38,18 @@ export function renderCrossValidation(
   const interactive = options?.interactive !== false;
 
   if (!interactive) {
-    renderCrossValidationStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0], options);
+    renderCrossValidationStatic(
+      container,
+      predictor,
+      options?.outcome ?? predictor.outcomeNames[0],
+      options,
+    );
     return;
   }
 
-  if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+  if (!container.id) {
+    container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+  }
   removeTooltip(container.id);
   container.innerHTML = "";
   injectScopedStyles(container);
@@ -43,8 +61,8 @@ export function renderCrossValidation(
   controlsDiv.style.cssText = CTRL_CSS;
   const plotsDiv = document.createElement("div");
   plotsDiv.style.cssText = "display:flex;gap:12px;flex-wrap:wrap";
-  container.appendChild(controlsDiv);
-  container.appendChild(plotsDiv);
+  container.append(controlsDiv);
+  container.append(plotsDiv);
 
   if (hasMulti) {
     const { wrapper, select } = makeSelectEl("Outcome:");
@@ -52,47 +70,66 @@ export function renderCrossValidation(
     const allOpt = document.createElement("option");
     allOpt.value = "__all__";
     allOpt.textContent = "All outcomes";
-    select.appendChild(allOpt);
+    select.append(allOpt);
     predictor.outcomeNames.forEach((name) => {
       const opt = document.createElement("option");
       opt.value = name;
       opt.textContent = name;
-      select.appendChild(opt);
+      select.append(opt);
     });
     select.value = selectedOutcome;
-    select.onchange = () => { selectedOutcome = select.value; redraw(); };
-    controlsDiv.appendChild(wrapper);
+    select.addEventListener("change", () => {
+      selectedOutcome = select.value;
+      redraw();
+    });
+    controlsDiv.append(wrapper);
   }
 
   let pinnedIdx = -1;
-  let panels: HighlightPanel[] = [];
+  let panels: Array<HighlightPanel> = [];
 
-  function broadcastHighlight(idx: number, rels: { raw: number[]; max: number }) {
+  function broadcastHighlight(idx: number, rels: { raw: Array<number>; max: number }): void {
     panels.forEach((p) => p.highlight(idx, rels));
   }
-  function broadcastClear() {
+  function broadcastClear(): void {
     panels.forEach((p) => p.clear());
     pinnedIdx = -1;
   }
 
-  function redraw() {
+  function redraw(): void {
     plotsDiv.innerHTML = "";
     pinnedIdx = -1;
     panels = [];
 
     if (selectedOutcome === "__all__") {
       // Small multiples: one CV per outcome
-      const tileW = 280, tileH = 280;
+      const tileW = 280;
+      const tileH = 280;
       for (const name of predictor.outcomeNames) {
         const tile = document.createElement("div");
         tile.style.cssText = `background:transparent;border:0.5px solid #e0e0e0;border-radius:8px;overflow:hidden;width:${tileW}px;height:${tileH + 28}px`;
         const title = document.createElement("div");
-        title.style.cssText = "font-size:13px;font-weight:500;color:#333;text-align:center;padding:6px 0 0";
+        title.style.cssText =
+          "font-size:13px;font-weight:500;color:#333;text-align:center;padding:6px 0 0";
         title.textContent = name;
-        tile.appendChild(title);
-        renderCVPanel(tile, predictor, name, tileW, tileH, true, tooltip, panels,
-          () => pinnedIdx, (v) => { pinnedIdx = v; }, broadcastHighlight, broadcastClear);
-        plotsDiv.appendChild(tile);
+        tile.append(title);
+        renderCVPanel(
+          tile,
+          predictor,
+          name,
+          tileW,
+          tileH,
+          true,
+          tooltip,
+          panels,
+          () => pinnedIdx,
+          (v) => {
+            pinnedIdx = v;
+          },
+          broadcastHighlight,
+          broadcastClear,
+        );
+        plotsDiv.append(tile);
       }
     } else {
       // Single outcome: full-size CV
@@ -100,9 +137,23 @@ export function renderCrossValidation(
       const H = options?.height ?? 440;
       const cvTile = document.createElement("div");
       cvTile.style.cssText = `background:transparent;border:0.5px solid #e0e0e0;border-radius:8px;overflow:hidden;width:${W}px;height:${H}px`;
-      renderCVPanel(cvTile, predictor, selectedOutcome, W, H, false, tooltip, panels,
-        () => pinnedIdx, (v) => { pinnedIdx = v; }, broadcastHighlight, broadcastClear);
-      plotsDiv.appendChild(cvTile);
+      renderCVPanel(
+        cvTile,
+        predictor,
+        selectedOutcome,
+        W,
+        H,
+        false,
+        tooltip,
+        panels,
+        () => pinnedIdx,
+        (v) => {
+          pinnedIdx = v;
+        },
+        broadcastHighlight,
+        broadcastClear,
+      );
+      plotsDiv.append(cvTile);
     }
   }
   redraw();
@@ -117,14 +168,17 @@ function renderCVPanel(
   H: number,
   isSmall: boolean,
   tooltip: HTMLDivElement,
-  panels: HighlightPanel[],
+  panels: Array<HighlightPanel>,
   getPinnedIdx: () => number,
   setPinnedIdx: (v: number) => void,
-  broadcastHighlight: (idx: number, rels: { raw: number[]; max: number }) => void,
+  broadcastHighlight: (idx: number, rels: { raw: Array<number>; max: number }) => void,
   broadcastClear: () => void,
 ): void {
   const loo = predictor.loocv(outcome);
-  if (loo.observed.length === 0) { target.textContent = "No data"; return; }
+  if (loo.observed.length === 0) {
+    target.textContent = "No data";
+    return;
+  }
 
   const { observed, mean: predicted, variance } = loo;
   const predStd = variance.map((v) => Math.sqrt(v));
@@ -143,100 +197,185 @@ function renderCVPanel(
     lo = Math.min(lo, predicted[i] - 2 * predStd[i]);
     hi = Math.max(hi, predicted[i] + 2 * predStd[i]);
   }
-  const pad = 0.08 * (hi - lo); lo -= pad; hi += pad;
+  const pad = 0.08 * (hi - lo);
+  lo -= pad;
+  hi += pad;
 
   const margin = isSmall
     ? { top: 24, right: 12, bottom: 30, left: 42 }
     : { top: 30, right: 20, bottom: 40, left: 55 };
   const pw = W - margin.left - margin.right;
   const ph = H - margin.top - margin.bottom;
-  const sx = (v: number) => margin.left + ((v - lo) / (hi - lo)) * pw;
-  const sy = (v: number) => margin.top + ph - ((v - lo) / (hi - lo)) * ph;
+  const sx = (v: number): number => margin.left + ((v - lo) / (hi - lo)) * pw;
+  const sy = (v: number): number => margin.top + ph - ((v - lo) / (hi - lo)) * ph;
 
   const svg = svgEl("svg", { width: W, height: H });
 
   // Axis border lines (bottom + left)
-  svg.appendChild(svgEl("line", {
-    x1: margin.left, x2: margin.left + pw, y1: margin.top + ph, y2: margin.top + ph,
-    stroke: "rgba(0,0,0,0.20)", "stroke-width": 1,
-  }));
-  svg.appendChild(svgEl("line", {
-    x1: margin.left, x2: margin.left, y1: margin.top, y2: margin.top + ph,
-    stroke: "rgba(0,0,0,0.20)", "stroke-width": 1,
-  }));
+  svg.append(
+    svgEl("line", {
+      x1: margin.left,
+      x2: margin.left + pw,
+      y1: margin.top + ph,
+      y2: margin.top + ph,
+      stroke: "rgba(0,0,0,0.20)",
+      "stroke-width": 1,
+    }),
+  );
+  svg.append(
+    svgEl("line", {
+      x1: margin.left,
+      x2: margin.left,
+      y1: margin.top,
+      y2: margin.top + ph,
+      stroke: "rgba(0,0,0,0.20)",
+      "stroke-width": 1,
+    }),
+  );
 
   // Diagonal
-  svg.appendChild(svgEl("line", {
-    x1: sx(lo), y1: sy(lo), x2: sx(hi), y2: sy(hi),
-    stroke: "rgba(0,0,0,0.20)", "stroke-width": 1.5, "stroke-dasharray": "6,4",
-  }));
+  svg.append(
+    svgEl("line", {
+      x1: sx(lo),
+      y1: sy(lo),
+      x2: sx(hi),
+      y2: sy(hi),
+      stroke: "rgba(0,0,0,0.20)",
+      "stroke-width": 1.5,
+      "stroke-dasharray": "6,4",
+    }),
+  );
 
   // Grid + ticks
   const nTicks = isSmall ? 3 : 5;
   const tickFontSize = isSmall ? "8" : "10";
   for (let t = 0; t <= nTicks; t++) {
     const v = lo + ((hi - lo) * t) / nTicks;
-    svg.appendChild(svgEl("line", {
-      x1: margin.left, x2: margin.left + pw, y1: sy(v), y2: sy(v),
-      stroke: "rgba(0,0,0,0.06)",
-    }));
-    svg.appendChild(Object.assign(svgEl("text", {
-      x: sx(v), y: margin.top + ph + (isSmall ? 12 : 16), fill: "#999", "font-size": tickFontSize, "text-anchor": "middle",
-    }), { textContent: v.toFixed(isSmall ? 0 : 2) }));
-    svg.appendChild(Object.assign(svgEl("text", {
-      x: margin.left - 4, y: sy(v) + 3, fill: "#999", "font-size": tickFontSize, "text-anchor": "end",
-    }), { textContent: v.toFixed(isSmall ? 0 : 2) }));
+    svg.append(
+      svgEl("line", {
+        x1: margin.left,
+        x2: margin.left + pw,
+        y1: sy(v),
+        y2: sy(v),
+        stroke: "rgba(0,0,0,0.06)",
+      }),
+    );
+    svg.append(
+      Object.assign(
+        svgEl("text", {
+          x: sx(v),
+          y: margin.top + ph + (isSmall ? 12 : 16),
+          fill: "#999",
+          "font-size": tickFontSize,
+          "text-anchor": "middle",
+        }),
+        { textContent: v.toFixed(isSmall ? 0 : 2) },
+      ),
+    );
+    svg.append(
+      Object.assign(
+        svgEl("text", {
+          x: margin.left - 4,
+          y: sy(v) + 3,
+          fill: "#999",
+          "font-size": tickFontSize,
+          "text-anchor": "end",
+        }),
+        { textContent: v.toFixed(isSmall ? 0 : 2) },
+      ),
+    );
   }
 
   // CI whiskers + dots
   const td = predictor.getTrainingData(outcome);
   const dotR = isSmall ? 3 : 4;
-  const cvDots: DotInfo[] = [];
+  const cvDots: Array<DotInfo> = [];
   const defaultFill = "rgba(217,95,78,0.85)";
   const defaultStroke = "rgba(68,68,68,0.35)";
   for (let i = 0; i < n; i++) {
-    const cx = sx(observed[i]), cy = sy(predicted[i]);
+    const cx = sx(observed[i]),
+      cy = sy(predicted[i]);
     const whisker = svgEl("line", {
-      x1: cx, x2: cx,
+      x1: cx,
+      x2: cx,
       y1: sy(predicted[i] + 2 * predStd[i]),
       y2: sy(predicted[i] - 2 * predStd[i]),
-      stroke: "rgba(217,95,78,0.3)", "stroke-width": isSmall ? 1 : 1.5,
+      stroke: "rgba(217,95,78,0.3)",
+      "stroke-width": isSmall ? 1 : 1.5,
     });
-    svg.appendChild(whisker);
+    svg.append(whisker);
     const dot = svgEl("circle", {
-      cx, cy, r: dotR, fill: defaultFill,
-      stroke: defaultStroke, "stroke-width": 1,
+      cx,
+      cy,
+      r: dotR,
+      fill: defaultFill,
+      stroke: defaultStroke,
+      "stroke-width": 1,
     });
-    svg.appendChild(dot);
+    svg.append(dot);
     cvDots.push({
-      cx, cy, idx: i, pt: td.X[i] ?? [], el: dot, whisker,
-      defaultFill, defaultStroke, defaultR: dotR,
+      cx,
+      cy,
+      idx: i,
+      pt: td.X[i] ?? [],
+      el: dot,
+      whisker,
+      defaultFill,
+      defaultStroke,
+      defaultR: dotR,
     });
   }
 
   // Axis labels
   if (!isSmall) {
-    svg.appendChild(Object.assign(svgEl("text", {
-      x: margin.left + pw / 2, y: H - 6, fill: "#666", "font-size": 13, "text-anchor": "middle",
-    }), { textContent: "Observed" }));
-    svg.appendChild(Object.assign(svgEl("text", {
-      x: 14, y: margin.top + ph / 2, fill: "#666", "font-size": 13, "text-anchor": "middle",
-      transform: `rotate(-90,14,${margin.top + ph / 2})`,
-    }), { textContent: "LOO Predicted" }));
+    svg.append(
+      Object.assign(
+        svgEl("text", {
+          x: margin.left + pw / 2,
+          y: H - 6,
+          fill: "#666",
+          "font-size": 13,
+          "text-anchor": "middle",
+        }),
+        { textContent: "Observed" },
+      ),
+    );
+    svg.append(
+      Object.assign(
+        svgEl("text", {
+          x: 14,
+          y: margin.top + ph / 2,
+          fill: "#666",
+          "font-size": 13,
+          "text-anchor": "middle",
+          transform: `rotate(-90,14,${margin.top + ph / 2})`,
+        }),
+        { textContent: "LOO Predicted" },
+      ),
+    );
   }
 
   // R-squared
-  svg.appendChild(Object.assign(svgEl("text", {
-    x: margin.left + 6, y: margin.top + (isSmall ? 14 : 18), fill: "#4872f9", "font-size": isSmall ? 11 : 14, "font-weight": "600",
-  }), { textContent: `R\u00B2 = ${r2.toFixed(4)}` }));
+  svg.append(
+    Object.assign(
+      svgEl("text", {
+        x: margin.left + 6,
+        y: margin.top + (isSmall ? 14 : 18),
+        fill: "#4872f9",
+        "font-size": isSmall ? 11 : 14,
+        "font-weight": "600",
+      }),
+      { textContent: `R\u00B2 = ${r2.toFixed(4)}` },
+    ),
+  );
 
-  target.appendChild(svg);
+  target.append(svg);
 
   // Register this panel for cross-panel coordination
-  function highlightDots(activeIdx: number, rels: { raw: number[]; max: number }) {
+  function highlightDots(activeIdx: number, rels: { raw: Array<number>; max: number }): void {
     applyDotHighlight(cvDots, activeIdx, rels);
   }
-  function clearDots() {
+  function clearDots(): void {
     clearDotHighlight(cvDots);
   }
   panels.push({ highlight: highlightDots, clear: clearDots });
@@ -245,7 +384,8 @@ function renderCVPanel(
   const HOVER_R = isSmall ? 8 : 12;
   svg.addEventListener("mousemove", (e: MouseEvent) => {
     const rect = svg.getBoundingClientRect();
-    const px = e.clientX - rect.left, py = e.clientY - rect.top;
+    const px = e.clientX - rect.left,
+      py = e.clientY - rect.top;
     const best = findNearestDot(cvDots, px, py, HOVER_R);
     if (best >= 0) {
       const d = cvDots[best];
@@ -262,13 +402,16 @@ function renderCVPanel(
       }
     } else {
       tooltip.style.display = "none";
-      if (getPinnedIdx() < 0) broadcastClear();
+      if (getPinnedIdx() < 0) {
+        broadcastClear();
+      }
     }
   });
 
   svg.addEventListener("click", (e: MouseEvent) => {
     const rect = svg.getBoundingClientRect();
-    const px = e.clientX - rect.left, py = e.clientY - rect.top;
+    const px = e.clientX - rect.left,
+      py = e.clientY - rect.top;
     const best = findNearestDot(cvDots, px, py, HOVER_R);
     if (best >= 0) {
       setPinnedIdx(best);
@@ -280,7 +423,9 @@ function renderCVPanel(
 
   svg.addEventListener("mouseleave", () => {
     tooltip.style.display = "none";
-    if (getPinnedIdx() < 0) broadcastClear();
+    if (getPinnedIdx() < 0) {
+      broadcastClear();
+    }
   });
 }
 
@@ -293,13 +438,32 @@ function renderCrossValidationStatic(
 ): void {
   const W = options?.width ?? 440;
   const H = options?.height ?? 440;
-  const panels: HighlightPanel[] = [];
+  const panels: Array<HighlightPanel> = [];
   let pinnedIdx = -1;
-  if (!target.id) target.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+  if (!target.id) {
+    target.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+  }
   injectScopedStyles(target);
   const tooltip = createTooltipDiv(target.id);
-  renderCVPanel(target, predictor, outcome, W, H, false, tooltip, panels,
-    () => pinnedIdx, (v) => { pinnedIdx = v; },
-    (idx, rels) => { panels.forEach((p) => p.highlight(idx, rels)); },
-    () => { panels.forEach((p) => p.clear()); pinnedIdx = -1; });
+  renderCVPanel(
+    target,
+    predictor,
+    outcome,
+    W,
+    H,
+    false,
+    tooltip,
+    panels,
+    () => pinnedIdx,
+    (v) => {
+      pinnedIdx = v;
+    },
+    (idx, rels) => {
+      panels.forEach((p) => p.highlight(idx, rels));
+    },
+    () => {
+      panels.forEach((p) => p.clear());
+      pinnedIdx = -1;
+    },
+  );
 }

@@ -1,5 +1,8 @@
-import type { OutcomeTransformState } from "../models/types.js";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { OutcomeUntransform } from "./outcome.js";
+import type { OutcomeTransformState } from "../models/types.js";
+
 import {
   StandardizeUntransform,
   LogUntransform,
@@ -15,12 +18,10 @@ import {
  * - Legacy format: { mean, std } (no type field) → StandardizeUntransform
  * - New format: { type: "Standardize"|"Log"|"Bilog"|"Power"|"Chained", ... }
  */
-export function buildOutcomeUntransform(
-  state: OutcomeTransformState,
-): OutcomeUntransform {
+export function buildOutcomeUntransform(state: OutcomeTransformState): OutcomeUntransform {
   // Legacy format: no type field, just mean/std
   if (!("type" in state) || state.type === undefined || state.type === "Standardize") {
-    const s = state as { mean: number | number[]; std: number | number[] };
+    const s = state as { mean: number | Array<number>; std: number | Array<number> };
     // Per-output vector mean/std: take first element (for single-output models).
     // ModelListGP handles per-output by giving each sub-model its own transform.
     const mean = Array.isArray(s.mean) ? s.mean[0] : s.mean;
@@ -29,21 +30,25 @@ export function buildOutcomeUntransform(
   }
 
   switch (state.type) {
-    case "Log":
+    case "Log": {
       return new LogUntransform();
+    }
 
-    case "Bilog":
+    case "Bilog": {
       return new BilogUntransform();
+    }
 
-    case "Power":
+    case "Power": {
       return new PowerUntransform(state.power);
+    }
 
     case "Chained": {
       const transforms = state.transforms.map(buildOutcomeUntransform);
       return new ChainedOutcomeUntransform(transforms);
     }
 
-    default:
+    default: {
       throw new Error(`Unknown outcome transform type: ${(state as any).type}`);
+    }
   }
 }

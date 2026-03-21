@@ -1,10 +1,12 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import { Matrix } from "./matrix.js";
 
 /**
  * LU decomposition with partial pivoting.
  * Returns { L, U, P } where PA = LU, P is permutation indices.
  */
-export function lu(A: Matrix): { L: Matrix; U: Matrix; perm: number[] } {
+export function lu(A: Matrix): { L: Matrix; U: Matrix; perm: Array<number> } {
   const n = A.rows;
   const M = A.clone(); // work in-place on clone
   const perm = Array.from({ length: n }, (_, i) => i);
@@ -32,7 +34,9 @@ export function lu(A: Matrix): { L: Matrix; U: Matrix; perm: number[] } {
     }
 
     const pivot = M.get(k, k);
-    if (Math.abs(pivot) < 1e-15) continue;
+    if (Math.abs(pivot) < 1e-15) {
+      continue;
+    }
 
     // Compute multipliers and update
     for (let i = k + 1; i < n; i++) {

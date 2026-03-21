@@ -1,4 +1,8 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { GPModel, AcquisitionFunction } from "./types.js";
+import type { Matrix } from "../linalg/matrix.js";
+
 import { posteriorCovariance, posteriorMean } from "./posterior.js";
 import { sampleMVN, Rng } from "./sample_mvn.js";
 
@@ -17,16 +21,16 @@ import { sampleMVN, Rng } from "./sample_mvn.js";
  * pass a large set of random candidates and pick the best.
  */
 export class ThompsonSampling implements AcquisitionFunction {
-  private rng: Rng;
+  private readonly rng: Rng;
 
   constructor(
-    private model: GPModel,
+    private readonly model: GPModel,
     seed: number = 42,
   ) {
     this.rng = new Rng(seed);
   }
 
-  evaluate(candidates: number[][]): Float64Array {
+  evaluate(candidates: Array<Array<number>>): Float64Array {
     const mean = posteriorMean(this.model, candidates);
     const Sigma = posteriorCovariance(this.model, candidates);
 
@@ -51,10 +55,10 @@ export class ThompsonSampling implements AcquisitionFunction {
  */
 export function thompsonSamples(
   model: GPModel,
-  candidates: number[][],
+  candidates: Array<Array<number>>,
   nSamples: number,
   seed: number = 42,
-) {
+): Matrix {
   const mean = posteriorMean(model, candidates);
   const Sigma = posteriorCovariance(model, candidates);
   const rng = new Rng(seed);

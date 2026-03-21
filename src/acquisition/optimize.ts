@@ -1,4 +1,7 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { AcquisitionFunction, Bounds, OptimizeResult } from "./types.js";
+
 import { Rng } from "./sample_mvn.js";
 
 /**
@@ -104,13 +107,8 @@ export interface LBFGSOptions {
 
 // ─── Random candidate generation ─────────────────────────────────────────
 
-function generateCandidates(
-  d: number,
-  bounds: Bounds,
-  n: number,
-  rng: Rng,
-): number[][] {
-  const candidates: number[][] = [];
+function generateCandidates(d: number, bounds: Bounds, n: number, rng: Rng): Array<Array<number>> {
+  const candidates: Array<Array<number>> = [];
   for (let i = 0; i < n; i++) {
     const point = new Array(d);
     for (let j = 0; j < d; j++) {
@@ -124,7 +122,7 @@ function generateCandidates(
 
 // ─── Argsort (descending) ────────────────────────────────────────────────
 
-function argsort(values: Float64Array): number[] {
+function argsort(values: Float64Array): Array<number> {
   const indices = Array.from({ length: values.length }, (_, i) => i);
   indices.sort((a, b) => values[b] - values[a]);
   return indices;
@@ -143,26 +141,20 @@ function argsort(values: Float64Array): number[] {
  */
 function lbfgsOptimize(
   acqf: AcquisitionFunction,
-  x0: number[],
+  x0: Array<number>,
   bounds: Bounds,
   opts: LBFGSOptions = {},
-): { point: number[]; value: number } {
-  const {
-    maxIter = 50,
-    fdEps = 1e-5,
-    historySize = 10,
-    ftol = 1e-8,
-    lr = 1.0,
-  } = opts;
+): { point: Array<number>; value: number } {
+  const { maxIter = 50, fdEps = 1e-5, historySize = 10, ftol = 1e-8, lr = 1 } = opts;
 
   const d = x0.length;
   let x = projectToBounds(x0.slice(), bounds);
   let fx = evalSingle(acqf, x);
 
   // L-BFGS history buffers
-  const S: number[][] = []; // s_k = x_{k+1} - x_k
-  const Y: number[][] = []; // y_k = g_{k+1} - g_k
-  const rhos: number[] = [];
+  const S: Array<Array<number>> = []; // s_k = x_{k+1} - x_k
+  const Y: Array<Array<number>> = []; // y_k = g_{k+1} - g_k
+  const rhos: Array<number> = [];
 
   let gPrev = finiteDiffGradient(acqf, x, bounds, fdEps);
 
@@ -171,7 +163,9 @@ function lbfgsOptimize(
     const dir = lbfgsDirection(gPrev, S, Y, rhos, historySize);
 
     // Negate for ascent (we're maximizing)
-    for (let j = 0; j < d; j++) dir[j] = -dir[j];
+    for (let j = 0; j < d; j++) {
+      dir[j] = -dir[j];
+    }
 
     // Backtracking line search (Armijo condition for ascent)
     let step = lr;
@@ -180,7 +174,9 @@ function lbfgsOptimize(
     let fNew = evalSingle(acqf, xNew);
 
     for (let ls = 0; ls < 20; ls++) {
-      if (fNew >= fx + 1e-4 * step * dirDotGrad) break;
+      if (fNew >= fx + 1e-4 * step * dirDotGrad) {
+        break;
+      }
       step *= 0.5;
       xNew = projectToBounds(stepAdd(x, dir, step), bounds);
       fNew = evalSingle(acqf, xNew);
@@ -229,17 +225,19 @@ function lbfgsOptimize(
  * Returns the negative gradient preconditioned by the L-BFGS Hessian approximation.
  */
 function lbfgsDirection(
-  g: number[],
-  S: number[][],
-  Y: number[][],
-  rhos: number[],
+  g: Array<number>,
+  S: Array<Array<number>>,
+  Y: Array<Array<number>>,
+  rhos: Array<number>,
   _historySize: number,
-): number[] {
+): Array<number> {
   const d = g.length;
   const m = S.length;
 
   // If no history, return steepest descent direction
-  if (m === 0) return g.slice();
+  if (m === 0) {
+    return g.slice();
+  }
 
   const q = g.slice();
   const alphas = new Array(m);
@@ -276,10 +274,10 @@ function lbfgsDirection(
 
 function finiteDiffGradient(
   acqf: AcquisitionFunction,
-  x: number[],
+  x: Array<number>,
   bounds: Bounds,
   eps: number,
-): number[] {
+): Array<number> {
   const d = x.length;
   const grad = new Array(d);
 
@@ -318,27 +316,29 @@ function finiteDiffGradient(
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
-function evalSingle(acqf: AcquisitionFunction, x: number[]): number {
+function evalSingle(acqf: AcquisitionFunction, x: Array<number>): number {
   return acqf.evaluate([x])[0];
 }
 
-function projectToBounds(x: number[], bounds: Bounds): number[] {
+function projectToBounds(x: Array<number>, bounds: Bounds): Array<number> {
   for (let j = 0; j < x.length; j++) {
     x[j] = Math.max(bounds[j][0], Math.min(bounds[j][1], x[j]));
   }
   return x;
 }
 
-function stepAdd(x: number[], dir: number[], step: number): number[] {
-  const result = new Array(x.length);
+function stepAdd(x: Array<number>, dir: Array<number>, step: number): Array<number> {
+  const result: Array<number> = new Array(x.length);
   for (let j = 0; j < x.length; j++) {
     result[j] = x[j] + step * dir[j];
   }
   return result;
 }
 
-function dotProduct(a: number[], b: number[]): number {
+function dotProduct(a: Array<number>, b: Array<number>): number {
   let sum = 0;
-  for (let i = 0; i < a.length; i++) sum += a[i] * b[i];
+  for (let i = 0; i < a.length; i++) {
+    sum += a[i] * b[i];
+  }
   return sum;
 }

@@ -1,15 +1,18 @@
-import { Matrix } from "../linalg/matrix.js";
-import { cholesky } from "../linalg/cholesky.js";
-import { solveCholesky } from "../linalg/solve.js";
-import { solveLU } from "../linalg/lu.js";
-import { matmul, transpose } from "../linalg/ops.js";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
+import type { PredictionResult, PairwiseGPModelState } from "./types.js";
 import type { Kernel } from "../kernels/types.js";
-import { kernelDiag } from "../kernels/composite.js";
+
 import { buildKernel } from "../kernels/build.js";
+import { kernelDiag } from "../kernels/composite.js";
+import { cholesky } from "../linalg/cholesky.js";
+import { solveLU } from "../linalg/lu.js";
+import { Matrix } from "../linalg/matrix.js";
+import { matmul, transpose } from "../linalg/ops.js";
+import { solveCholesky } from "../linalg/solve.js";
 import { ConstantMean } from "../means/constant.js";
 import { InputNormalize } from "../transforms/normalize.js";
 import { InputWarp } from "../transforms/warp.js";
-import type { PredictionResult, PairwiseGPModelState } from "./types.js";
 
 /**
  * PairwiseGP for preference/comparison data (BOPE).
@@ -25,14 +28,14 @@ import type { PredictionResult, PairwiseGPModelState } from "./types.js";
  *   var = K(X*, X*) - K(X*, X) @ fac
  */
 export class PairwiseGP {
-  private kernel: Kernel;
-  private mean: ConstantMean;
-  private inputTransform: InputNormalize | null;
-  private inputWarp: InputWarp | null;
-  private trainXNorm: Matrix;
-  private alpha: Matrix;
-  private likelihoodHess: Matrix;
-  private CKI: Matrix;
+  private readonly kernel: Kernel;
+  private readonly mean: ConstantMean;
+  private readonly inputTransform: InputNormalize | null;
+  private readonly inputWarp: InputWarp | null;
+  private readonly trainXNorm: Matrix;
+  private readonly alpha: Matrix;
+  private readonly likelihoodHess: Matrix;
+  private readonly CKI: Matrix;
 
   constructor(
     trainX: Matrix,
@@ -49,9 +52,7 @@ export class PairwiseGP {
     this.inputWarp = inputWarp ?? null;
     this.likelihoodHess = likelihoodHess;
 
-    let xNorm = inputTransform
-      ? inputTransform.forward(trainX)
-      : trainX.clone();
+    let xNorm = inputTransform ? inputTransform.forward(trainX) : trainX.clone();
     if (this.inputWarp) {
       xNorm = this.inputWarp.forward(xNorm);
     }
@@ -69,21 +70,19 @@ export class PairwiseGP {
 
     const CK = matmul(likelihoodHess, K);
     this.CKI = CK;
-    this.CKI.addDiag(1.0);
+    this.CKI.addDiag(1);
   }
 
   /** Transform inputs through normalize + warp pipeline. */
   private transformInputs(testX: Matrix): Matrix {
-    let testXNorm = this.inputTransform
-      ? this.inputTransform.forward(testX)
-      : testX;
+    let testXNorm = this.inputTransform ? this.inputTransform.forward(testX) : testX;
     if (this.inputWarp) {
       testXNorm = this.inputWarp.forward(testXNorm);
     }
     return testXNorm;
   }
 
-  predict(testPoints: number[][]): PredictionResult {
+  predict(testPoints: Array<Array<number>>): PredictionResult {
     if (testPoints.length === 0) {
       throw new Error("testPoints must not be empty");
     }
@@ -129,10 +128,7 @@ export class PairwiseGP {
    *
    * where C = likelihood Hessian, K = prior covariance, CK+I is NOT symmetric.
    */
-  predictCovarianceWith(
-    testPoints: number[][],
-    refPoint: number[],
-  ): Float64Array {
+  predictCovarianceWith(testPoints: Array<Array<number>>, refPoint: Array<number>): Float64Array {
     const testXNorm = this.transformInputs(Matrix.from2D(testPoints));
     const refXNorm = this.transformInputs(Matrix.from2D([refPoint]));
 
@@ -170,10 +166,7 @@ export function createPairwiseGP(state: PairwiseGPModelState): PairwiseGP {
   const mean = new ConstantMean(state.mean_constant);
 
   const inputTransform = state.input_transform
-    ? new InputNormalize(
-        state.input_transform.offset,
-        state.input_transform.coefficient,
-      )
+    ? new InputNormalize(state.input_transform.offset, state.input_transform.coefficient)
     : undefined;
 
   const inputWarp = state.input_warp
@@ -184,13 +177,5 @@ export function createPairwiseGP(state: PairwiseGPModelState): PairwiseGP {
       )
     : undefined;
 
-  return new PairwiseGP(
-    trainX,
-    utility,
-    kernel,
-    mean,
-    likelihoodHess,
-    inputTransform,
-    inputWarp,
-  );
+  return new PairwiseGP(trainX, utility, kernel, mean, likelihoodHess, inputTransform, inputWarp);
 }

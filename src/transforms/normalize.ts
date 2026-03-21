@@ -1,9 +1,11 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import { Matrix } from "../linalg/matrix.js";
 
 /** Input transform state: X_norm = (X - offset) / coefficient */
 export interface InputTransformState {
-  offset: number[];
-  coefficient: number[];
+  offset: Array<number>;
+  coefficient: Array<number>;
 }
 
 /**
@@ -22,9 +24,7 @@ export function identityInputTransform(d: number): InputTransformState {
  * Maps [lo, hi] → [0, 1] for each dimension, matching Ax/BoTorch's Normalize.
  * Lengthscales are then in [0,1] space.
  */
-export function boundsInputTransform(
-  bounds: [number, number][],
-): InputTransformState {
+export function boundsInputTransform(bounds: Array<[number, number]>): InputTransformState {
   return {
     offset: bounds.map((b) => b[0]),
     coefficient: bounds.map((b) => b[1] - b[0]),
@@ -39,7 +39,7 @@ export class InputNormalize {
   readonly offset: Float64Array;
   readonly coefficient: Float64Array;
 
-  constructor(offset: number[], coefficient: number[]) {
+  constructor(offset: Array<number>, coefficient: Array<number>) {
     this.offset = Float64Array.from(offset);
     this.coefficient = Float64Array.from(coefficient);
   }

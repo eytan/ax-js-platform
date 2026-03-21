@@ -1,4 +1,6 @@
-import { Matrix } from "../linalg/matrix.js";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
+import type { Matrix } from "../linalg/matrix.js";
 
 /**
  * Kumaraswamy CDF input warping.
@@ -12,12 +14,12 @@ import { Matrix } from "../linalg/matrix.js";
 export class InputWarp {
   readonly concentration0: Float64Array;
   readonly concentration1: Float64Array;
-  readonly indices: number[] | null;
+  readonly indices: Array<number> | null;
 
   constructor(
-    concentration0: number[],
-    concentration1: number[],
-    indices?: number[],
+    concentration0: Array<number>,
+    concentration1: Array<number>,
+    indices?: Array<number>,
   ) {
     this.concentration0 = Float64Array.from(concentration0);
     this.concentration1 = Float64Array.from(concentration1);

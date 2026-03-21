@@ -1,62 +1,94 @@
-import type { RenderPredictor, SlicePlotOptions, DotInfo, DimensionRanker, ParamSpec } from "../types";
-import { svgEl } from "./_svg";
-import { isChoice, isInteger, formatParamValue, computeDimOrder } from "../params";
-import { createOutcomeSelector, createParamSliders, createTooltipDiv, positionTooltip, removeTooltip, makeSelectEl } from "../widgets";
-import { attachDotInteractivity, applyDotHighlight, clearDotHighlight, computeKernelRels } from "../dots";
-import { injectScopedStyles } from "../styles";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
 
-const CTRL_CSS = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
+import type {
+  RenderPredictor,
+  SlicePlotOptions,
+  DotInfo,
+  DimensionRanker,
+  ParamSpec,
+} from "../types";
+
+import { applyDotHighlight, clearDotHighlight, computeKernelRels } from "../dots";
+import { estimateRange } from "../estimateRange";
+import { isChoice, isInteger, formatParamValue, computeDimOrder } from "../params";
+import { injectScopedStyles } from "../styles";
+import {
+  createOutcomeSelector,
+  createParamSliders,
+  createTooltipDiv,
+  positionTooltip,
+  removeTooltip,
+  makeSelectEl,
+} from "../widgets";
+
+import { svgEl } from "./_svg";
+
+const CTRL_CSS =
+  "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
+
+/** Resolve the status quo reference point from options or predictor. */
+function resolveStatusQuo(
+  predictor: RenderPredictor,
+  options?: SlicePlotOptions,
+): Array<number> | null {
+  return options?.statusQuoPoint ?? predictor.statusQuoPoint ?? null;
+}
+
+/**
+ * Delta-method relativization (matches Ax's `relativize` in plot/helper.py).
+ * m_t, s_t: treatment (grid point) mean and std.
+ * mC, sC: control (status quo) mean and std.
+ * Returns [relMean%, relStd%].
+ */
+function deltaRelativize(mT: number, sT: number, mC: number, sC: number): [number, number] {
+  const absC = Math.abs(mC);
+  const rHat = (mT - mC) / absC - (sC * sC * mT) / (absC * absC * absC);
+  const variance = (sT * sT + ((mT / mC) * sC) ** 2) / (mC * mC);
+  return [rHat * 100, Math.sqrt(Math.max(0, variance)) * 100];
+}
+
+/** Naive relativization for observed Y values (no uncertainty to propagate). */
+function naiveRelPct(y: number, sqMean: number): number {
+  return ((y - sqMean) / Math.abs(sqMean)) * 100;
+}
+
+/**
+ * Format a percentage value with adaptive precision:
+ * - |v| >= 100: no decimal  (e.g., "+151%")
+ * - |v| >= 1:   1 decimal   (e.g., "+5.2%")
+ * - |v| >= 0.001: enough decimals for significance (e.g., "0.012%")
+ * - |v| < 0.001: scientific notation (e.g., "1.2e-4%")
+ */
+function formatPct(v: number): string {
+  const sign = v > 0 ? "+" : "";
+  const abs = Math.abs(v);
+  if (abs === 0) {
+    return "0.0%";
+  }
+  if (abs < 0.001) {
+    return sign + v.toExponential(1) + "%";
+  }
+  if (abs < 0.1) {
+    return sign + v.toFixed(3) + "%";
+  }
+  if (abs < 1) {
+    return sign + v.toFixed(2) + "%";
+  }
+  if (abs < 100) {
+    return sign + v.toFixed(1) + "%";
+  }
+  return sign + v.toFixed(0) + "%";
+}
 
 /** Extract ParamSpec array from predictor, falling back to range-only specs. */
-function getParamSpecs(predictor: RenderPredictor): ParamSpec[] {
-  if (predictor.paramSpecs) return predictor.paramSpecs;
+function getParamSpecs(predictor: RenderPredictor): Array<ParamSpec> {
+  if (predictor.paramSpecs) {
+    return predictor.paramSpecs;
+  }
   return predictor.paramBounds.map(([lo, hi]) => ({
     type: "range" as const,
     bounds: [lo, hi] as [number, number],
   }));
-}
-
-/** Pre-compute stable y-axis range by sampling across the design space. */
-function precomputeYRange(
-  predictor: RenderPredictor,
-  params: ParamSpec[],
-): Record<string, { min: number; max: number }> {
-  const result: Record<string, { min: number; max: number }> = {};
-  const nSample = 200;
-  const bounds = predictor.paramBounds;
-  const pts: number[][] = [];
-  for (let i = 0; i < nSample; i++) {
-    pts.push(params.map((p, j) => {
-      if (isChoice(p)) {
-        const vals = p.values!.map(Number);
-        return vals[Math.floor(Math.random() * vals.length)];
-      }
-      if (isInteger(p)) return Math.round(bounds[j][0] + Math.random() * (bounds[j][1] - bounds[j][0]));
-      return bounds[j][0] + Math.random() * (bounds[j][1] - bounds[j][0]);
-    }));
-  }
-  for (const name of predictor.outcomeNames) {
-    const preds = predictor.predict(pts);
-    const pred = preds[name];
-    let lo = Infinity, hi = -Infinity;
-    for (let j = 0; j < nSample; j++) {
-      const s = Math.sqrt(pred.variance[j]);
-      const lower = pred.mean[j] - 2 * s;
-      const upper = pred.mean[j] + 2 * s;
-      if (lower < lo) lo = lower;
-      if (upper > hi) hi = upper;
-    }
-    const td = predictor.getTrainingData(name);
-    if (td.Y) {
-      for (const yv of td.Y) {
-        if (yv < lo) lo = yv;
-        if (yv > hi) hi = yv;
-      }
-    }
-    const pad = 0.05 * (hi - lo);
-    result[name] = { min: lo - pad, max: hi + pad };
-  }
-  return result;
 }
 
 /**
@@ -75,27 +107,78 @@ export function renderSlicePlot(
   const interactive = options?.interactive !== false;
 
   if (!interactive) {
-    renderSlicePlotStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0], options);
+    renderSlicePlotStatic(
+      container,
+      predictor,
+      options?.outcome ?? predictor.outcomeNames[0],
+      options,
+    );
     return;
   }
 
-  if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+  if (!container.id) {
+    container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+  }
   removeTooltip(container.id);
   container.innerHTML = "";
   injectScopedStyles(container);
   let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
   const params = getParamSpecs(predictor);
   const td0 = predictor.getTrainingData();
-  const fixedValues: (number | string | boolean)[] =
+  const fixedValues: Array<number | string | boolean> =
     options?.fixedValues?.slice() ??
-    (td0.X.length > 0 ? td0.X[0].slice() : params.map((p, j) => {
-      if (isChoice(p)) return p.values![0];
-      return (predictor.paramBounds[j][0] + predictor.paramBounds[j][1]) / 2;
-    }));
+    (td0.X.length > 0
+      ? td0.X[0].slice()
+      : params.map((p, j) => {
+          if (isChoice(p)) {
+            return p.values![0];
+          }
+          return (predictor.paramBounds[j][0] + predictor.paramBounds[j][1]) / 2;
+        }));
   const tooltip = createTooltipDiv(container.id);
 
-  // Pre-compute stable y-axis
-  const globalYRange = precomputeYRange(predictor, params);
+  // Relative mode: resolve SQ means/stds per outcome for delta-method
+  const isRelative = options?.relative === true;
+  let sqStats: Record<string, { mean: number; std: number }> | undefined;
+  if (isRelative) {
+    const sq = resolveStatusQuo(predictor, options);
+    if (sq) {
+      const sqPred = predictor.predict([sq]);
+      sqStats = {};
+      for (const name of predictor.outcomeNames) {
+        const p = sqPred[name];
+        if (p && Math.abs(p.mean[0]) >= 1e-15) {
+          sqStats[name] = { mean: p.mean[0], std: Math.sqrt(p.variance[0]) };
+        }
+      }
+      if (Object.keys(sqStats).length === 0) {
+        console.warn("ax-js: status quo mean ≈ 0 for all outcomes; falling back to absolute mode");
+        sqStats = undefined;
+      }
+    }
+  }
+
+  // Pre-compute stable y-axis via Halton + optimization
+  const rawRange = estimateRange(predictor);
+  const globalYRange: Record<string, { min: number; max: number }> = {};
+  for (const name of predictor.outcomeNames) {
+    const r = rawRange[name];
+    if (!r) {
+      continue;
+    }
+    const sq = sqStats?.[name];
+    let lo: number, hi: number;
+    if (sq) {
+      // Relativize the estimated range
+      lo = naiveRelPct(r.ciMin, sq.mean);
+      hi = naiveRelPct(r.ciMax, sq.mean);
+    } else {
+      lo = r.ciMin;
+      hi = r.ciMax;
+    }
+    const pad = 0.05 * (hi - lo);
+    globalYRange[name] = { min: lo - pad, max: hi + pad };
+  }
 
   // Shared pinned state — persists across re-renders
   let slicePinnedIdx = -1;
@@ -106,9 +189,9 @@ export function renderSlicePlot(
   slidersDiv.style.cssText = "margin-bottom:8px;padding:0 16px;";
   const plotsDiv = document.createElement("div");
   plotsDiv.style.cssText = "padding:4px 8px 12px;";
-  container.appendChild(controlsDiv);
-  container.appendChild(plotsDiv);
-  container.appendChild(slidersDiv);
+  container.append(controlsDiv);
+  container.append(plotsDiv);
+  container.append(slidersDiv);
 
   if (predictor.outcomeNames.length > 1) {
     const { wrapper, select } = makeSelectEl("Outcome:");
@@ -116,32 +199,57 @@ export function renderSlicePlot(
       selectedOutcome = name;
       redraw();
     });
-    controlsDiv.appendChild(wrapper);
+    controlsDiv.append(wrapper);
   }
 
-  function rebuildSliders() {
-    const dimOrd = computeDimOrder(predictor as DimensionRanker, predictor.paramNames.length, selectedOutcome);
-    createParamSliders(predictor, params, slidersDiv, fixedValues, () => { redrawPlots(); },
-      { dimOrder: dimOrd });
+  function rebuildSliders(): void {
+    const dimOrd = computeDimOrder(
+      predictor as DimensionRanker,
+      predictor.paramNames.length,
+      selectedOutcome,
+    );
+    createParamSliders(
+      predictor,
+      params,
+      slidersDiv,
+      fixedValues,
+      () => {
+        redrawPlots();
+      },
+      { dimOrder: dimOrd },
+    );
   }
 
-  function redrawPlots() {
+  function redrawPlots(): void {
     plotsDiv.innerHTML = "";
-    renderSlicePlotStatic(plotsDiv, predictor, selectedOutcome, options, fixedValues as number[],
-      tooltip, globalYRange, params,
+    renderSlicePlotStatic(
+      plotsDiv,
+      predictor,
+      selectedOutcome,
+      options,
+      fixedValues as Array<number>,
+      tooltip,
+      globalYRange,
+      params,
       () => slicePinnedIdx,
-      (v: number) => { slicePinnedIdx = v; },
-      (pt: number[]) => {
+      (v: number) => {
+        slicePinnedIdx = v;
+      },
+      (pt: Array<number>) => {
         // Click-to-pin: snap sliders to clicked point's coordinates
-        for (let j = 0; j < fixedValues.length; j++) fixedValues[j] = pt[j];
+        for (let j = 0; j < fixedValues.length; j++) {
+          fixedValues[j] = pt[j];
+        }
         // Update slider values visually without rebuilding DOM
         rebuildSliders();
         redrawPlots();
-      });
+      },
+      sqStats,
+    );
   }
 
   // Full redraw: rebuild sliders (order may change) + plots
-  function redraw() {
+  function redraw(): void {
     rebuildSliders();
     redrawPlots();
   }
@@ -153,13 +261,14 @@ function renderSlicePlotStatic(
   predictor: RenderPredictor,
   outcome: string,
   options?: SlicePlotOptions,
-  fixedValuesOverride?: number[],
+  fixedValuesOverride?: Array<number>,
   tooltip?: HTMLDivElement,
   globalYRange?: Record<string, { min: number; max: number }>,
-  paramSpecs?: ParamSpec[],
+  paramSpecs?: Array<ParamSpec>,
   getPinnedIdx?: () => number,
   setPinnedIdx?: (v: number) => void,
-  onSnapToPoint?: (pt: number[]) => void,
+  onSnapToPoint?: (pt: Array<number>) => void,
+  sqStats?: Record<string, { mean: number; std: number }>,
 ): void {
   const numPoints = options?.numPoints ?? 80;
   const W = options?.width ?? 340;
@@ -173,20 +282,28 @@ function renderSlicePlotStatic(
     options?.fixedValues?.slice() ??
     bounds.map(([lo, hi]) => (lo + hi) / 2);
 
+  // Resolve per-outcome SQ stats for relative mode (delta method)
+  const sqStat = sqStats?.[outcome];
+  const relativeActive = sqStat !== undefined;
+
   target.style.display = "flex";
   target.style.flexWrap = "wrap";
   target.style.gap = "8px";
 
-  const margin = { top: 24, right: 16, bottom: 32, left: 50 };
+  const margin = { top: 24, right: 16, bottom: 32, left: relativeActive ? 62 : 50 };
   const pw = W - margin.left - margin.right;
   const ph = H - margin.top - margin.bottom;
 
   // Cross-subplot dot arrays for coordinated highlighting
-  const allSubplotDots: DotInfo[][] = [];
+  const allSubplotDots: Array<Array<DotInfo>> = [];
   // Use external pinned state if provided, else local
   let localPinnedIdx = -1;
   const _getPinned = getPinnedIdx ?? (() => localPinnedIdx);
-  const _setPinned = setPinnedIdx ?? ((v: number) => { localPinnedIdx = v; });
+  const _setPinned =
+    setPinnedIdx ??
+    ((v: number) => {
+      localPinnedIdx = v;
+    });
 
   // Sort dimensions by importance
   const dimOrder = computeDimOrder(predictor as DimensionRanker, nDim, outcome);
@@ -196,7 +313,7 @@ function renderSlicePlotStatic(
     const dimIsChoice = isChoice(p);
     const dimIsInt = isInteger(p);
 
-    let xs: number[];
+    let xs: Array<number>;
     let xLo: number, xHi: number;
     if (dimIsChoice) {
       xs = p.values!.map(Number);
@@ -206,14 +323,22 @@ function renderSlicePlotStatic(
       xLo = bounds[dim][0];
       xHi = bounds[dim][1];
       xs = [];
-      for (let iv = Math.ceil(xLo); iv <= Math.floor(xHi); iv++) xs.push(iv);
+      for (let iv = Math.ceil(xLo); iv <= Math.floor(xHi); iv++) {
+        xs.push(iv);
+      }
     } else {
       [xLo, xHi] = bounds[dim];
-      if (xLo === xHi) continue;
+      if (xLo === xHi) {
+        continue;
+      }
       xs = [];
-      for (let i = 0; i < numPoints; i++) xs.push(xLo + ((xHi - xLo) * i) / (numPoints - 1));
+      for (let i = 0; i < numPoints; i++) {
+        xs.push(xLo + ((xHi - xLo) * i) / (numPoints - 1));
+      }
     }
-    if (xs.length === 0) continue;
+    if (xs.length === 0) {
+      continue;
+    }
 
     const testPoints = xs.map((v) => {
       const pt = fixedValues.slice();
@@ -222,10 +347,25 @@ function renderSlicePlotStatic(
     });
 
     const pred = predictor.predict(testPoints)[outcome];
-    if (!pred) continue;
+    if (!pred) {
+      continue;
+    }
 
-    const means = Array.from(pred.mean);
-    const stds = means.map((_, i) => Math.sqrt(pred.variance[i]));
+    const rawMeans = Array.from(pred.mean);
+    const rawStds = rawMeans.map((_, i) => Math.sqrt(pred.variance[i]));
+    let means: Array<number>, stds: Array<number>;
+    if (relativeActive) {
+      means = [];
+      stds = [];
+      for (let i = 0; i < rawMeans.length; i++) {
+        const [rm, rs] = deltaRelativize(rawMeans[i], rawStds[i], sqStat.mean, sqStat.std);
+        means.push(rm);
+        stds.push(rs);
+      }
+    } else {
+      means = rawMeans;
+      stds = rawStds;
+    }
     const upper = means.map((m, i) => m + 2 * stds[i]);
     const lower = means.map((m, i) => m - 2 * stds[i]);
 
@@ -250,59 +390,115 @@ function renderSlicePlotStatic(
 
     // X-axis scaling: choice uses index-based, continuous uses value-based
     const sx = dimIsChoice
-      ? (ci: number) => margin.left + (ci + 0.5) / xs.length * pw
-      : (v: number) => margin.left + ((v - xLo) / ((xHi - xLo) || 1)) * pw;
-    const sy = (v: number) => margin.top + (1 - (v - yMin) / yRange) * ph;
+      ? (ci: number): number => margin.left + ((ci + 0.5) / xs.length) * pw
+      : (v: number): number => margin.left + ((v - xLo) / (xHi - xLo || 1)) * pw;
+    const sy = (v: number): number => margin.top + (1 - (v - yMin) / yRange) * ph;
 
     const svg = svgEl("svg", { width: W, height: H });
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
 
     // Axis border lines (bottom + left)
-    svg.appendChild(svgEl("line", {
-      x1: margin.left, x2: margin.left + pw, y1: margin.top + ph, y2: margin.top + ph,
-      stroke: "rgba(0,0,0,0.20)", "stroke-width": 1,
-    }));
-    svg.appendChild(svgEl("line", {
-      x1: margin.left, x2: margin.left, y1: margin.top, y2: margin.top + ph,
-      stroke: "rgba(0,0,0,0.20)", "stroke-width": 1,
-    }));
+    svg.append(
+      svgEl("line", {
+        x1: margin.left,
+        x2: margin.left + pw,
+        y1: margin.top + ph,
+        y2: margin.top + ph,
+        stroke: "rgba(0,0,0,0.20)",
+        "stroke-width": 1,
+      }),
+    );
+    svg.append(
+      svgEl("line", {
+        x1: margin.left,
+        x2: margin.left,
+        y1: margin.top,
+        y2: margin.top + ph,
+        stroke: "rgba(0,0,0,0.20)",
+        "stroke-width": 1,
+      }),
+    );
 
     // Title
-    svg.appendChild(Object.assign(
-      svgEl("text", { x: margin.left + pw / 2, y: 16, fill: "#555", "font-size": 12, "text-anchor": "middle" }),
-      { textContent: names[dim] },
-    ));
+    svg.append(
+      Object.assign(
+        svgEl("text", {
+          x: margin.left + pw / 2,
+          y: 16,
+          fill: "#555",
+          "font-size": 12,
+          "text-anchor": "middle",
+        }),
+        { textContent: names[dim] },
+      ),
+    );
 
     if (dimIsChoice) {
       // Discrete: vertical error bars + mean dots
       for (let ci = 0; ci < xs.length; ci++) {
-        const cx = sx(ci), cyMu = sy(means[ci]);
-        const cyUp = sy(upper[ci]), cyLo = sy(lower[ci]);
+        const cx = sx(ci),
+          cyMu = sy(means[ci]);
+        const cyUp = sy(upper[ci]),
+          cyLo = sy(lower[ci]);
         // Error bar
-        svg.appendChild(svgEl("line", { x1: cx, y1: cyUp, x2: cx, y2: cyLo, stroke: "rgba(72,114,249,0.4)", "stroke-width": 2 }));
+        svg.append(
+          svgEl("line", {
+            x1: cx,
+            y1: cyUp,
+            x2: cx,
+            y2: cyLo,
+            stroke: "rgba(72,114,249,0.4)",
+            "stroke-width": 2,
+          }),
+        );
         // Caps
         for (const capY of [cyUp, cyLo]) {
-          svg.appendChild(svgEl("line", { x1: cx - 4, y1: capY, x2: cx + 4, y2: capY, stroke: "rgba(72,114,249,0.4)", "stroke-width": 1.5 }));
+          svg.append(
+            svgEl("line", {
+              x1: cx - 4,
+              y1: capY,
+              x2: cx + 4,
+              y2: capY,
+              stroke: "rgba(72,114,249,0.4)",
+              "stroke-width": 1.5,
+            }),
+          );
         }
         // Mean dot
-        svg.appendChild(svgEl("circle", { cx, cy: cyMu, r: 5, fill: "#4872f9", stroke: "#444", "stroke-width": 1.5 }));
+        svg.append(
+          svgEl("circle", {
+            cx,
+            cy: cyMu,
+            r: 5,
+            fill: "#4872f9",
+            stroke: "#444",
+            "stroke-width": 1.5,
+          }),
+        );
       }
     } else {
       // Continuous: CI band + mean line
       let bandD = `M ${sx(xs[0])} ${sy(upper[0])}`;
-      for (let i = 1; i < xs.length; i++) bandD += ` L ${sx(xs[i])} ${sy(upper[i])}`;
-      for (let i = xs.length - 1; i >= 0; i--) bandD += ` L ${sx(xs[i])} ${sy(lower[i])}`;
+      for (let i = 1; i < xs.length; i++) {
+        bandD += ` L ${sx(xs[i])} ${sy(upper[i])}`;
+      }
+      for (let i = xs.length - 1; i >= 0; i--) {
+        bandD += ` L ${sx(xs[i])} ${sy(lower[i])}`;
+      }
       bandD += " Z";
-      svg.appendChild(svgEl("path", { d: bandD, fill: "rgba(72,114,249,0.10)" }));
+      svg.append(svgEl("path", { d: bandD, fill: "rgba(72,114,249,0.10)" }));
 
       let lineD = `M ${sx(xs[0])} ${sy(means[0])}`;
-      for (let i = 1; i < xs.length; i++) lineD += ` L ${sx(xs[i])} ${sy(means[i])}`;
-      svg.appendChild(svgEl("path", { d: lineD, stroke: "#4872f9", "stroke-width": 2, fill: "none" }));
+      for (let i = 1; i < xs.length; i++) {
+        lineD += ` L ${sx(xs[i])} ${sy(means[i])}`;
+      }
+      svg.append(svgEl("path", { d: lineD, stroke: "#4872f9", "stroke-width": 2, fill: "none" }));
     }
 
     // Training data dots
     const td = predictor.getTrainingData(outcome);
-    const sliceDots: DotInfo[] = [];
+    const tdY = relativeActive ? td.Y.map((y) => naiveRelPct(y, sqStat.mean)) : td.Y;
+    const sliceDots: Array<DotInfo> = [];
     if (td.X.length > 0) {
       for (let i = 0; i < td.X.length; i++) {
         let ptScreenX: number;
@@ -313,23 +509,36 @@ function renderSlicePlotStatic(
             let bestD = Infinity;
             for (let cj = 0; cj < xs.length; cj++) {
               const cd = Math.abs(xs[cj] - td.X[i][dim]);
-              if (cd < bestD) { bestD = cd; ci = cj; }
+              if (cd < bestD) {
+                bestD = cd;
+                ci = cj;
+              }
             }
           }
           ptScreenX = sx(ci);
         } else {
           ptScreenX = sx(td.X[i][dim]);
         }
-        const ptScreenY = sy(td.Y[i]);
+        const ptScreenY = sy(tdY[i]);
         if (ptScreenY >= margin.top && ptScreenY <= H - margin.bottom) {
           const dot = svgEl("circle", {
-            cx: ptScreenX, cy: ptScreenY, r: 3,
-            fill: "rgba(217,95,78,0.9)", stroke: "rgba(68,68,68,0.35)", "stroke-width": 1,
+            cx: ptScreenX,
+            cy: ptScreenY,
+            r: 3,
+            fill: "rgba(217,95,78,0.9)",
+            stroke: "rgba(68,68,68,0.35)",
+            "stroke-width": 1,
           });
-          svg.appendChild(dot);
+          svg.append(dot);
           sliceDots.push({
-            cx: ptScreenX, cy: ptScreenY, idx: i, pt: td.X[i], el: dot,
-            defaultFill: "rgba(217,95,78,0.9)", defaultStroke: "rgba(68,68,68,0.35)", defaultR: 3,
+            cx: ptScreenX,
+            cy: ptScreenY,
+            idx: i,
+            pt: td.X[i],
+            el: dot,
+            defaultFill: "rgba(217,95,78,0.9)",
+            defaultStroke: "rgba(68,68,68,0.35)",
+            defaultR: 3,
           });
         }
       }
@@ -338,55 +547,130 @@ function renderSlicePlotStatic(
 
     // Y-axis ticks + grid
     const nYTicks = 4;
+    // Collect tick values, then add 0% if relative and not already present
+    const tickVals: Array<number> = [];
     for (let t = 0; t <= nYTicks; t++) {
-      const v = yMin + (yRange * t) / nYTicks;
+      tickVals.push(yMin + (yRange * t) / nYTicks);
+    }
+    if (
+      relativeActive &&
+      yMin <= 0 &&
+      yMax >= 0 &&
+      !tickVals.some((v) => Math.abs(v) < yRange * 0.01)
+    ) {
+      tickVals.push(0);
+      tickVals.sort((a, b) => a - b);
+    }
+    for (const v of tickVals) {
       const yp = sy(v);
-      svg.appendChild(svgEl("line", { x1: margin.left, x2: margin.left + pw, y1: yp, y2: yp, stroke: "rgba(0,0,0,0.06)" }));
-      svg.appendChild(Object.assign(
-        svgEl("text", { x: margin.left - 6, y: yp + 4, fill: "#999", "font-size": 10, "text-anchor": "end" }),
-        { textContent: v.toFixed(2) },
-      ));
+      const isZeroLine = relativeActive && Math.abs(v) < 1e-10;
+      svg.append(
+        svgEl("line", {
+          x1: margin.left,
+          x2: margin.left + pw,
+          y1: yp,
+          y2: yp,
+          stroke: isZeroLine ? "rgba(0,0,0,0.25)" : "rgba(0,0,0,0.06)",
+          "stroke-width": isZeroLine ? 1 : 1,
+          ...(isZeroLine ? { "stroke-dasharray": "4,3" } : {}),
+        }),
+      );
+      const label = relativeActive ? formatPct(v) : v.toFixed(2);
+      svg.append(
+        Object.assign(
+          svgEl("text", {
+            x: margin.left - 6,
+            y: yp + 4,
+            "font-size": 10,
+            "text-anchor": "end",
+            fill: isZeroLine ? "#555" : "#999",
+            "font-weight": isZeroLine ? "600" : "400",
+          }),
+          { textContent: label },
+        ),
+      );
     }
 
     // X-axis ticks
     if (dimIsChoice) {
       for (let ci = 0; ci < xs.length; ci++) {
-        svg.appendChild(Object.assign(
-          svgEl("text", { x: sx(ci), y: H - margin.bottom + 16, fill: "#999", "font-size": 10, "text-anchor": "middle" }),
-          { textContent: String(p.values![ci]) },
-        ));
+        svg.append(
+          Object.assign(
+            svgEl("text", {
+              x: sx(ci),
+              y: H - margin.bottom + 16,
+              fill: "#999",
+              "font-size": 10,
+              "text-anchor": "middle",
+            }),
+            { textContent: String(p.values![ci]) },
+          ),
+        );
       }
     } else {
       const nXTicks = dimIsInt ? Math.min(xs.length - 1, 4) : 4;
       for (let t = 0; t <= nXTicks; t++) {
-        let xv = xLo + (xHi - xLo) * t / nXTicks;
-        if (dimIsInt) xv = Math.round(xv);
-        svg.appendChild(Object.assign(
-          svgEl("text", { x: sx(xv), y: H - margin.bottom + 16, fill: "#999", "font-size": 10, "text-anchor": "middle" }),
-          { textContent: dimIsInt ? String(xv) : xv.toFixed(2) },
-        ));
+        let xv = xLo + ((xHi - xLo) * t) / nXTicks;
+        if (dimIsInt) {
+          xv = Math.round(xv);
+        }
+        svg.append(
+          Object.assign(
+            svgEl("text", {
+              x: sx(xv),
+              y: H - margin.bottom + 16,
+              fill: "#999",
+              "font-size": 10,
+              "text-anchor": "middle",
+            }),
+            { textContent: dimIsInt ? String(xv) : xv.toFixed(2) },
+          ),
+        );
       }
     }
 
     // X-axis label
-    svg.appendChild(Object.assign(
-      svgEl("text", { x: margin.left + pw / 2, y: H - 4, fill: "#999", "font-size": 11, "text-anchor": "middle" }),
-      { textContent: names[dim] },
-    ));
+    svg.append(
+      Object.assign(
+        svgEl("text", {
+          x: margin.left + pw / 2,
+          y: H - 4,
+          fill: "#999",
+          "font-size": 11,
+          "text-anchor": "middle",
+        }),
+        { textContent: names[dim] },
+      ),
+    );
 
     // Hover line + dot on mean curve (hidden by default)
-    const hoverLine = svgEl("line", { y1: margin.top, y2: margin.top + ph, stroke: "rgba(0,0,0,0.10)", "stroke-width": 1, "stroke-dasharray": "4,3" });
+    const hoverLine = svgEl("line", {
+      y1: margin.top,
+      y2: margin.top + ph,
+      stroke: "rgba(0,0,0,0.10)",
+      "stroke-width": 1,
+      "stroke-dasharray": "4,3",
+    });
     (hoverLine as unknown as HTMLElement).style.display = "none";
-    svg.appendChild(hoverLine);
-    const hoverDot = svgEl("circle", { r: 4, fill: "#4872f9", stroke: "#444", "stroke-width": 1.5 });
+    svg.append(hoverLine);
+    const hoverDot = svgEl("circle", {
+      r: 4,
+      fill: "#4872f9",
+      stroke: "#444",
+      "stroke-width": 1.5,
+    });
     (hoverDot as unknown as HTMLElement).style.display = "none";
-    svg.appendChild(hoverDot);
+    svg.append(hoverDot);
 
     // Restore highlight after re-render if a point was pinned
     if (_getPinned() >= 0) {
       const pvIdx = sliceDots.findIndex((d) => d.idx === _getPinned());
-      if (pvIdx >= 0) {
-        applyDotHighlight(sliceDots, pvIdx, computeKernelRels(predictor, sliceDots, pvIdx, outcome));
+      if (pvIdx !== -1) {
+        applyDotHighlight(
+          sliceDots,
+          pvIdx,
+          computeKernelRels(predictor, sliceDots, pvIdx, outcome),
+        );
       }
     }
 
@@ -396,8 +680,11 @@ function renderSlicePlotStatic(
 
       function findHit(px: number, py: number): number {
         for (let pi = 0; pi < sliceDots.length; pi++) {
-          const dx = px - sliceDots[pi].cx, dy = py - sliceDots[pi].cy;
-          if (dx * dx + dy * dy < HOVER_R * HOVER_R) return pi;
+          const dx = px - sliceDots[pi].cx,
+            dy = py - sliceDots[pi].cy;
+          if (dx * dx + dy * dy < HOVER_R * HOVER_R) {
+            return pi;
+          }
         }
         return -1;
       }
@@ -411,7 +698,7 @@ function renderSlicePlotStatic(
         if (px < margin.left || px > margin.left + pw) {
           (hoverLine as unknown as HTMLElement).style.display = "none";
           (hoverDot as unknown as HTMLElement).style.display = "none";
-          tooltip!.style.display = "none";
+          tooltip.style.display = "none";
           return;
         }
 
@@ -424,17 +711,29 @@ function renderSlicePlotStatic(
           svg.style.cursor = "pointer";
 
           if (_getPinned() < 0) {
-            applyDotHighlight(sliceDots, hitVpIdx, computeKernelRels(predictor, sliceDots, hitVpIdx, outcome));
+            applyDotHighlight(
+              sliceDots,
+              hitVpIdx,
+              computeKernelRels(predictor, sliceDots, hitVpIdx, outcome),
+            );
             hoverHighlight = true;
           }
 
           // Build tooltip for training point
           let html = `<div style="font-size:11px;color:#999;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">training point #${hitPt.idx + 1}</div>`;
-          html += `<span style="color:#333;font-weight:500">y = ${td.Y[hitPt.idx].toFixed(4)}</span><br>`;
-          html += names.map((n, j) => `<span style="color:#666">${n}</span> = ${formatParamValue(td.X[hitPt.idx][j], params[j])}`).join("<br>");
-          tooltip!.innerHTML = html;
-          tooltip!.style.display = "block";
-          positionTooltip(tooltip!, e.clientX, e.clientY);
+          const yLabel = relativeActive
+            ? `\u0394 = ${formatPct(tdY[hitPt.idx])}`
+            : `y = ${td.Y[hitPt.idx].toFixed(4)}`;
+          html += `<span style="color:#333;font-weight:500">${yLabel}</span><br>`;
+          html += names
+            .map(
+              (n, j) =>
+                `<span style="color:#666">${n}</span> = ${formatParamValue(td.X[hitPt.idx][j], params[j])}`,
+            )
+            .join("<br>");
+          tooltip.innerHTML = html;
+          tooltip.style.display = "block";
+          positionTooltip(tooltip, e.clientX, e.clientY);
         } else {
           svg.style.cursor = "crosshair";
           if (_getPinned() < 0 && hoverHighlight) {
@@ -452,7 +751,8 @@ function renderSlicePlotStatic(
             idx = Math.round(frac * (xs.length - 1));
             idx = Math.max(0, Math.min(xs.length - 1, idx));
           }
-          const mu = means[idx], s = stds[idx];
+          const mu = means[idx],
+            s = stds[idx];
           const screenX = dimIsChoice ? sx(idx) : sx(xs[idx]);
 
           hoverLine.setAttribute("x1", String(screenX));
@@ -465,12 +765,18 @@ function renderSlicePlotStatic(
           const xLabel = dimIsChoice ? String(p.values![idx]) : formatParamValue(xs[idx], p);
           let html = `<div style="font-size:11px;color:#999;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px">${names[dim]}</div>`;
           html += `<span style="color:#666">${names[dim]}</span> = ${xLabel}<br>`;
-          html += `\u03BC = <span style="color:#4872f9;font-weight:500">${mu.toFixed(4)}</span><br>`;
-          html += `\u03C3 = ${s.toFixed(4)}<br>`;
-          html += `95% CI: [${(mu - 2 * s).toFixed(4)}, ${(mu + 2 * s).toFixed(4)}]`;
-          tooltip!.innerHTML = html;
-          tooltip!.style.display = "block";
-          positionTooltip(tooltip!, e.clientX, e.clientY);
+          if (relativeActive) {
+            html += `\u0394 = <span style="color:#4872f9;font-weight:500">${formatPct(mu)}</span><br>`;
+            html += `\u03C3 = ${s.toFixed(1)}%<br>`;
+            html += `95% CI: [${formatPct(mu - 2 * s)}, ${formatPct(mu + 2 * s)}]`;
+          } else {
+            html += `\u03BC = <span style="color:#4872f9;font-weight:500">${mu.toFixed(4)}</span><br>`;
+            html += `\u03C3 = ${s.toFixed(4)}<br>`;
+            html += `95% CI: [${(mu - 2 * s).toFixed(4)}, ${(mu + 2 * s).toFixed(4)}]`;
+          }
+          tooltip.innerHTML = html;
+          tooltip.style.display = "block";
+          positionTooltip(tooltip, e.clientX, e.clientY);
         }
       });
 
@@ -492,7 +798,11 @@ function renderSlicePlotStatic(
               onSnapToPoint(sliceDots[hitVpIdx].pt);
               return; // onSnapToPoint triggers full redraw
             }
-            applyDotHighlight(sliceDots, hitVpIdx, computeKernelRels(predictor, sliceDots, hitVpIdx, outcome));
+            applyDotHighlight(
+              sliceDots,
+              hitVpIdx,
+              computeKernelRels(predictor, sliceDots, hitVpIdx, outcome),
+            );
           }
         } else {
           if (_getPinned() >= 0) {
@@ -507,10 +817,14 @@ function renderSlicePlotStatic(
             clearDotHighlight(subDots);
           } else {
             const subActiveIdx = subDots.findIndex((d) => d.idx === _getPinned());
-            if (subActiveIdx >= 0) {
-              applyDotHighlight(subDots, subActiveIdx, computeKernelRels(predictor, subDots, subActiveIdx, outcome));
-            } else {
+            if (subActiveIdx === -1) {
               clearDotHighlight(subDots);
+            } else {
+              applyDotHighlight(
+                subDots,
+                subActiveIdx,
+                computeKernelRels(predictor, subDots, subActiveIdx, outcome),
+              );
             }
           }
         }
@@ -520,7 +834,7 @@ function renderSlicePlotStatic(
         (hoverLine as unknown as HTMLElement).style.display = "none";
         (hoverDot as unknown as HTMLElement).style.display = "none";
         svg.style.cursor = "crosshair";
-        tooltip!.style.display = "none";
+        tooltip.style.display = "none";
         if (_getPinned() < 0 && hoverHighlight) {
           clearDotHighlight(sliceDots);
           hoverHighlight = false;
@@ -528,6 +842,6 @@ function renderSlicePlotStatic(
       });
     }
 
-    target.appendChild(svg);
+    target.append(svg);
   }
 }

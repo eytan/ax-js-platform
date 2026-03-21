@@ -1,5 +1,8 @@
-import { Matrix } from "../linalg/matrix.js";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { GPModel } from "./types.js";
+
+import { Matrix } from "../linalg/matrix.js";
 
 /**
  * Compute the full posterior covariance matrix for a set of test points.
@@ -11,10 +14,7 @@ import type { GPModel } from "./types.js";
  *
  * The result is symmetric, so we only compute the lower triangle and mirror.
  */
-export function posteriorCovariance(
-  model: GPModel,
-  points: number[][],
-): Matrix {
+export function posteriorCovariance(model: GPModel, points: Array<Array<number>>): Matrix {
   const n = points.length;
   const Sigma = new Matrix(n, n);
 
@@ -35,9 +35,6 @@ export function posteriorCovariance(
  * Compute posterior mean vector as a Float64Array.
  * Convenience wrapper around model.predict().
  */
-export function posteriorMean(
-  model: GPModel,
-  points: number[][],
-): Float64Array {
+export function posteriorMean(model: GPModel, points: Array<Array<number>>): Float64Array {
   return model.predict(points).mean;
 }

@@ -1,8 +1,7 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import { describe, it, expect } from "vitest";
-import { Matrix } from "../../src/linalg/matrix.js";
-import { RBFKernel } from "../../src/kernels/rbf.js";
-import { MaternKernel } from "../../src/kernels/matern.js";
-import { ScaleKernel } from "../../src/kernels/scale.js";
+
 import { CategoricalKernel } from "../../src/kernels/categorical.js";
 import {
   ActiveDimsKernel,
@@ -10,30 +9,37 @@ import {
   ProductKernel,
   kernelDiag,
 } from "../../src/kernels/composite.js";
+import { MaternKernel } from "../../src/kernels/matern.js";
+import { RBFKernel } from "../../src/kernels/rbf.js";
+import { ScaleKernel } from "../../src/kernels/scale.js";
+import { Matrix } from "../../src/linalg/matrix.js";
 
 describe("ActiveDimsKernel", () => {
   it("selects correct dimensions", () => {
-    const rbf = new RBFKernel([1.0]);
+    const rbf = new RBFKernel([1]);
     const wrapped = new ActiveDimsKernel(rbf, [1]); // only use dim 1
 
-    const x1 = Matrix.from2D([[0.1, 0.5], [0.9, 0.2]]);
+    const x1 = Matrix.from2D([
+      [0.1, 0.5],
+      [0.9, 0.2],
+    ]);
     const x2 = Matrix.from2D([[0.3, 0.5]]);
 
     const K = wrapped.compute(x1, x2);
     // x1[0, dim1]=0.5 vs x2[0, dim1]=0.5: distance=0, so k=1
-    expect(K.get(0, 0)).toBeCloseTo(1.0, 5);
+    expect(K.get(0, 0)).toBeCloseTo(1, 5);
     // x1[1, dim1]=0.2 vs x2[0, dim1]=0.5: non-zero distance
-    expect(K.get(1, 0)).toBeLessThan(1.0);
+    expect(K.get(1, 0)).toBeLessThan(1);
   });
 });
 
 describe("AdditiveKernel", () => {
   it("sums kernel matrices", () => {
-    const k1 = new RBFKernel([1.0]);
-    const k2 = new RBFKernel([2.0]);
+    const k1 = new RBFKernel([1]);
+    const k2 = new RBFKernel([2]);
     const add = new AdditiveKernel([k1, k2]);
 
-    const x = Matrix.from2D([[0.0], [1.0]]);
+    const x = Matrix.from2D([[0], [1]]);
     const K = add.compute(x, x);
     const K1 = k1.compute(x, x);
     const K2 = k2.compute(x, x);
@@ -44,8 +50,8 @@ describe("AdditiveKernel", () => {
   });
 
   it("diagonal matches full matrix diagonal", () => {
-    const k1 = new RBFKernel([1.0]);
-    const k2 = new RBFKernel([2.0]);
+    const k1 = new RBFKernel([1]);
+    const k2 = new RBFKernel([2]);
     const add = new AdditiveKernel([k1, k2]);
 
     const x = Matrix.from2D([[0.1], [0.5], [0.9]]);
@@ -60,11 +66,11 @@ describe("AdditiveKernel", () => {
 
 describe("ProductKernel", () => {
   it("multiplies kernel matrices element-wise", () => {
-    const k1 = new RBFKernel([1.0]);
-    const k2 = new RBFKernel([2.0]);
+    const k1 = new RBFKernel([1]);
+    const k2 = new RBFKernel([2]);
     const prod = new ProductKernel([k1, k2]);
 
-    const x = Matrix.from2D([[0.0], [1.0]]);
+    const x = Matrix.from2D([[0], [1]]);
     const K = prod.compute(x, x);
     const K1 = k1.compute(x, x);
     const K2 = k2.compute(x, x);
@@ -75,8 +81,8 @@ describe("ProductKernel", () => {
   });
 
   it("works with mixed continuous + categorical", () => {
-    const rbf = new ActiveDimsKernel(new RBFKernel([1.0]), [0]);
-    const cat = new ActiveDimsKernel(new CategoricalKernel(1.0), [1]);
+    const rbf = new ActiveDimsKernel(new RBFKernel([1]), [0]);
+    const cat = new ActiveDimsKernel(new CategoricalKernel(1), [1]);
     const prod = new ProductKernel([rbf, cat]);
 
     // x = [[0.5, 0], [0.5, 1], [0.5, 0]]
@@ -88,7 +94,7 @@ describe("ProductKernel", () => {
     const K = prod.compute(x, x);
 
     // Points 0 and 2 are identical → k=1
-    expect(K.get(0, 2)).toBeCloseTo(1.0, 5);
+    expect(K.get(0, 2)).toBeCloseTo(1, 5);
     // Points 0 and 1 have same continuous but different category
     // → rbf part = 1, cat part = exp(-1) ≈ 0.368
     expect(K.get(0, 1)).toBeCloseTo(Math.exp(-1), 5);
@@ -97,7 +103,7 @@ describe("ProductKernel", () => {
 
 describe("CategoricalKernel", () => {
   it("gives 1 for same category", () => {
-    const cat = new CategoricalKernel(1.0);
+    const cat = new CategoricalKernel(1);
     const x = Matrix.from2D([[0], [0]]);
     const K = cat.compute(x, x);
     expect(K.get(0, 0)).toBe(1);
@@ -105,7 +111,7 @@ describe("CategoricalKernel", () => {
   });
 
   it("gives exp(-1/ls / d) for different categories in 1D", () => {
-    const ls = 2.0;
+    const ls = 2;
     const cat = new CategoricalKernel(ls);
     const x1 = Matrix.from2D([[0]]);
     const x2 = Matrix.from2D([[1]]);
@@ -115,7 +121,7 @@ describe("CategoricalKernel", () => {
   });
 
   it("handles multi-dimensional categoricals", () => {
-    const cat = new CategoricalKernel(1.0);
+    const cat = new CategoricalKernel(1);
     const x1 = Matrix.from2D([[0, 1]]);
     const x2 = Matrix.from2D([[0, 2]]); // 1 of 2 dims differ
     const K = cat.compute(x1, x2);
@@ -126,7 +132,7 @@ describe("CategoricalKernel", () => {
 
 describe("kernelDiag", () => {
   it("matches diagonal of full matrix for ScaleKernel", () => {
-    const kernel = new ScaleKernel(new MaternKernel([1.0, 2.0]), 3.5);
+    const kernel = new ScaleKernel(new MaternKernel([1, 2]), 3.5);
     const x = Matrix.from2D([
       [0.1, 0.2],
       [0.5, 0.8],

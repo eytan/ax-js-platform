@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 /**
  * CSS styles for ax-js viz components.
  *
@@ -100,17 +102,25 @@ export const AXJS_STYLES = `
  * like `#axjs_abc .axjs-slider` that beat any class-only host CSS.
  */
 export function injectScopedStyles(container: HTMLElement): void {
-  if (typeof document === "undefined") return;
-  if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
-  if (container.querySelector("style[data-axjs]")) return;
+  if (typeof document === "undefined") {
+    return;
+  }
+  if (!container.id) {
+    container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+  }
+  if (container.querySelector("style[data-axjs]")) {
+    return;
+  }
   const s = document.createElement("style");
-  s.setAttribute("data-axjs", "");
-  s.textContent = AXJS_STYLES.replace(/:scope/g, `#${container.id}`);
+  s.dataset.axjs = "";
+  s.textContent = AXJS_STYLES.replaceAll(":scope", `#${container.id}`);
   container.prepend(s);
 }
 
 /** @deprecated Use `injectScopedStyles(container)` instead. */
 export function injectStyles(): void {
-  if (typeof document === "undefined") return;
+  if (typeof document === "undefined") {
+    return;
+  }
   injectScopedStyles(document.body);
 }

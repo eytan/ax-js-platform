@@ -25,6 +25,10 @@ ${axFavicon}
 <p class="subtitle" id="subtitle">Load a fixture JSON to visualize GP posterior</p>
 <div class="controls">
   <label>File: <input type="file" id="fileInput" accept=".json"></label>
+  <label>Mode: <select id="modeSelect">
+    <option value="absolute">Absolute</option>
+    <option value="relative">Relative (% vs control)</option>
+  </select></label>
 </div>
 <div id="plotContainer"></div>
 ${libraryScript()}
@@ -45,12 +49,20 @@ function loadFixtureData(data) {
 function render() {
   var container = document.getElementById('plotContainer');
   container.innerHTML = '';
+  var isRelative = document.getElementById('modeSelect').value === 'relative';
+  var sqPoint = fixture.status_quo
+    ? fixture.status_quo.point
+    : predictor.paramBounds.map(function(b) { return (b[0] + b[1]) / 2; });
   Ax.viz.renderResponseSurface(container, predictor, {
     interactive: true,
     width: 800,
-    height: 380
+    height: 380,
+    relative: isRelative,
+    statusQuoPoint: sqPoint,
   });
 }
+
+document.getElementById('modeSelect').addEventListener('change', function() { render(); });
 
 document.getElementById('fileInput').addEventListener('change', function(e) {
   var file = e.target.files[0]; if (!file) return;

@@ -306,7 +306,7 @@ is the only file that needs updating.
 | Data model schema | `docs/data-model.md` |
 | Testing guide | `docs/testing.md` |
 | Cockpit (MOO tool) | `docs/cockpit.md` |
-| Internal: observations | `docs/internal/observations.md` |
+| Codebase observations | `plans/codebase-observations.md` |
 | Internal: numerics | `docs/internal/numerics.md` |
-| Internal: serialization | `docs/internal/serialization-contract.md` |
+| Upstream proposals | `plans/upstream-proposals.md` |
 | Internal: data model comparison | `docs/internal/ax-js-vs-ax.md` |

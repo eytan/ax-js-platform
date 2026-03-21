@@ -1,6 +1,9 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import { describe, it, expect } from "vitest";
-import { Matrix } from "../../src/linalg/matrix.js";
+
 import { cholesky } from "../../src/linalg/cholesky.js";
+import { Matrix } from "../../src/linalg/matrix.js";
 import { forwardSolve, backSolve, solveCholesky } from "../../src/linalg/solve.js";
 
 describe("triangular solvers", () => {

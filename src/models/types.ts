@@ -1,12 +1,14 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 /** Recursive kernel tree structure exported from BoTorch/GPyTorch. */
 export interface KernelState {
   type: "Matern" | "RBF" | "Scale" | "Categorical" | "Additive" | "Product";
   /** Subset of input dimensions this kernel operates on. */
-  active_dims?: number[];
+  active_dims?: Array<number>;
 
   // Matern/RBF
   /** Per-dimension ARD lengthscales (in normalized [0,1] space when input_transform is present). */
-  lengthscale?: number[];
+  lengthscale?: Array<number>;
   /** Matern smoothness parameter: 0.5, 1.5, or 2.5. */
   nu?: number;
 
@@ -19,7 +21,7 @@ export interface KernelState {
 
   // Composite (Additive/Product)
   /** Child kernels for Additive or Product composition. */
-  kernels?: KernelState[];
+  kernels?: Array<KernelState>;
 }
 
 /** Model-level outcome transform applied within BoTorch (Layer 2 of the two-layer pipeline). */
@@ -28,53 +30,53 @@ export type OutcomeTransformState =
   | { type: "Log" }
   | { type: "Bilog" }
   | { type: "Power"; power: number }
-  | { type: "Chained"; transforms: OutcomeTransformState[] };
+  | { type: "Chained"; transforms: Array<OutcomeTransformState> };
 
 /** State of a single-output GP model (SingleTaskGP or FixedNoiseGP). */
 export interface GPModelState {
   model_type: "SingleTaskGP" | "FixedNoiseGP";
   /** Training inputs, shape [n_train, d]. */
-  train_X: number[][];
+  train_X: Array<Array<number>>;
   /** Training targets in doubly-transformed space (adapter + model transforms applied). */
-  train_Y: number[];
+  train_Y: Array<number>;
   kernel: KernelState;
   /** Constant mean function value. */
   mean_constant: number;
   /** Observation noise: scalar (homoskedastic) or per-point array (heteroskedastic/FixedNoiseGP). */
-  noise_variance: number | number[];
+  noise_variance: number | Array<number>;
   /** Normalize transform: `x_norm = (x - offset) / coefficient`. Maps raw inputs to [0,1]. */
-  input_transform?: { offset: number[]; coefficient: number[] };
+  input_transform?: { offset: Array<number>; coefficient: Array<number> };
   outcome_transform?: OutcomeTransformState;
   /** Kumaraswamy CDF input warping for non-stationary modeling. */
   input_warp?: {
-    concentration0: number[];
-    concentration1: number[];
-    indices?: number[];
+    concentration0: Array<number>;
+    concentration1: Array<number>;
+    indices?: Array<number>;
   };
 }
 
 /** Independent GP per outcome, used for multi-output predictions. */
 export interface ModelListState {
   model_type: "ModelListGP";
-  outcome_names: string[];
-  models: GPModelState[];
+  outcome_names: Array<string>;
+  models: Array<GPModelState>;
 }
 
 /** GP for preference/pairwise comparison data (Thurstone-Mosteller model). */
 export interface PairwiseGPModelState {
   model_type: "PairwiseGP";
-  train_X: number[][];
+  train_X: Array<Array<number>>;
   /** MAP utility estimates at training points. */
-  utility: number[];
+  utility: Array<number>;
   /** Hessian of the pairwise likelihood at the MAP, used for Laplace approximation. */
-  likelihood_hess: number[][];
+  likelihood_hess: Array<Array<number>>;
   kernel: KernelState;
   mean_constant: number;
-  input_transform?: { offset: number[]; coefficient: number[] };
+  input_transform?: { offset: Array<number>; coefficient: Array<number> };
   input_warp?: {
-    concentration0: number[];
-    concentration1: number[];
-    indices?: number[];
+    concentration0: Array<number>;
+    concentration1: Array<number>;
+    indices?: Array<number>;
   };
 }
 
@@ -82,8 +84,8 @@ export interface PairwiseGPModelState {
 export interface MultiTaskGPModelState {
   model_type: "MultiTaskGP";
   /** Training inputs including task column, shape [n_train, d+1]. */
-  train_X: number[][];
-  train_Y: number[];
+  train_X: Array<Array<number>>;
+  train_Y: Array<number>;
   /** Column index in train_X that encodes the task identifier. */
   task_feature: number;
   num_tasks: number;
@@ -91,28 +93,28 @@ export interface MultiTaskGPModelState {
   data_kernel: KernelState;
   /** Inter-task covariance (IndexKernel/PositiveIndexKernel parameters). */
   task_covar: {
-    covar_factor: number[][];
-    log_var?: number[];
-    var?: number[];
+    covar_factor: Array<Array<number>>;
+    log_var?: Array<number>;
+    var?: Array<number>;
     /** Pre-computed task covariance matrix (used by PositiveIndexKernel). */
-    covar_matrix?: number[][];
+    covar_matrix?: Array<Array<number>>;
   };
   /** Scalar (shared) or per-task array of mean constants. */
-  mean_constant: number | number[];
-  noise_variance: number | number[];
-  input_transform?: { offset: number[]; coefficient: number[] };
+  mean_constant: number | Array<number>;
+  noise_variance: number | Array<number>;
+  input_transform?: { offset: Array<number>; coefficient: Array<number> };
   outcome_transform?: OutcomeTransformState;
   input_warp?: {
-    concentration0: number[];
-    concentration1: number[];
-    indices?: number[];
+    concentration0: Array<number>;
+    concentration1: Array<number>;
+    indices?: Array<number>;
   };
 }
 
 /** Ensemble of GPs whose predictions are combined via law of total variance. */
 export interface EnsembleGPModelState {
   model_type: "EnsembleGP";
-  models: GPModelState[];
+  models: Array<GPModelState>;
 }
 
 /** Union of all supported model state types, discriminated by `model_type`. */
@@ -130,7 +132,7 @@ export interface SearchSpaceParam {
   /** Lower and upper bounds for range parameters. */
   bounds?: [number, number];
   /** Allowed values for choice parameters. */
-  values?: (string | number | boolean)[];
+  values?: Array<string | number | boolean>;
   parameter_type?: "int" | "float";
   /** If true, parameter is sampled on a log scale. */
   log_scale?: boolean;
@@ -178,10 +180,10 @@ export interface ObjectiveThresholdConfig {
 
 /** Full optimization configuration: objectives, constraints, and MOO thresholds. */
 export interface OptimizationConfig {
-  objectives: ObjectiveConfig[];
-  outcome_constraints?: OutcomeConstraintConfig[];
+  objectives: Array<ObjectiveConfig>;
+  outcome_constraints?: Array<OutcomeConstraintConfig>;
   /** Objective thresholds for MOO — defines worst acceptable value per objective. */
-  objective_thresholds?: ObjectiveThresholdConfig[];
+  objective_thresholds?: Array<ObjectiveThresholdConfig>;
 }
 
 // ── Adapter transforms (applied by Ax BEFORE BoTorch) ─────────────────────
@@ -191,18 +193,18 @@ export interface OptimizationConfig {
  * These are invisible to the model and must be explicitly undone after prediction.
  */
 export type AdapterTransform =
-  | { type: "LogY"; metrics?: string[] }
-  | { type: "BilogY"; metrics?: string[] }
+  | { type: "LogY"; metrics?: Array<string> }
+  | { type: "BilogY"; metrics?: Array<string> }
   | { type: "StandardizeY"; Ymean?: Record<string, number>; Ystd?: Record<string, number> }
   | {
       type: "PowerTransformY";
       power_params?: Record<
         string,
-        | number[]
+        | Array<number>
         | {
-            lambdas: number[];
-            scaler_mean?: number[];
-            scaler_scale?: number[];
+            lambdas: Array<number>;
+            scaler_mean?: Array<number>;
+            scaler_scale?: Array<number>;
           }
       >;
     };
@@ -230,24 +232,24 @@ export interface Observation {
  */
 export interface ExperimentState {
   search_space: {
-    parameters: SearchSpaceParam[];
-    parameter_constraints?: ParameterConstraint[];
+    parameters: Array<SearchSpaceParam>;
+    parameter_constraints?: Array<ParameterConstraint>;
   };
   /** Serialized model with all hyperparameters, training data, and transforms. */
   model_state: AnyModelState;
   name?: string;
   description?: string;
   /** Ordered outcome/metric names. For ModelListGP, matches the order of sub-models. */
-  outcome_names?: string[];
+  outcome_names?: Array<string>;
   /** Baseline arm for relativization, as a positional array matching parameter order. */
-  status_quo?: { point: number[] };
+  status_quo?: { point: Array<number> };
   /** Adapter-level transforms to undo after model prediction. */
-  adapter_transforms?: AdapterTransform[];
+  adapter_transforms?: Array<AdapterTransform>;
   optimization_config?: OptimizationConfig;
   /** Completed trial observations (for visualization, not used by the model). */
-  observations?: Observation[];
+  observations?: Array<Observation>;
   /** Unevaluated candidate arms proposed by the optimizer. */
-  candidates?: Candidate[];
+  candidates?: Array<Candidate>;
 }
 
 // ── Fixture schema: experiment + test expectations ────────────────────────
@@ -267,20 +269,20 @@ export interface FixtureData {
       ax_level?: boolean;
       all_tasks?: boolean;
     };
-    test_points: number[][];
+    test_points: Array<Array<number>>;
     expected: {
-      mean: number[] | number[][] | Record<string, number[]> | null;
-      variance: number[] | number[][] | Record<string, number[]> | null;
+      mean: Array<number> | Array<Array<number>> | Record<string, Array<number>> | null;
+      variance: Array<number> | Array<Array<number>> | Record<string, Array<number>> | null;
     };
     expected_relative?:
-      | { mean: number[]; variance: number[] }
-      | Record<string, { mean: number[]; variance: number[] }>;
+      | { mean: Array<number>; variance: Array<number> }
+      | Record<string, { mean: Array<number>; variance: Array<number> }>;
   };
 }
 
 /** Manifest of test fixtures in the fixture directory. */
 export interface Manifest {
-  fixtures: { name: string; file: string; description: string }[];
+  fixtures: Array<{ name: string; file: string; description: string }>;
 }
 
 /** Posterior mean and variance arrays from a GP prediction. */
@@ -293,16 +295,16 @@ export interface PredictionResult {
 
 /** Training data for one outcome, in raw parameter space with un-standardized Y. */
 export interface TrainingData {
-  X: number[][];
-  Y: number[];
-  paramNames: string[];
+  X: Array<Array<number>>;
+  Y: Array<number>;
+  paramNames: Array<string>;
 }
 
 /** Leave-one-out cross-validation result for one outcome. */
 export interface LOOCVResult {
-  observed: number[];   // Y values in original space
-  mean: number[];       // LOO predicted means in original space
-  variance: number[];   // LOO predicted variances in original space
+  observed: Array<number>; // Y values in original space
+  mean: Array<number>; // LOO predicted means in original space
+  variance: Array<number>; // LOO predicted variances in original space
 }
 
 /** GP internals needed for analytic Sobol' computation. */
@@ -310,7 +312,7 @@ export interface GPInternals {
   /** Posterior weights α = (K+σ²I)⁻¹(y - m). */
   alpha: Float64Array;
   /** Normalized + warped training inputs (data dims only for MultiTaskGP). */
-  trainXNorm: number[][];
+  trainXNorm: Array<Array<number>>;
   /** Constant mean function value. */
   meanConstant: number;
 }
@@ -325,11 +327,11 @@ export interface DimensionImportance {
 /** Sobol' sensitivity indices for variance decomposition of GP predictions. */
 export interface SensitivityIndices {
   /** First-order Sobol' index per dimension. */
-  firstOrder: number[];
+  firstOrder: Array<number>;
   /** Total-order Sobol' index per dimension. */
-  totalOrder: number[];
+  totalOrder: Array<number>;
   /** Parameter names corresponding to each index. */
-  paramNames: string[];
+  paramNames: Array<string>;
   /** Total number of function evaluations used. */
   numEvaluations: number;
 }

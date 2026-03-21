@@ -2129,7 +2129,7 @@
       "botorch_version": "0.17.2",
       "gpytorch_version": "1.15.2",
       "torch_version": "2.11.0.dev20260124",
-      "generated_at": "2026-03-17T03:19:17.951241+00:00",
+      "generated_at": "2026-03-20T21:21:02.284882+00:00",
       "seed": 79,
       "benchmark": "VSIP"
     },

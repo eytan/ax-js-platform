@@ -1,7 +1,6 @@
-import { loadModel } from "./io/deserialize.js";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { AnyModel } from "./io/deserialize.js";
-import { ModelListGP } from "./models/model_list.js";
-import { MultiTaskGP } from "./models/multi_task.js";
 import type {
   ExperimentState,
   SearchSpaceParam,
@@ -19,15 +18,20 @@ import type {
   KernelState,
   OutcomeTransformState,
 } from "./models/types.js";
+import type { EnsembleSubModelInfo } from "./sensitivity_analytic.js";
+import type { OutcomeUntransform } from "./transforms/outcome.js";
+
+import { loadModel } from "./io/deserialize.js";
+import { EnsembleGP } from "./models/ensemble_gp.js";
+import { ModelListGP } from "./models/model_list.js";
+import { MultiTaskGP } from "./models/multi_task.js";
+import { SingleTaskGP } from "./models/single_task.js";
 import { computeSobolIndices } from "./sensitivity.js";
 import {
   extractKernelComponents,
   computeAnalyticSobolIndices,
   computeEnsembleAnalyticSobol,
 } from "./sensitivity_analytic.js";
-import type { EnsembleSubModelInfo } from "./sensitivity_analytic.js";
-import { SingleTaskGP } from "./models/single_task.js";
-import { EnsembleGP } from "./models/ensemble_gp.js";
 import {
   LogUntransform,
   BilogUntransform,
@@ -35,7 +39,6 @@ import {
   PowerUntransform,
   ChainedOutcomeUntransform,
 } from "./transforms/outcome.js";
-import type { OutcomeUntransform } from "./transforms/outcome.js";
 
 /** Predictions keyed by outcome/metric name. */
 export type PredictionsByOutcome = Record<string, PredictionResult>;
@@ -51,28 +54,26 @@ export type PredictionsByOutcome = Record<string, PredictionResult>;
  */
 export class Predictor {
   /** Ordered metric/outcome names (matches sub-model order for ModelListGP). */
-  readonly outcomeNames: string[];
+  readonly outcomeNames: Array<string>;
   /** Ordered parameter names from the search space definition. */
-  readonly paramNames: string[];
+  readonly paramNames: Array<string>;
   /** Per-parameter [lower, upper] bounds from the search space. */
-  readonly paramBounds: [number, number][];
+  readonly paramBounds: Array<[number, number]>;
   /** Full parameter specifications including type, log_scale, etc. */
-  readonly paramSpecs: SearchSpaceParam[];
+  readonly paramSpecs: Array<SearchSpaceParam>;
   /** Status quo baseline point for relativization, or null if not defined. */
-  readonly statusQuoPoint: number[] | null;
-  private model: AnyModel;
-  private _state: ExperimentState;
-  private adapterUntransforms: Map<string, OutcomeUntransform> | null;
-  private sensitivityCache: Map<string, SensitivityIndices> = new Map();
+  readonly statusQuoPoint: Array<number> | null;
+  private readonly model: AnyModel;
+  private readonly _state: ExperimentState;
+  private readonly adapterUntransforms: Map<string, OutcomeUntransform> | null;
+  private readonly sensitivityCache: Map<string, SensitivityIndices> = new Map();
 
   constructor(exported: ExperimentState) {
     this._state = exported;
     this.model = loadModel(exported.model_state);
     this.paramSpecs = exported.search_space.parameters;
     this.paramNames = exported.search_space.parameters.map((p) => p.name);
-    this.paramBounds = exported.search_space.parameters.map(
-      (p) => (p.bounds || [0, 1]) as [number, number],
-    );
+    this.paramBounds = exported.search_space.parameters.map((p) => p.bounds || [0, 1]);
     this.statusQuoPoint = exported.status_quo?.point ?? null;
     if (exported.outcome_names) {
       this.outcomeNames = exported.outcome_names;
@@ -89,7 +90,7 @@ export class Predictor {
   }
 
   /** Observed trial data, if included in the ExperimentState. */
-  get observations(): Observation[] | undefined {
+  get observations(): Array<Observation> | undefined {
     return this._state.observations;
   }
 
@@ -107,12 +108,8 @@ export class Predictor {
    * console.log(`mean=${mean[0]}, std=${Math.sqrt(variance[0])}`);
    * ```
    */
-  predict(points: number[][]): PredictionsByOutcome {
-    if (
-      !Array.isArray(points) ||
-      points.length === 0 ||
-      !Array.isArray(points[0])
-    ) {
+  predict(points: Array<Array<number>>): PredictionsByOutcome {
+    if (!Array.isArray(points) || points.length === 0 || !Array.isArray(points[0])) {
       throw new Error(
         "predict() expects number[][] — an array of positional numeric arrays " +
           `matching search_space parameter order (${this.paramNames.join(", ")}). ` +
@@ -123,10 +120,7 @@ export class Predictor {
       const results = this.model.predict(points);
       const out: PredictionsByOutcome = {};
       for (let k = 0; k < results.length; k++) {
-        out[this.outcomeNames[k]] = this.applyAdapterUntransform(
-          this.outcomeNames[k],
-          results[k],
-        );
+        out[this.outcomeNames[k]] = this.applyAdapterUntransform(this.outcomeNames[k], results[k]);
       }
       return out;
     }
@@ -139,14 +133,9 @@ export class Predictor {
       }
       return out;
     }
-    const result = (
-      this.model as Exclude<AnyModel, ModelListGP | MultiTaskGP>
-    ).predict(points);
+    const result = this.model.predict(points);
     return {
-      [this.outcomeNames[0]]: this.applyAdapterUntransform(
-        this.outcomeNames[0],
-        result,
-      ),
+      [this.outcomeNames[0]]: this.applyAdapterUntransform(this.outcomeNames[0], result),
     };
   }
 
@@ -159,26 +148,31 @@ export class Predictor {
    * Returns `undefined` if no status quo is defined or the model does not
    * support `predictCovarianceWith`.
    */
-  getCovariances(
-    outcomeName: string,
-    points: number[][],
-  ): Float64Array | undefined {
-    if (!this.statusQuoPoint) return undefined;
+  getCovariances(outcomeName: string, points: Array<Array<number>>): Float64Array | undefined {
+    if (!this.statusQuoPoint) {
+      return undefined;
+    }
     const sqPoint = this.statusQuoPoint;
 
     if (this.model instanceof ModelListGP) {
       const idx = this.outcomeNames.indexOf(outcomeName);
-      if (idx < 0) return undefined;
+      if (idx === -1) {
+        return undefined;
+      }
       const covs = this.model.predictCovarianceWith(points, sqPoint);
       return covs[idx];
     }
     if (this.model instanceof MultiTaskGP) {
       const taskIdx = this.outcomeNames.indexOf(outcomeName);
-      if (taskIdx < 0) return undefined;
+      if (taskIdx === -1) {
+        return undefined;
+      }
       return this.model.predictCovarianceWith(points, taskIdx, sqPoint);
     }
     // SingleTaskGP, PairwiseGP, EnsembleGP
-    const m = this.model as { predictCovarianceWith?: (a: number[][], b: number[]) => Float64Array };
+    const m = this.model as {
+      predictCovarianceWith?: (a: Array<Array<number>>, b: Array<number>) => Float64Array;
+    };
     if (typeof m.predictCovarianceWith === "function") {
       return m.predictCovarianceWith(points, sqPoint);
     }
@@ -232,12 +226,14 @@ export class Predictor {
     let looPred: PredictionResult;
     if (this.model instanceof ModelListGP) {
       const idx = this.outcomeNames.indexOf(name);
-      if (idx < 0) throw new Error(`Unknown outcome: ${name}`);
+      if (idx === -1) {
+        throw new Error(`Unknown outcome: ${name}`);
+      }
       looPred = this.model.loocvPredictions()[idx];
     } else if (this.model instanceof SingleTaskGP) {
       looPred = this.model.loocvPredictions();
     } else {
-      throw new Error(
+      throw new TypeError(
         `loocv() is only supported for SingleTaskGP and ModelListGP, got ${this._state.model_state.model_type}`,
       );
     }
@@ -261,7 +257,7 @@ export class Predictor {
    * // ls = [0.3, 1.2, 0.05] — one per input dimension
    * ```
    */
-  getLengthscales(outcomeName?: string): number[] | null {
+  getLengthscales(outcomeName?: string): Array<number> | null {
     const name = outcomeName ?? this.outcomeNames[0];
     const ms = this._state.model_state;
     const sub = getSubModel(ms, this.outcomeNames, name);
@@ -278,10 +274,12 @@ export class Predictor {
    * // dims[0] = { dimIndex: 2, paramName: "lr", lengthscale: 0.05 }
    * ```
    */
-  rankDimensionsByImportance(outcomeName?: string): DimensionImportance[] {
+  rankDimensionsByImportance(outcomeName?: string): Array<DimensionImportance> {
     const ls = this.getLengthscales(outcomeName);
-    if (!ls) return [];
-    const dims: DimensionImportance[] = ls.map((l, i) => ({
+    if (!ls) {
+      return [];
+    }
+    const dims: Array<DimensionImportance> = ls.map((l, i) => ({
       dimIndex: i,
       paramName: this.paramNames[i] ?? `x${i}`,
       lengthscale: l,
@@ -302,11 +300,7 @@ export class Predictor {
    * // corr ≈ 0.87 — high correlation, differ only in dim 2
    * ```
    */
-  kernelCorrelation(
-    point: number[],
-    refPoint: number[],
-    outcomeName?: string,
-  ): number {
+  kernelCorrelation(point: Array<number>, refPoint: Array<number>, outcomeName?: string): number {
     const name = outcomeName ?? this.outcomeNames[0];
     const ms = this._state.model_state;
     const sub = getSubModel(ms, this.outcomeNames, name);
@@ -321,7 +315,9 @@ export class Predictor {
     let d2 = 0;
     for (let j = 0; j < point.length; j++) {
       if (params[j] && params[j].type === "choice") {
-        if (point[j] !== refPoint[j]) d2 += 4.0;
+        if (point[j] !== refPoint[j]) {
+          d2 += 4;
+        }
         continue;
       }
       const offset = inputTf?.offset?.[j] ?? 0;
@@ -370,7 +366,9 @@ export class Predictor {
     const cacheKey = `${name}:${numSamples}:${seed}`;
 
     const cached = this.sensitivityCache.get(cacheKey);
-    if (cached) return cached;
+    if (cached) {
+      return cached;
+    }
 
     // Try analytic computation (exact, no MC noise)
     const analyticResult = this.tryAnalyticSobol(name);
@@ -381,7 +379,7 @@ export class Predictor {
     }
 
     // Fall back to MC (Saltelli's estimator)
-    const predictFn = (points: number[][]): Float64Array => {
+    const predictFn = (points: Array<Array<number>>): Float64Array => {
       const preds = this.predict(points);
       return preds[name].mean;
     };
@@ -402,10 +400,14 @@ export class Predictor {
     const ms = this._state.model_state;
 
     // PairwiseGP: Laplace posterior, not standard GP form
-    if (ms.model_type === "PairwiseGP") return null;
+    if (ms.model_type === "PairwiseGP") {
+      return null;
+    }
 
     // Check for nonlinear adapter transforms that would change Sobol indices
-    if (this.hasNonlinearAdapterTransforms(outcomeName)) return null;
+    if (this.hasNonlinearAdapterTransforms(outcomeName)) {
+      return null;
+    }
 
     if (ms.model_type === "EnsembleGP") {
       return this.tryAnalyticSobolEnsemble(ms);
@@ -425,24 +427,28 @@ export class Predictor {
     outcomeName: string,
   ): SensitivityIndices | null {
     // Check for nonlinear model-level outcome transforms
-    if (hasNonlinearOutcomeTransform(sub.outcome_transform)) return null;
+    if (hasNonlinearOutcomeTransform(sub.outcome_transform)) {
+      return null;
+    }
 
     // Analytic integrals assume trainXNorm is in [0,1]. Without input_transform,
     // trainXNorm is in raw parameter space → integrals silently produce zeros.
-    if (!sub.input_transform) return null;
+    if (!sub.input_transform) {
+      return null;
+    }
 
-    const components = extractKernelComponents(
-      sub.kernel,
-      this.paramSpecs,
-      sub.input_warp,
-    );
-    if (!components) return null;
+    const components = extractKernelComponents(sub.kernel, this.paramSpecs, sub.input_warp);
+    if (!components) {
+      return null;
+    }
 
     // Get model internals (alpha, trainXNorm)
     let internals;
     if (this.model instanceof ModelListGP) {
       const idx = this.outcomeNames.indexOf(outcomeName);
-      if (idx < 0) return null;
+      if (idx === -1) {
+        return null;
+      }
       internals = this.model.getInternals(idx);
     } else if (this.model instanceof SingleTaskGP) {
       internals = this.model.getInternals();
@@ -463,22 +469,28 @@ export class Predictor {
     outcomeName: string,
     ms: MultiTaskGPModelState,
   ): SensitivityIndices | null {
-    if (hasNonlinearOutcomeTransform(ms.outcome_transform)) return null;
+    if (hasNonlinearOutcomeTransform(ms.outcome_transform)) {
+      return null;
+    }
 
     // Analytic integrals assume trainXNorm is in [0,1]. Without input_transform,
     // trainXNorm is in raw parameter space → integrals silently produce zeros.
-    if (!ms.input_transform) return null;
+    if (!ms.input_transform) {
+      return null;
+    }
 
-    const components = extractKernelComponents(
-      ms.data_kernel,
-      this.paramSpecs,
-      ms.input_warp,
-    );
-    if (!components) return null;
+    const components = extractKernelComponents(ms.data_kernel, this.paramSpecs, ms.input_warp);
+    if (!components) {
+      return null;
+    }
 
-    if (!(this.model instanceof MultiTaskGP)) return null;
+    if (!(this.model instanceof MultiTaskGP)) {
+      return null;
+    }
     const taskIdx = this.outcomeNames.indexOf(outcomeName);
-    if (taskIdx < 0) return null;
+    if (taskIdx === -1) {
+      return null;
+    }
 
     const internals = this.model.getInternals(taskIdx);
 
@@ -491,23 +503,31 @@ export class Predictor {
     );
   }
 
-  private tryAnalyticSobolEnsemble(
-    ms: EnsembleGPModelState,
-  ): SensitivityIndices | null {
-    if (!(this.model instanceof EnsembleGP)) return null;
+  private tryAnalyticSobolEnsemble(ms: EnsembleGPModelState): SensitivityIndices | null {
+    if (!(this.model instanceof EnsembleGP)) {
+      return null;
+    }
 
     // All sub-models must have RBF or Matérn kernels and linear transforms
-    const subModels: EnsembleSubModelInfo[] = [];
+    const subModels: Array<EnsembleSubModelInfo> = [];
     for (let mi = 0; mi < ms.models.length; mi++) {
       const sub = ms.models[mi];
-      if (hasNonlinearOutcomeTransform(sub.outcome_transform)) return null;
-      if (!sub.input_transform) return null;
+      if (hasNonlinearOutcomeTransform(sub.outcome_transform)) {
+        return null;
+      }
+      if (!sub.input_transform) {
+        return null;
+      }
 
       // Extract lengthscales and outputscale from kernel
       const ls = findLengthscales(sub.kernel);
-      if (!ls) return null;
+      if (!ls) {
+        return null;
+      }
       const kernelInfo = extractKernelOutputscale(sub.kernel);
-      if (!kernelInfo || (kernelInfo.baseType !== "RBF" && kernelInfo.baseType !== "Matern")) return null;
+      if (!kernelInfo || (kernelInfo.baseType !== "RBF" && kernelInfo.baseType !== "Matern")) {
+        return null;
+      }
 
       // Extract nu for Matérn kernels
       const nu = findMaternNu(sub.kernel);
@@ -521,7 +541,7 @@ export class Predictor {
         lengthscales: ls,
         outputscale: kernelInfo.outputscale,
         warpParams: sub.input_warp,
-        kernelType: kernelInfo.baseType as "RBF" | "Matern",
+        kernelType: kernelInfo.baseType,
         nu: nu as 0.5 | 1.5 | 2.5 | undefined,
       });
     }
@@ -532,13 +552,18 @@ export class Predictor {
   /** Check if there are nonlinear adapter transforms for this outcome. */
   private hasNonlinearAdapterTransforms(outcomeName: string): boolean {
     const transforms = this._state.adapter_transforms;
-    if (!transforms) return false;
+    if (!transforms) {
+      return false;
+    }
     for (const tf of transforms) {
-      if (tf.type === "StandardizeY") continue; // linear → OK
+      if (tf.type === "StandardizeY") {
+        continue;
+      } // linear → OK
       // LogY, BilogY, PowerTransformY are nonlinear
-      const metrics =
-        "metrics" in tf && tf.metrics ? tf.metrics : this.outcomeNames;
-      if (metrics.includes(outcomeName)) return true;
+      const metrics = "metrics" in tf && tf.metrics ? tf.metrics : this.outcomeNames;
+      if (metrics.includes(outcomeName)) {
+        return true;
+      }
     }
     return false;
   }
@@ -556,9 +581,9 @@ export class Predictor {
    */
   private untransformTrainY(
     outcomeName: string,
-    trainY: number[],
+    trainY: Array<number>,
     subModel: { outcome_transform?: OutcomeTransformState; [k: string]: any },
-  ): number[] {
+  ): Array<number> {
     // Layer 2 (innermost): undo model-level outcome transform
     const outTf = (subModel as GPModelState).outcome_transform;
     let Y = unstandardizeY(trainY, outTf);
@@ -570,13 +595,14 @@ export class Predictor {
     return Y;
   }
 
-  private applyAdapterUntransform(
-    outcomeName: string,
-    result: PredictionResult,
-  ): PredictionResult {
-    if (!this.adapterUntransforms) return result;
+  private applyAdapterUntransform(outcomeName: string, result: PredictionResult): PredictionResult {
+    if (!this.adapterUntransforms) {
+      return result;
+    }
     const untransform = this.adapterUntransforms.get(outcomeName);
-    if (!untransform) return result;
+    if (!untransform) {
+      return result;
+    }
 
     const n = result.mean.length;
     const mean = new Float64Array(n);
@@ -599,45 +625,55 @@ export class Predictor {
  * ChainedOutcomeUntransform that applies them in the correct reverse order.
  */
 function buildAdapterUntransforms(
-  transforms: AdapterTransform[] | undefined,
-  outcomeNames: string[],
+  transforms: Array<AdapterTransform> | undefined,
+  outcomeNames: Array<string>,
 ): Map<string, OutcomeUntransform> | null {
-  if (!transforms || transforms.length === 0) return null;
+  if (!transforms || transforms.length === 0) {
+    return null;
+  }
 
   // Collect transforms per metric in forward order
-  const perMetric = new Map<string, OutcomeUntransform[]>();
+  const perMetric = new Map<string, Array<OutcomeUntransform>>();
 
   for (const tf of transforms) {
     // Determine which metrics this transform applies to
-    const metrics =
-      "metrics" in tf && tf.metrics ? tf.metrics : outcomeNames;
+    const metrics = "metrics" in tf && tf.metrics ? tf.metrics : outcomeNames;
 
     switch (tf.type) {
-      case "LogY":
+      case "LogY": {
         for (const metric of metrics) {
-          if (!perMetric.has(metric)) perMetric.set(metric, []);
+          if (!perMetric.has(metric)) {
+            perMetric.set(metric, []);
+          }
           perMetric.get(metric)!.push(new LogUntransform());
         }
         break;
-      case "BilogY":
+      }
+      case "BilogY": {
         for (const metric of metrics) {
-          if (!perMetric.has(metric)) perMetric.set(metric, []);
+          if (!perMetric.has(metric)) {
+            perMetric.set(metric, []);
+          }
           perMetric.get(metric)!.push(new BilogUntransform());
         }
         break;
-      case "StandardizeY":
+      }
+      case "StandardizeY": {
         if (tf.Ymean && tf.Ystd) {
           for (const metric of metrics) {
             if (metric in tf.Ymean && metric in tf.Ystd) {
-              if (!perMetric.has(metric)) perMetric.set(metric, []);
-              perMetric.get(metric)!.push(
-                new StandardizeUntransform(tf.Ymean[metric], tf.Ystd[metric]),
-              );
+              if (!perMetric.has(metric)) {
+                perMetric.set(metric, []);
+              }
+              perMetric
+                .get(metric)!
+                .push(new StandardizeUntransform(tf.Ymean[metric], tf.Ystd[metric]));
             }
           }
         }
         break;
-      case "PowerTransformY":
+      }
+      case "PowerTransformY": {
         if (tf.power_params) {
           for (const metric of metrics) {
             if (metric in tf.power_params) {
@@ -645,13 +681,11 @@ function buildAdapterUntransforms(
               // Support both old format ({metric: [lambdas]}) and new
               // ({metric: {lambdas, scaler_mean, scaler_scale}})
               const lambdas = Array.isArray(entry) ? entry : entry.lambdas;
-              const scalerMean = Array.isArray(entry)
-                ? undefined
-                : entry.scaler_mean?.[0];
-              const scalerScale = Array.isArray(entry)
-                ? undefined
-                : entry.scaler_scale?.[0];
-              if (!perMetric.has(metric)) perMetric.set(metric, []);
+              const scalerMean = Array.isArray(entry) ? undefined : entry.scaler_mean?.[0];
+              const scalerScale = Array.isArray(entry) ? undefined : entry.scaler_scale?.[0];
+              if (!perMetric.has(metric)) {
+                perMetric.set(metric, []);
+              }
               perMetric
                 .get(metric)!
                 .push(new PowerUntransform(lambdas[0], scalerMean, scalerScale));
@@ -659,10 +693,13 @@ function buildAdapterUntransforms(
           }
         }
         break;
+      }
     }
   }
 
-  if (perMetric.size === 0) return null;
+  if (perMetric.size === 0) {
+    return null;
+  }
 
   // Build final map: single transform or chained
   const map = new Map<string, OutcomeUntransform>();
@@ -683,15 +720,18 @@ function buildAdapterUntransforms(
 /** Get the sub-model state for a specific outcome. */
 function getSubModel(
   ms: AnyModelState,
-  outcomeNames: string[],
+  outcomeNames: Array<string>,
   outcomeName: string,
-): { train_X?: number[][]; train_Y?: number[]; kernel?: KernelState; [k: string]: any } {
+): {
+  train_X?: Array<Array<number>>;
+  train_Y?: Array<number>;
+  kernel?: KernelState;
+  [k: string]: any;
+} {
   if (ms.model_type === "ModelListGP") {
     const idx = outcomeNames.indexOf(outcomeName);
-    if (idx < 0) {
-      throw new Error(
-        `Unknown outcome "${outcomeName}". Available: ${outcomeNames.join(", ")}`,
-      );
+    if (idx === -1) {
+      throw new Error(`Unknown outcome "${outcomeName}". Available: ${outcomeNames.join(", ")}`);
     }
     return ms.models[idx];
   }
@@ -699,14 +739,22 @@ function getSubModel(
 }
 
 /** Recursively find lengthscale array in a kernel tree. */
-function findLengthscales(k: KernelState | undefined): number[] | null {
-  if (!k) return null;
-  if (k.lengthscale) return k.lengthscale;
-  if (k.base_kernel) return findLengthscales(k.base_kernel);
+function findLengthscales(k: KernelState | undefined): Array<number> | null {
+  if (!k) {
+    return null;
+  }
+  if (k.lengthscale) {
+    return k.lengthscale;
+  }
+  if (k.base_kernel) {
+    return findLengthscales(k.base_kernel);
+  }
   if (k.kernels) {
     for (const sub of k.kernels) {
       const r = findLengthscales(sub);
-      if (r) return r;
+      if (r) {
+        return r;
+      }
     }
   }
   return null;
@@ -714,26 +762,35 @@ function findLengthscales(k: KernelState | undefined): number[] | null {
 
 /** Recursively find Matérn nu parameter in a kernel tree. */
 function findMaternNu(k: KernelState | undefined): number | undefined {
-  if (!k) return undefined;
-  if (k.type === "Matern" && k.nu !== undefined) return k.nu;
-  if (k.base_kernel) return findMaternNu(k.base_kernel);
+  if (!k) {
+    return undefined;
+  }
+  if (k.type === "Matern" && k.nu !== undefined) {
+    return k.nu;
+  }
+  if (k.base_kernel) {
+    return findMaternNu(k.base_kernel);
+  }
   if (k.kernels) {
     for (const sub of k.kernels) {
       const r = findMaternNu(sub);
-      if (r !== undefined) return r;
+      if (r !== undefined) {
+        return r;
+      }
     }
   }
   return undefined;
 }
 
 /** Check if an outcome transform is nonlinear (Log, Bilog, Power). */
-function hasNonlinearOutcomeTransform(
-  tf: OutcomeTransformState | undefined,
-): boolean {
-  if (!tf) return false;
+function hasNonlinearOutcomeTransform(tf: OutcomeTransformState | undefined): boolean {
+  if (!tf) {
+    return false;
+  }
   if ("type" in tf) {
-    if (tf.type === "Log" || tf.type === "Bilog" || tf.type === "Power")
+    if (tf.type === "Log" || tf.type === "Bilog" || tf.type === "Power") {
       return true;
+    }
     if (tf.type === "Chained") {
       return tf.transforms.some(hasNonlinearOutcomeTransform);
     }
@@ -755,10 +812,12 @@ function extractKernelOutputscale(
 
 /** Un-standardize Y values using the outcome transform mean/std. */
 function unstandardizeY(
-  trainY: number[],
+  trainY: Array<number>,
   outTf: OutcomeTransformState | undefined,
-): number[] {
-  if (!outTf) return trainY.slice();
+): Array<number> {
+  if (!outTf) {
+    return trainY.slice();
+  }
   // Only un-standardize if it's a Standardize transform (has mean/std)
   if ("mean" in outTf && outTf.mean !== undefined && "std" in outTf) {
     return trainY.map((y) => outTf.mean + outTf.std * y);
@@ -766,29 +825,22 @@ function unstandardizeY(
   return trainY.slice();
 }
 
-/* global console */
-declare const console: { warn(...args: unknown[]): void };
-
 /**
  * Validate model state consistency. Emits console.warn for common errors
  * that silently produce wrong predictions.
  */
-function validateModelState(state: AnyModelState, numParams: number): void {
-  const models: GPModelState[] = [];
+function validateModelState(state: AnyModelState, _numParams: number): void {
+  const models: Array<GPModelState> = [];
   if (state.model_type === "ModelListGP" && "models" in state) {
     models.push(...state.models);
-  } else if (
-    state.model_type === "SingleTaskGP" ||
-    state.model_type === "FixedNoiseGP"
-  ) {
-    models.push(state as GPModelState);
+  } else if (state.model_type === "SingleTaskGP" || state.model_type === "FixedNoiseGP") {
+    models.push(state);
   }
   // EnsembleGP, PairwiseGP, MultiTaskGP: skip detailed validation for now
 
   for (let idx = 0; idx < models.length; idx++) {
     const m = models[idx];
-    const prefix =
-      models.length > 1 ? `[ax-js] model ${idx}: ` : "[ax-js] ";
+    const prefix = models.length > 1 ? `[ax-js] model ${idx}: ` : "[ax-js] ";
 
     // Check input_transform dimensions
     if (m.input_transform) {
@@ -802,8 +854,7 @@ function validateModelState(state: AnyModelState, numParams: number): void {
 
     // Check train_Y standardization when Standardize is active
     if (m.outcome_transform && "mean" in m.outcome_transform && m.train_Y.length > 1) {
-      const yMean =
-        m.train_Y.reduce((a, b) => a + b, 0) / m.train_Y.length;
+      const yMean = m.train_Y.reduce((a, b) => a + b, 0) / m.train_Y.length;
       if (Math.abs(yMean) > 5) {
         console.warn(
           `${prefix}train_Y mean is ${yMean.toFixed(2)} but outcome_transform is Standardize — train_Y should be pre-standardized (near 0). Did you pass raw Y values?`,

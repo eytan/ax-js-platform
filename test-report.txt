@@ -1,13 +1,13 @@
 ax-js Test Report
 ============================================================
-Date: 2026-03-17
+Date: 2026-03-21
 
-Result: ALL PASSED (437/437 tests)
+Result: ALL PASSED (587/587 tests)
 
 ------------------------------------------------------------
 Category                         Tests  Status
 ------------------------------------------------------------
-BoTorch Parity                     121  121 passed
+BoTorch Parity                     139  139 passed
 Ax-Level Parity                     44  44 passed
 Relativization                      52  52 passed
 Cockpit Metadata                    10  10 passed
@@ -19,14 +19,15 @@ Models                               9  9 passed
 Transforms                          40  40 passed
 IO / Deserialization                 6  6 passed
 Acquisition Functions               43  43 passed
+Other                              132  132 passed
 ------------------------------------------------------------
-Total                              437  ALL PASSED
+Total                              587  ALL PASSED
 
 Detailed Breakdown
 ============================================================
 
 [BoTorch Parity]
-  121/121  BoTorch parity
+  139/139  BoTorch parity
 
 [Ax-Level Parity]
   44/44  Predictor ↔ Ax Adapter parity
@@ -118,6 +119,30 @@ Detailed Breakdown
   4/4  normalCdf
   1/1  logNormalPdf
   4/4  logNormalCdf
+
+[Other]
+  7/7  haltonSequence
+  12/12  computeSobolIndices
+  7/7  Predictor.computeSensitivity
+  4/4  erf
+  4/4  normalCdf
+  3/3  gaussLegendre01
+  4/4  RbfDimIntegrator
+  5/5  CategoricalDimIntegrator
+  3/3  QuadratureDimIntegrator
+  9/9  MaternDimIntegrator
+  7/7  extractKernelComponents
+  5/5  computeAnalyticSobolIndices
+  12/12  computeAnalyticSobolIndices with Matérn
+  5/5  analytic vs MC parity on fixtures
+  3/3  fallback to MC
+  1/1  MultiTaskGP analytic sensitivity
+  1/1  mixed kernel (Product(RBF, Categorical))
+  1/1  caching
+  3/3  rbfGeneralizedCross
+  5/5  computeEnsembleAnalyticSobol
+  30/30  kernelCorrelation invariants
+  1/1  kernelCorrelation with warp
 
 ------------------------------------------------------------
 Parity fixture details are printed to console during test run.

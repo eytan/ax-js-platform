@@ -1,4 +1,7 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import { describe, it, expect } from "vitest";
+
 import { Matrix } from "../../src/linalg/matrix.js";
 
 describe("Matrix", () => {

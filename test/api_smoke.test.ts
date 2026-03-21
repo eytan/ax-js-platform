@@ -1,35 +1,28 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 /**
  * Smoke test for the axjs public API surface.
  *
  * Verifies that public imports compile, Predictor works end-to-end on a real
  * fixture, and sub-exports (viz, acquisition) are accessible.
  */
+import type { ExperimentState } from "../src/index.js";
+
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "fs";
-import { join } from "path";
 
-// 1. Public API imports
+import { UpperConfidenceBound, LogExpectedImprovement } from "../src/acquisition/index.js";
 import { Predictor, loadModel, relativize } from "../src/index.js";
-import type { ExperimentState, PredictionResult } from "../src/index.js";
-
-// 10. Viz imports
-import {
-  viridis,
-  plasma,
-  isChoice,
-  normalizeFixture,
-} from "../src/viz/index.js";
+import { viridis, plasma, isChoice, normalizeFixture } from "../src/viz/index.js";
 
 // 11. Acquisition imports
-import {
-  UpperConfidenceBound,
-  LogExpectedImprovement,
-} from "../src/acquisition/index.js";
 
 // ── Load fixture ──────────────────────────────────────────────────────────
 
 const fixturePath = join(__dirname, "fixtures", "branin_matern25.json");
-const fixtureRaw = JSON.parse(readFileSync(fixturePath, "utf-8"));
+const fixtureRaw = JSON.parse(readFileSync(fixturePath, "utf8"));
 const experimentState: ExperimentState = fixtureRaw.experiment;
 
 describe("Public API imports", () => {
@@ -89,8 +82,8 @@ describe("Predictor.predict()", () => {
 
   it("variance values are positive", () => {
     const pred = result["y"];
-    for (let i = 0; i < pred.variance.length; i++) {
-      expect(pred.variance[i]).toBeGreaterThan(0);
+    for (const v of pred.variance) {
+      expect(v).toBeGreaterThan(0);
     }
   });
 });
@@ -141,8 +134,8 @@ describe("Predictor.loocv()", () => {
   });
 
   it("variance values are positive", () => {
-    for (let i = 0; i < cv.variance.length; i++) {
-      expect(cv.variance[i]).toBeGreaterThan(0);
+    for (const v of cv.variance) {
+      expect(v).toBeGreaterThan(0);
     }
   });
 });
@@ -153,8 +146,8 @@ describe("Predictor.rankDimensionsByImportance()", () => {
 
   it("returns sorted array with dimIndex and lengthscale", () => {
     expect(ranked).not.toBeNull();
-    expect(ranked!.length).toBeGreaterThan(0);
-    for (const entry of ranked!) {
+    expect(ranked.length).toBeGreaterThan(0);
+    for (const entry of ranked) {
       expect(typeof entry.dimIndex).toBe("number");
       expect(typeof entry.lengthscale).toBe("number");
       expect(entry.lengthscale).toBeGreaterThan(0);
@@ -165,10 +158,8 @@ describe("Predictor.rankDimensionsByImportance()", () => {
   it("sorted by ascending lengthscale (most important first)", () => {
     // rankDimensionsByImportance sorts by lengthscale ascending
     // (shorter lengthscale = more important)
-    for (let i = 1; i < ranked!.length; i++) {
-      expect(ranked![i].lengthscale).toBeGreaterThanOrEqual(
-        ranked![i - 1].lengthscale,
-      );
+    for (let i = 1; i < ranked.length; i++) {
+      expect(ranked[i].lengthscale).toBeGreaterThanOrEqual(ranked[i - 1].lengthscale);
     }
   });
 });

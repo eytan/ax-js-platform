@@ -1,9 +1,12 @@
-import { SingleTaskGP } from "./single_task.js";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { GPInternals, ModelListState, PredictionResult } from "./types.js";
 
+import { SingleTaskGP } from "./single_task.js";
+
 export class ModelListGP {
-  readonly outcomeNames: string[];
-  private models: SingleTaskGP[];
+  readonly outcomeNames: Array<string>;
+  private readonly models: Array<SingleTaskGP>;
 
   constructor(state: ModelListState) {
     this.outcomeNames = state.outcome_names;
@@ -15,16 +18,16 @@ export class ModelListGP {
     return this.models[index].getInternals();
   }
 
-  predict(testPoints: number[][]): PredictionResult[] {
+  predict(testPoints: Array<Array<number>>): Array<PredictionResult> {
     return this.models.map((m) => m.predict(testPoints));
   }
 
-  predictOutcome(index: number, testPoints: number[][]): PredictionResult {
+  predictOutcome(index: number, testPoints: Array<Array<number>>): PredictionResult {
     return this.models[index].predict(testPoints);
   }
 
   /** Analytic LOO-CV predictions per outcome. */
-  loocvPredictions(): PredictionResult[] {
+  loocvPredictions(): Array<PredictionResult> {
     return this.models.map((m) => m.loocvPredictions());
   }
 
@@ -33,11 +36,9 @@ export class ModelListGP {
    * Each sub-model is independent, so no cross-output covariance.
    */
   predictCovarianceWith(
-    testPoints: number[][],
-    refPoint: number[],
-  ): Float64Array[] {
-    return this.models.map((m) =>
-      m.predictCovarianceWith(testPoints, refPoint),
-    );
+    testPoints: Array<Array<number>>,
+    refPoint: Array<number>,
+  ): Array<Float64Array> {
+    return this.models.map((m) => m.predictCovarianceWith(testPoints, refPoint));
   }
 }

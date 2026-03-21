@@ -1,21 +1,35 @@
-import type { RenderPredictor, FeatureImportanceOptions } from "../types";
-import { svgEl } from "./_svg";
-import { createOutcomeSelector, createTooltipDiv, positionTooltip, removeTooltip, makeSelectEl } from "../widgets";
-import { injectScopedStyles } from "../styles";
-import { computeParamSigns } from "../params.js";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
 
-const CTRL_CSS = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
-const SEG_CSS = "display:inline-flex;border:1px solid #d0d0d0;border-radius:6px;overflow:hidden;font-size:11px";
-const SEG_BTN = "padding:3px 10px;cursor:pointer;border:none;outline:none;background:#fff;color:#555";
-const SEG_BTN_ACTIVE = "padding:3px 10px;cursor:pointer;border:none;outline:none;background:#4872f9;color:#fff";
+import type { RenderPredictor, FeatureImportanceOptions } from "../types";
+
+import { computeParamSigns } from "../params.js";
+import { injectScopedStyles } from "../styles";
+import {
+  createOutcomeSelector,
+  createTooltipDiv,
+  positionTooltip,
+  removeTooltip,
+  makeSelectEl,
+} from "../widgets";
+
+import { svgEl } from "./_svg";
+
+const CTRL_CSS =
+  "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
+const SEG_CSS =
+  "display:inline-flex;border:1px solid #d0d0d0;border-radius:6px;overflow:hidden;font-size:11px";
+const SEG_BTN =
+  "padding:3px 10px;cursor:pointer;border:none;outline:none;background:#fff;color:#555";
+const SEG_BTN_ACTIVE =
+  "padding:3px 10px;cursor:pointer;border:none;outline:none;background:#4872f9;color:#fff";
 
 // PiYG-derived sign colors for Sobol' importance bars.
 // Must match SIGN_COLORS in demo/demos/ax_cockpit.js.
 // Currently designed to echo the deltoid palette; may be revisited.
 const SOBOL_COLORS = {
-  pos: { first: "#7fbc41", interaction: "#b8e186" },   // green = positive effect
-  neg: { first: "#c51b7d", interaction: "#de77ae" },   // pink = negative effect
-  neutral: { first: "#4872f9", interaction: "#a8c4ff" },  // blue = categorical / no directional main effect
+  pos: { first: "#7fbc41", interaction: "#b8e186" }, // green = positive effect
+  neg: { first: "#c51b7d", interaction: "#de77ae" }, // pink = negative effect
+  neutral: { first: "#4872f9", interaction: "#a8c4ff" }, // blue = categorical / no directional main effect
 };
 
 /**
@@ -35,14 +49,21 @@ export function renderFeatureImportance(
 
   if (!interactive) {
     if (initialMode === "sobol" && predictor.computeSensitivity) {
-      renderSobolStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0], options?.sobolSamples);
+      renderSobolStatic(
+        container,
+        predictor,
+        options?.outcome ?? predictor.outcomeNames[0],
+        options?.sobolSamples,
+      );
     } else {
       renderLengthscaleStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0]);
     }
     return;
   }
 
-  if (!container.id) container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+  if (!container.id) {
+    container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+  }
   removeTooltip(container.id);
   container.innerHTML = "";
   injectScopedStyles(container);
@@ -54,8 +75,8 @@ export function renderFeatureImportance(
   const controlsDiv = document.createElement("div");
   controlsDiv.style.cssText = CTRL_CSS;
   const plotsDiv = document.createElement("div");
-  container.appendChild(controlsDiv);
-  container.appendChild(plotsDiv);
+  container.append(controlsDiv);
+  container.append(plotsDiv);
 
   if (predictor.outcomeNames.length > 1) {
     const { wrapper, select } = makeSelectEl("Outcome:");
@@ -63,7 +84,7 @@ export function renderFeatureImportance(
       selectedOutcome = name;
       redraw();
     });
-    controlsDiv.appendChild(wrapper);
+    controlsDiv.append(wrapper);
   }
 
   // Mode toggle (only if predictor supports Sobol')
@@ -75,20 +96,28 @@ export function renderFeatureImportance(
     const btnSobol = document.createElement("button");
     btnSobol.textContent = "Sobol\u2019";
 
-    function updateSegStyle() {
+    function updateSegStyle(): void {
       btnLs.style.cssText = mode === "lengthscale" ? SEG_BTN_ACTIVE : SEG_BTN;
       btnSobol.style.cssText = mode === "sobol" ? SEG_BTN_ACTIVE : SEG_BTN;
     }
     updateSegStyle();
 
-    btnLs.addEventListener("click", () => { mode = "lengthscale"; updateSegStyle(); redraw(); });
-    btnSobol.addEventListener("click", () => { mode = "sobol"; updateSegStyle(); redraw(); });
-    segDiv.appendChild(btnLs);
-    segDiv.appendChild(btnSobol);
-    controlsDiv.appendChild(segDiv);
+    btnLs.addEventListener("click", () => {
+      mode = "lengthscale";
+      updateSegStyle();
+      redraw();
+    });
+    btnSobol.addEventListener("click", () => {
+      mode = "sobol";
+      updateSegStyle();
+      redraw();
+    });
+    segDiv.append(btnLs);
+    segDiv.append(btnSobol);
+    controlsDiv.append(segDiv);
   }
 
-  function redraw() {
+  function redraw(): void {
     plotsDiv.innerHTML = "";
     if (mode === "sobol" && predictor.computeSensitivity) {
       renderSobolStatic(plotsDiv, predictor, selectedOutcome, sobolSamples, tooltip, container);
@@ -114,7 +143,16 @@ function renderLengthscaleStatic(
     return;
   }
 
-  const barColors = ["#4872f9", "#5478fa", "#6088fa", "#7098fb", "#85a8fb", "#9ab8fc", "#b0c8fc", "#c7d4fd"];
+  const barColors = [
+    "#4872f9",
+    "#5478fa",
+    "#6088fa",
+    "#7098fb",
+    "#85a8fb",
+    "#9ab8fc",
+    "#b0c8fc",
+    "#c7d4fd",
+  ];
   const importances = ranked.map((d) => 1 / d.lengthscale);
   const maxImp = Math.max(...importances);
 
@@ -133,27 +171,49 @@ function renderLengthscaleStatic(
     const pct = importances[i] / maxImp;
     const barW = Math.max(2, pct * trackW);
 
-    svg.appendChild(
-      Object.assign(svgEl("text", {
-        x: labelW - 8, y: y + barH / 2 + 4,
-        fill: "#333", "font-size": 13, "text-anchor": "end",
-      }), { textContent: dim.paramName }),
+    svg.append(
+      Object.assign(
+        svgEl("text", {
+          x: labelW - 8,
+          y: y + barH / 2 + 4,
+          fill: "#333",
+          "font-size": 13,
+          "text-anchor": "end",
+        }),
+        { textContent: dim.paramName },
+      ),
     );
 
-    svg.appendChild(svgEl("rect", {
-      x: labelW, y, width: trackW, height: barH,
-      rx: 4, fill: "#f0f0f0",
-    }));
+    svg.append(
+      svgEl("rect", {
+        x: labelW,
+        y,
+        width: trackW,
+        height: barH,
+        rx: 4,
+        fill: "#f0f0f0",
+      }),
+    );
 
-    svg.appendChild(svgEl("rect", {
-      x: labelW, y, width: barW, height: barH,
-      rx: 4, fill: barColors[dim.dimIndex % barColors.length],
-    }));
+    svg.append(
+      svgEl("rect", {
+        x: labelW,
+        y,
+        width: barW,
+        height: barH,
+        rx: 4,
+        fill: barColors[dim.dimIndex % barColors.length],
+      }),
+    );
 
     if (tooltip) {
       const hoverRect = svgEl("rect", {
-        x: labelW, y, width: trackW, height: barH,
-        fill: "transparent", cursor: "pointer",
+        x: labelW,
+        y,
+        width: trackW,
+        height: barH,
+        fill: "transparent",
+        cursor: "pointer",
       });
       hoverRect.addEventListener("mouseenter", (e: MouseEvent) => {
         tooltip.innerHTML = `<b>${dim.paramName}</b><br>Lengthscale: ${dim.lengthscale.toFixed(4)}<br>Importance: ${(pct * 100).toFixed(1)}%`;
@@ -166,24 +226,30 @@ function renderLengthscaleStatic(
       hoverRect.addEventListener("mouseleave", () => {
         tooltip.style.display = "none";
       });
-      svg.appendChild(hoverRect);
+      svg.append(hoverRect);
     }
 
-    svg.appendChild(
-      Object.assign(svgEl("text", {
-        x: labelW + trackW + 4, y: y + barH / 2 + 4,
-        fill: "#666", "font-size": 11, "text-anchor": "start",
-        "pointer-events": "none",
-      }), { textContent: `ls=${dim.lengthscale.toFixed(3)}` }),
+    svg.append(
+      Object.assign(
+        svgEl("text", {
+          x: labelW + trackW + 4,
+          y: y + barH / 2 + 4,
+          fill: "#666",
+          "font-size": 11,
+          "text-anchor": "start",
+          "pointer-events": "none",
+        }),
+        { textContent: `ls=${dim.lengthscale.toFixed(3)}` },
+      ),
     );
   });
 
-  target.appendChild(svg);
+  target.append(svg);
 }
 
 // ── Sobol' stacked bars ─────────────────────────────────────────────────
 
-function signColors(sign: number) {
+function signColors(sign: number): { first: string; interaction: string } {
   return sign >= 0 ? SOBOL_COLORS.pos : SOBOL_COLORS.neg;
 }
 
@@ -200,7 +266,10 @@ function renderSobolStatic(
     return;
   }
 
-  const sens = predictor.computeSensitivity(outcome, sobolSamples ? { numSamples: sobolSamples } : undefined);
+  const sens = predictor.computeSensitivity(
+    outcome,
+    sobolSamples ? { numSamples: sobolSamples } : undefined,
+  );
   if (!sens || sens.totalOrder.length === 0) {
     target.textContent = "No sensitivity data";
     return;
@@ -237,12 +306,18 @@ function renderSobolStatic(
   const defs = svgEl("defs", {});
   dims.forEach((_, i) => {
     const clipPath = svgEl("clipPath", { id: `sobol-clip-${i}` });
-    clipPath.appendChild(svgEl("rect", {
-      x: labelW, y: i * (barH + rowGap) + 4, width: trackW, height: barH, rx: 4,
-    }));
-    defs.appendChild(clipPath);
+    clipPath.append(
+      svgEl("rect", {
+        x: labelW,
+        y: i * (barH + rowGap) + 4,
+        width: trackW,
+        height: barH,
+        rx: 4,
+      }),
+    );
+    defs.append(clipPath);
   });
-  svg.appendChild(defs);
+  svg.append(defs);
 
   dims.forEach((dim, i) => {
     const y = i * (barH + rowGap) + 4;
@@ -251,38 +326,66 @@ function renderSobolStatic(
     const cols = signColors(dim.sign);
 
     // Label
-    svg.appendChild(
-      Object.assign(svgEl("text", {
-        x: labelW - 8, y: y + barH / 2 + 4,
-        fill: "#333", "font-size": 13, "text-anchor": "end",
-      }), { textContent: dim.name }),
+    svg.append(
+      Object.assign(
+        svgEl("text", {
+          x: labelW - 8,
+          y: y + barH / 2 + 4,
+          fill: "#333",
+          "font-size": 13,
+          "text-anchor": "end",
+        }),
+        { textContent: dim.name },
+      ),
     );
 
     // Track background
-    svg.appendChild(svgEl("rect", {
-      x: labelW, y, width: trackW, height: barH,
-      rx: 4, fill: "#f0f0f0",
-    }));
+    svg.append(
+      svgEl("rect", {
+        x: labelW,
+        y,
+        width: trackW,
+        height: barH,
+        rx: 4,
+        fill: "#f0f0f0",
+      }),
+    );
 
     // Clipped group for stacked bars — consistent rounded corners
     const g = svgEl("g", { "clip-path": `url(#sobol-clip-${i})` });
     if (firstW > 0) {
-      g.appendChild(svgEl("rect", {
-        x: labelW, y, width: firstW, height: barH, fill: cols.first,
-      }));
+      g.append(
+        svgEl("rect", {
+          x: labelW,
+          y,
+          width: firstW,
+          height: barH,
+          fill: cols.first,
+        }),
+      );
     }
     if (interW > 0) {
-      g.appendChild(svgEl("rect", {
-        x: labelW + firstW, y, width: interW, height: barH, fill: cols.interaction,
-      }));
+      g.append(
+        svgEl("rect", {
+          x: labelW + firstW,
+          y,
+          width: interW,
+          height: barH,
+          fill: cols.interaction,
+        }),
+      );
     }
-    svg.appendChild(g);
+    svg.append(g);
 
     // Tooltip on bar hover
     if (tooltip) {
       const hoverRect = svgEl("rect", {
-        x: labelW, y, width: trackW, height: barH,
-        fill: "transparent", cursor: "pointer",
+        x: labelW,
+        y,
+        width: trackW,
+        height: barH,
+        fill: "transparent",
+        cursor: "pointer",
       });
       hoverRect.addEventListener("mouseenter", (e: MouseEvent) => {
         tooltip.innerHTML =
@@ -298,10 +401,9 @@ function renderSobolStatic(
       hoverRect.addEventListener("mouseleave", () => {
         tooltip.style.display = "none";
       });
-      svg.appendChild(hoverRect);
+      svg.append(hoverRect);
     }
-
   });
 
-  target.appendChild(svg);
+  target.append(svg);
 }

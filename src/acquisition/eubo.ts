@@ -1,4 +1,7 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { GPModel, AcquisitionFunction } from "./types.js";
+
 import { posteriorCovariance, posteriorMean } from "./posterior.js";
 import { sampleMVN, Rng } from "./sample_mvn.js";
 
@@ -25,7 +28,7 @@ import { sampleMVN, Rng } from "./sample_mvn.js";
  * where the user's choice is most informative.
  */
 export class EUBO implements AcquisitionFunction {
-  private rng: Rng;
+  private readonly rng: Rng;
 
   /**
    * @param model     - PairwiseGP (or any GPModel modeling latent utility)
@@ -33,8 +36,8 @@ export class EUBO implements AcquisitionFunction {
    * @param seed      - RNG seed for reproducibility
    */
   constructor(
-    private model: GPModel,
-    private nSamples: number = 256,
+    private readonly model: GPModel,
+    private readonly nSamples: number = 256,
     seed: number = 42,
   ) {
     this.rng = new Rng(seed);
@@ -49,7 +52,7 @@ export class EUBO implements AcquisitionFunction {
    *
    * For per-candidate marginal contributions, see evaluateMarginal().
    */
-  evaluate(candidates: number[][]): Float64Array {
+  evaluate(candidates: Array<Array<number>>): Float64Array {
     const value = this.euboValue(candidates);
     return Float64Array.from([value]);
   }
@@ -57,7 +60,7 @@ export class EUBO implements AcquisitionFunction {
   /**
    * Compute EUBO value: E[max_i u(x_i)] for the given candidate set.
    */
-  euboValue(candidates: number[][]): number {
+  euboValue(candidates: Array<Array<number>>): number {
     const q = candidates.length;
     const mean = posteriorMean(this.model, candidates);
     const Sigma = posteriorCovariance(this.model, candidates);
@@ -71,7 +74,9 @@ export class EUBO implements AcquisitionFunction {
       let maxU = -Infinity;
       for (let i = 0; i < q; i++) {
         const u = samples.get(s, i);
-        if (u > maxU) maxU = u;
+        if (u > maxU) {
+          maxU = u;
+        }
       }
       sumMax += maxU;
     }
@@ -88,7 +93,7 @@ export class EUBO implements AcquisitionFunction {
    * This is O(q · nSamples) using the same set of posterior samples.
    * Useful for greedy menu construction.
    */
-  evaluateMarginal(candidates: number[][]): Float64Array {
+  evaluateMarginal(candidates: Array<Array<number>>): Float64Array {
     const q = candidates.length;
     const mean = posteriorMean(this.model, candidates);
     const Sigma = posteriorCovariance(this.model, candidates);

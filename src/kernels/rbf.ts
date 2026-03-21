@@ -1,6 +1,10 @@
-import { Matrix } from "../linalg/matrix.js";
-import { cdistSquared } from "./distance.js";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { Kernel } from "./types.js";
+
+import { Matrix } from "../linalg/matrix.js";
+
+import { cdistSquared } from "./distance.js";
 
 /**
  * RBF (Squared Exponential) kernel with ARD lengthscales.
@@ -11,7 +15,7 @@ import type { Kernel } from "./types.js";
 export class RBFKernel implements Kernel {
   readonly lengthscale: Float64Array;
 
-  constructor(lengthscale: number[]) {
+  constructor(lengthscale: Array<number>) {
     this.lengthscale = Float64Array.from(lengthscale);
   }
 

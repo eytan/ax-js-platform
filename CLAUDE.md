@@ -25,6 +25,7 @@ Prediction-only (no fitting). Hyperparameters are exported from Python via `axjs
 npx vitest run              # Run all tests
 npx tsc --noEmit            # Type-check
 python python/generate_fixtures.py  # Regenerate BoTorch parity fixtures
+bash scripts/verify-docs.sh # Check docs haven't drifted from codebase
 npx tsup                    # Build bundle
 npm run build               # Build library + demos
 ```
@@ -33,6 +34,18 @@ npm run build               # Build library + demos
 
 - **Always use `Predictor`** (not `loadModel` directly) unless the specific use case absolutely requires low-level model access. `Predictor` handles input transforms, output transforms, adapter untransforms, and outcome naming automatically — using `loadModel` bypasses all of this and leads to subtle bugs (e.g., lengthscales in the wrong space, missing normalization).
 - When constructing synthetic model states (e.g., in demos), always include `input_transform` with proper `Normalize` bounds so that lengthscales are in normalized `[0,1]` space, matching real Ax/BoTorch exports.
+
+## Plans & Guides
+
+`plans/` contains modular documentation for maintaining parity with BoTorch:
+- `parity-guide.md` — How to keep ax-js in sync (naming, transforms, checklists)
+- `agent-playbook.md` — PR workflow, guardrails, and negative rules for agents
+- `style-guide.md` — TS conventions (Meta TS + math exemptions)
+- `file-correspondence.md` — Complete Python-to-TS class mapping
+- `upstream-proposals.md` — Proposals for Ax/BoTorch teams
+- `codebase-observations.md` — Analysis of both codebases
+- `action-plan.md` — Prioritized improvement tasks
+- `automation-integration.md` — CI/hooks integration proposal for adopting teams
 
 ## Architecture
 

@@ -1,4 +1,7 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { GPModel, AcquisitionFunction } from "./types.js";
+
 import { logNormalCdf, logNormalPdf, normalCdf, normalPdf } from "./normal.js";
 
 /**
@@ -19,11 +22,11 @@ import { logNormalCdf, logNormalPdf, normalCdf, normalPdf } from "./normal.js";
  */
 export class LogExpectedImprovement implements AcquisitionFunction {
   constructor(
-    private model: GPModel,
-    private bestF: number,
+    private readonly model: GPModel,
+    private readonly bestF: number,
   ) {}
 
-  evaluate(candidates: number[][]): Float64Array {
+  evaluate(candidates: Array<Array<number>>): Float64Array {
     const { mean, variance } = this.model.predict(candidates);
     const n = mean.length;
     const values = new Float64Array(n);
@@ -49,11 +52,11 @@ export class LogExpectedImprovement implements AcquisitionFunction {
  */
 export class ExpectedImprovement implements AcquisitionFunction {
   constructor(
-    private model: GPModel,
-    private bestF: number,
+    private readonly model: GPModel,
+    private readonly bestF: number,
   ) {}
 
-  evaluate(candidates: number[][]): Float64Array {
+  evaluate(candidates: Array<Array<number>>): Float64Array {
     const { mean, variance } = this.model.predict(candidates);
     const n = mean.length;
     const values = new Float64Array(n);
@@ -95,7 +98,9 @@ function logH(z: number): number {
   } else {
     const cdf = normalCdf(z);
     const pdf = normalPdf(z);
-    if (pdf < 1e-300) return logNormalCdf(z); // extreme tail fallback
+    if (pdf < 1e-300) {
+      return logNormalCdf(z);
+    } // extreme tail fallback
     return logNormalPdf(z) + Math.log1p((z * cdf) / pdf);
   }
 }

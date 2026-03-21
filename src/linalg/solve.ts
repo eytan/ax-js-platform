@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import { Matrix } from "./matrix.js";
 
 /** Solve Lx = b where L is lower triangular. Returns x as column vector. */

@@ -1,16 +1,20 @@
-import { Matrix } from "../linalg/matrix.js";
-import { ExactGP } from "./gp.js";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { GPInternals, GPModelState, PredictionResult } from "./types.js";
+
+import { buildKernel } from "../kernels/build.js";
+import { Matrix } from "../linalg/matrix.js";
 import { ConstantMean } from "../means/constant.js";
+import { buildOutcomeUntransform } from "../transforms/build_outcome.js";
 import { InputNormalize } from "../transforms/normalize.js";
 import { InputWarp } from "../transforms/warp.js";
-import { buildOutcomeUntransform } from "../transforms/build_outcome.js";
-import { buildKernel } from "../kernels/build.js";
+
+import { ExactGP } from "./gp.js";
 
 export class SingleTaskGP {
-  private gp: ExactGP;
-  private trainDim: number;
-  private trainY: Matrix;
+  private readonly gp: ExactGP;
+  private readonly trainDim: number;
+  private readonly trainY: Matrix;
 
   constructor(state: GPModelState) {
     if (state.train_X.length === 0) {
@@ -27,10 +31,7 @@ export class SingleTaskGP {
       : state.noise_variance;
 
     const inputTransform = state.input_transform
-      ? new InputNormalize(
-          state.input_transform.offset,
-          state.input_transform.coefficient,
-        )
+      ? new InputNormalize(state.input_transform.offset, state.input_transform.coefficient)
       : undefined;
 
     const inputWarp = state.input_warp
@@ -62,7 +63,7 @@ export class SingleTaskGP {
     return this.gp.getInternals();
   }
 
-  predict(testPoints: number[][]): PredictionResult {
+  predict(testPoints: Array<Array<number>>): PredictionResult {
     if (testPoints.length === 0) {
       throw new Error("testPoints must not be empty");
     }
@@ -87,10 +88,7 @@ export class SingleTaskGP {
    * Compute posterior covariance between each test point and a reference point.
    * Returns Cov(f(x_i), f(x_ref)) for use in relativization.
    */
-  predictCovarianceWith(
-    testPoints: number[][],
-    refPoint: number[],
-  ): Float64Array {
+  predictCovarianceWith(testPoints: Array<Array<number>>, refPoint: Array<number>): Float64Array {
     const testX = Matrix.from2D(testPoints);
     const refX = Matrix.from2D([refPoint]);
     return this.gp.predictCovarianceWith(testX, refX);

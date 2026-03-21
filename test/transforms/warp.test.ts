@@ -1,6 +1,9 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import { describe, it, expect } from "vitest";
-import { InputWarp } from "../../src/transforms/warp.js";
+
 import { Matrix } from "../../src/linalg/matrix.js";
+import { InputWarp } from "../../src/transforms/warp.js";
 
 describe("InputWarp (Kumaraswamy)", () => {
   it("identity when a=1, b=1", () => {
@@ -13,8 +16,8 @@ describe("InputWarp (Kumaraswamy)", () => {
   });
 
   it("maps [0,1] → [0,1]", () => {
-    const warp = new InputWarp([2.0], [3.0]);
-    const X = Matrix.from2D([[0.0], [0.25], [0.5], [0.75], [1.0]]);
+    const warp = new InputWarp([2], [3]);
+    const X = Matrix.from2D([[0], [0.25], [0.5], [0.75], [1]]);
     const result = warp.forward(X);
     for (let i = 0; i < X.rows; i++) {
       expect(result.get(i, 0)).toBeGreaterThanOrEqual(0);
@@ -23,8 +26,8 @@ describe("InputWarp (Kumaraswamy)", () => {
   });
 
   it("matches Kumaraswamy CDF formula with eps normalization", () => {
-    const a = 2.0; // concentration1
-    const b = 3.0; // concentration0
+    const a = 2; // concentration1
+    const b = 3; // concentration0
     const warp = new InputWarp([b], [a]);
     const x = 0.6;
     const X = Matrix.from2D([[x]]);
@@ -37,8 +40,11 @@ describe("InputWarp (Kumaraswamy)", () => {
   });
 
   it("respects indices (partial warping)", () => {
-    const warp = new InputWarp([2.0], [3.0], [1]); // warp only dim 1
-    const X = Matrix.from2D([[0.3, 0.6], [0.7, 0.4]]);
+    const warp = new InputWarp([2], [3], [1]); // warp only dim 1
+    const X = Matrix.from2D([
+      [0.3, 0.6],
+      [0.7, 0.4],
+    ]);
     const result = warp.forward(X);
     // Dim 0 should be unchanged
     expect(result.get(0, 0)).toBe(0.3);

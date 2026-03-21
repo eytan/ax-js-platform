@@ -1,6 +1,10 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
+import type { Kernel } from "./types.js";
+
 import { Matrix } from "../linalg/matrix.js";
 import { matmul, transpose } from "../linalg/ops.js";
-import type { Kernel } from "./types.js";
+
 import { kernelDiag } from "./composite.js";
 
 /**
@@ -21,10 +25,10 @@ export class IndexKernel implements Kernel {
    * 3. covar_factor + var: B = W @ W^T + diag(var)
    */
   constructor(
-    covarFactor: number[][],
-    diagVar: number[],
+    covarFactor: Array<Array<number>>,
+    diagVar: Array<number>,
     varIsLog: boolean = true,
-    precomputedMatrix?: number[][],
+    precomputedMatrix?: Array<Array<number>>,
   ) {
     if (precomputedMatrix) {
       this.taskCovar = Matrix.from2D(precomputedMatrix);
@@ -34,9 +38,7 @@ export class IndexKernel implements Kernel {
       const WtW = matmul(W, transpose(W));
       this.taskCovar = WtW;
       for (let i = 0; i < numTasks; i++) {
-        this.taskCovar.data[i * numTasks + i] += varIsLog
-          ? Math.exp(diagVar[i])
-          : diagVar[i];
+        this.taskCovar.data[i * numTasks + i] += varIsLog ? Math.exp(diagVar[i]) : diagVar[i];
       }
     }
   }
@@ -78,27 +80,24 @@ export class MultitaskKernel implements Kernel {
 
   constructor(
     dataKernel: Kernel,
-    covarFactor: number[][],
-    diagVar: number[],
+    covarFactor: Array<Array<number>>,
+    diagVar: Array<number>,
     taskFeature: number = -1,
     varIsLog: boolean = true,
-    precomputedMatrix?: number[][],
+    precomputedMatrix?: Array<Array<number>>,
   ) {
     this.dataKernel = dataKernel;
-    this.indexKernel = new IndexKernel(
-      covarFactor, diagVar, varIsLog, precomputedMatrix,
-    );
+    this.indexKernel = new IndexKernel(covarFactor, diagVar, varIsLog, precomputedMatrix);
     this.taskFeature = taskFeature;
   }
 
-  private splitDataTask(
-    x: Matrix,
-  ): { data: Matrix; tasks: Matrix } {
-    const tf =
-      this.taskFeature < 0 ? x.cols + this.taskFeature : this.taskFeature;
-    const dataCols: number[] = [];
+  private splitDataTask(x: Matrix): { data: Matrix; tasks: Matrix } {
+    const tf = this.taskFeature < 0 ? x.cols + this.taskFeature : this.taskFeature;
+    const dataCols: Array<number> = [];
     for (let j = 0; j < x.cols; j++) {
-      if (j !== tf) dataCols.push(j);
+      if (j !== tf) {
+        dataCols.push(j);
+      }
     }
 
     const data = new Matrix(x.rows, dataCols.length);

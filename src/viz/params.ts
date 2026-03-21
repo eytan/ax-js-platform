@@ -1,4 +1,7 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { ParamSpec, DimensionRanker, RenderPredictor } from "./types";
+
 import { Rng } from "../acquisition/sample_mvn.js";
 
 /** Returns true if the parameter is a choice parameter. */
@@ -12,21 +15,24 @@ export function isInteger(p: ParamSpec): boolean {
 }
 
 /** Returns a sensible default value for a parameter (midpoint or first choice). */
-export function defaultParamValue(
-  p: ParamSpec,
-): number | string | boolean {
-  if (isChoice(p)) return p.values![0];
-  if (isInteger(p)) return Math.round((p.bounds![0] + p.bounds![1]) / 2);
+export function defaultParamValue(p: ParamSpec): number | string | boolean {
+  if (isChoice(p)) {
+    return p.values![0];
+  }
+  if (isInteger(p)) {
+    return Math.round((p.bounds![0] + p.bounds![1]) / 2);
+  }
   return (p.bounds![0] + p.bounds![1]) / 2;
 }
 
 /** Format a parameter value for display. */
-export function formatParamValue(
-  val: number | string | boolean,
-  p: ParamSpec,
-): string {
-  if (isChoice(p)) return String(val);
-  if (isInteger(p)) return String(Math.round(val as number));
+export function formatParamValue(val: number | string | boolean, p: ParamSpec): string {
+  if (isChoice(p)) {
+    return String(val);
+  }
+  if (isInteger(p)) {
+    return String(Math.round(val as number));
+  }
   return (val as number).toFixed(3);
 }
 
@@ -45,22 +51,28 @@ export function normalizeFixture(data: any): any {
       metadata: {
         name: data.experiment.name || "",
         description: data.experiment.description || "",
-        ...(data.test?.metadata || {}),
+        ...data.test?.metadata,
       },
       test_points: data.test?.test_points || [],
     };
-    if (data.experiment.outcome_names)
+    if (data.experiment.outcome_names) {
       result.outcome_names = data.experiment.outcome_names;
-    if (data.experiment.optimization_config)
+    }
+    if (data.experiment.optimization_config) {
       result.optimization_config = data.experiment.optimization_config;
-    if (data.experiment.status_quo)
+    }
+    if (data.experiment.status_quo) {
       result.status_quo = data.experiment.status_quo;
-    if (data.experiment.adapter_transforms)
+    }
+    if (data.experiment.adapter_transforms) {
       result.adapter_transforms = data.experiment.adapter_transforms;
-    if (data.experiment.observations)
+    }
+    if (data.experiment.observations) {
       result.observations = data.experiment.observations;
-    if (data.experiment.candidates)
+    }
+    if (data.experiment.candidates) {
       result.candidates = data.experiment.candidates;
+    }
     return result;
   }
   return data;
@@ -77,7 +89,7 @@ export function computeDimOrder(
   nDim: number,
   selectedOutcome?: string,
   useSobol?: boolean,
-): number[] {
+): Array<number> {
   if (useSobol && predictor.computeSensitivity) {
     const sens = predictor.computeSensitivity(selectedOutcome);
     if (sens && sens.totalOrder.length > 0) {
@@ -90,7 +102,9 @@ export function computeDimOrder(
       if (order.length < nDim) {
         const inOrder = new Set(order);
         for (let i = 0; i < nDim; i++) {
-          if (!inOrder.has(i)) order.push(i);
+          if (!inOrder.has(i)) {
+            order.push(i);
+          }
         }
       }
       return order;
@@ -104,7 +118,9 @@ export function computeDimOrder(
   if (order.length < nDim) {
     const inRanked = new Set(order);
     for (let i = 0; i < nDim; i++) {
-      if (!inRanked.has(i)) order.push(i);
+      if (!inRanked.has(i)) {
+        order.push(i);
+      }
     }
   }
   return order;
@@ -118,22 +134,30 @@ export function computeDimOrder(
  * Accounts for input warp (Kumaraswamy CDF) when present.
  */
 export function pointRelevance(
-  pt: number[],
-  fixedValues: number[],
-  plottedDims: number[],
-  ls: number[] | null,
-  inputTf: { offset?: number[]; coefficient?: number[] } | null,
-  params?: ParamSpec[],
-  inputWarp?: { concentration0: number[]; concentration1: number[]; indices?: number[] } | null,
+  pt: Array<number>,
+  fixedValues: Array<number>,
+  plottedDims: Array<number>,
+  ls: Array<number> | null,
+  inputTf: { offset?: Array<number>; coefficient?: Array<number> } | null,
+  params?: Array<ParamSpec>,
+  inputWarp?: {
+    concentration0: Array<number>;
+    concentration1: Array<number>;
+    indices?: Array<number>;
+  } | null,
 ): number {
   const warpIndicesSet = inputWarp?.indices ? new Set(inputWarp.indices) : null;
   const eps = 1e-7;
   const warpRange = 1 - 2 * eps;
   let d2 = 0;
   for (let j = 0; j < fixedValues.length; j++) {
-    if (plottedDims.indexOf(j) >= 0) continue;
+    if (plottedDims.includes(j)) {
+      continue;
+    }
     if (params && params[j] && isChoice(params[j])) {
-      if (pt[j] !== fixedValues[j]) d2 += 4;
+      if (pt[j] !== fixedValues[j]) {
+        d2 += 4;
+      }
       continue;
     }
     const offset = inputTf?.offset?.[j] ?? 0;
@@ -169,15 +193,15 @@ export function pointRelevance(
 export function computeParamSigns(
   predictor: Pick<RenderPredictor, "predict" | "paramBounds" | "paramSpecs" | "paramNames">,
   outcome: string,
-): number[] {
+): Array<number> {
   const d = predictor.paramNames.length;
   const bounds = predictor.paramBounds;
   const specs = predictor.paramSpecs;
   const K = 20;
-  const rng = new Rng(0xA15);
+  const rng = new Rng(0xa_15);
   const signs = new Float64Array(d);
 
-  const allPts: number[][] = [];
+  const allPts: Array<Array<number>> = [];
   for (let trial = 0; trial < K; trial++) {
     const base = bounds.map(([lo, hi]) => lo + rng.uniform() * (hi - lo));
     for (let j = 0; j < d; j++) {
@@ -186,8 +210,10 @@ export function computeParamSigns(
         continue;
       }
       const [lo, hi] = bounds[j];
-      const ptLo = base.slice(); ptLo[j] = lo;
-      const ptHi = base.slice(); ptHi[j] = hi;
+      const ptLo = base.slice();
+      ptLo[j] = lo;
+      const ptHi = base.slice();
+      ptHi[j] = hi;
       allPts.push(ptLo, ptHi);
     }
   }

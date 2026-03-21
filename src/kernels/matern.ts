@@ -1,6 +1,10 @@
-import { Matrix } from "../linalg/matrix.js";
-import { cdist } from "./distance.js";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { Kernel } from "./types.js";
+
+import { Matrix } from "../linalg/matrix.js";
+
+import { cdist } from "./distance.js";
 
 /**
  * Matérn kernel with ARD lengthscales.
@@ -15,7 +19,7 @@ export class MaternKernel implements Kernel {
   readonly lengthscale: Float64Array;
   readonly nu: 0.5 | 1.5 | 2.5;
 
-  constructor(lengthscale: number[], nu: 0.5 | 1.5 | 2.5 = 2.5) {
+  constructor(lengthscale: Array<number>, nu: 0.5 | 1.5 | 2.5 = 2.5) {
     this.lengthscale = Float64Array.from(lengthscale);
     this.nu = nu;
   }
@@ -27,7 +31,9 @@ export class MaternKernel implements Kernel {
     const mean = new Float64Array(d);
     for (let j = 0; j < d; j++) {
       let s = 0;
-      for (let i = 0; i < x1.rows; i++) s += x1.get(i, j);
+      for (let i = 0; i < x1.rows; i++) {
+        s += x1.get(i, j);
+      }
       mean[j] = s / x1.rows;
     }
 

@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 /**
  * Tests for kernelCorrelation and visualization math invariants.
  *
@@ -5,12 +7,14 @@
  * produces correct correlation values across model types, including
  * models with input warping.
  */
-import { describe, it, expect } from "vitest";
-import { Predictor } from "../../src/predictor";
-import { readFileSync } from "fs";
+import { readFileSync } from "node:fs";
 
-function loadFixture(name: string) {
-  const raw = JSON.parse(readFileSync(`test/fixtures/${name}`, "utf-8"));
+import { describe, it, expect } from "vitest";
+
+import { Predictor } from "../../src/predictor";
+
+function loadFixture(name: string): Predictor {
+  const raw = JSON.parse(readFileSync(`test/fixtures/${name}`, "utf8"));
   return new Predictor(raw.experiment ?? raw);
 }
 
@@ -29,7 +33,9 @@ describe("kernelCorrelation invariants", () => {
       const p = loadFixture(name);
       const td = p.getTrainingData(outcome);
       // Skip if insufficient data
-      if (td.X.length < 2) return;
+      if (td.X.length < 2) {
+        return;
+      }
 
       it("self-correlation is 1", () => {
         const c = p.kernelCorrelation(td.X[0], td.X[0], outcome);
@@ -61,7 +67,9 @@ describe("kernelCorrelation invariants", () => {
         let maxCorr = 0;
         for (let i = 1; i < td.X.length; i++) {
           const c = p.kernelCorrelation(td.X[0], td.X[i], outcome);
-          if (c > maxCorr) maxCorr = c;
+          if (c > maxCorr) {
+            maxCorr = c;
+          }
         }
         expect(maxCorr).toBeGreaterThan(0);
         expect(maxCorr).toBeLessThan(1);
@@ -69,16 +77,24 @@ describe("kernelCorrelation invariants", () => {
 
       it("closer points have higher correlation than distant points", () => {
         // Find closest and farthest point to X[0] in raw space
-        let closestIdx = 1, farthestIdx = 1;
-        let closestDist = Infinity, farthestDist = -Infinity;
+        let closestIdx = 1,
+          farthestIdx = 1;
+        let closestDist = Infinity,
+          farthestDist = -Infinity;
         for (let i = 1; i < td.X.length; i++) {
           let d2 = 0;
           for (let j = 0; j < td.X[i].length; j++) {
             const diff = td.X[0][j] - td.X[i][j];
             d2 += diff * diff;
           }
-          if (d2 < closestDist) { closestDist = d2; closestIdx = i; }
-          if (d2 > farthestDist) { farthestDist = d2; farthestIdx = i; }
+          if (d2 < closestDist) {
+            closestDist = d2;
+            closestIdx = i;
+          }
+          if (d2 > farthestDist) {
+            farthestDist = d2;
+            farthestIdx = i;
+          }
         }
         if (closestIdx !== farthestIdx) {
           const cClose = p.kernelCorrelation(td.X[0], td.X[closestIdx], outcome);
@@ -100,13 +116,13 @@ describe("kernelCorrelation with warp", () => {
     const tdW = pWarp.getTrainingData("y");
 
     // Verify warp data exists
-    const exp = JSON.parse(readFileSync("test/fixtures/branin_warp.json", "utf-8"));
+    const exp = JSON.parse(readFileSync("test/fixtures/branin_warp.json", "utf8"));
     const ms = exp.experiment?.model_state ?? exp.model_state;
     expect(ms.input_warp).toBeDefined();
 
     // All correlations should be finite and in (0, 1]
-    for (let i = 0; i < tdW.X.length; i++) {
-      const c = pWarp.kernelCorrelation(tdW.X[0], tdW.X[i], "y");
+    for (const pt of tdW.X) {
+      const c = pWarp.kernelCorrelation(tdW.X[0], pt, "y");
       expect(Number.isFinite(c)).toBe(true);
       expect(c).toBeGreaterThan(0);
       expect(c).toBeLessThanOrEqual(1);

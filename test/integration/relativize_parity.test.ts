@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 /**
  * Integration tests for relativization with GP models.
  *
@@ -7,34 +9,35 @@
  * Covers all model types: SingleTaskGP, FixedNoiseGP, MultiTaskGP, ModelListGP,
  * PairwiseGP, EnsembleGP — plus heteroscedastic and warped variants.
  */
+import type { EnsembleGP } from "../../src/models/ensemble_gp.js";
+import type { ModelListGP } from "../../src/models/model_list.js";
+import type { MultiTaskGP } from "../../src/models/multi_task.js";
+import type { PairwiseGP } from "../../src/models/pairwise_gp.js";
+import type { FixtureData, Manifest } from "../../src/models/types.js";
+
+import { readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+
 import { loadModel } from "../../src/io/deserialize.js";
 import { SingleTaskGP } from "../../src/models/single_task.js";
-import { MultiTaskGP } from "../../src/models/multi_task.js";
-import { ModelListGP } from "../../src/models/model_list.js";
-import { PairwiseGP } from "../../src/models/pairwise_gp.js";
-import { EnsembleGP } from "../../src/models/ensemble_gp.js";
 import {
   relativize,
   unrelativize,
   relativizePredictions,
 } from "../../src/transforms/relativize.js";
-import type { FixtureData, Manifest } from "../../src/models/types.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixturesDir = join(__dirname, "..", "fixtures");
 
 function loadFixture(filename: string): FixtureData {
-  const raw = readFileSync(join(fixturesDir, filename), "utf-8");
-  return JSON.parse(raw);
+  const raw = readFileSync(join(fixturesDir, filename), "utf8");
+  return JSON.parse(raw) as FixtureData;
 }
 
-const manifest: Manifest = JSON.parse(
-  readFileSync(join(fixturesDir, "manifest.json"), "utf-8"),
-);
+const manifest: Manifest = JSON.parse(readFileSync(join(fixturesDir, "manifest.json"), "utf8"));
 
 describe("posterior covariance numerics", () => {
   const entry = manifest.fixtures.find((f) => f.name === "branin_matern25")!;
@@ -113,7 +116,9 @@ describe("relativize with covariance (tighter CIs)", () => {
     for (let i = 0; i < testPoints.length; i++) {
       if (covariances[i] > 0) {
         expect(withCov.variance[i]).toBeLessThanOrEqual(noCov.variance[i] + 1e-15);
-        if (withCov.variance[i] < noCov.variance[i] - 1e-15) anySmaller = true;
+        if (withCov.variance[i] < noCov.variance[i] - 1e-15) {
+          anySmaller = true;
+        }
       }
     }
     expect(anySmaller).toBe(true);
@@ -159,7 +164,7 @@ describe("relativize integration (internal consistency)", () => {
     const sqSem = Math.sqrt(sqVar);
 
     it("status quo prediction matches expected", () => {
-      const expectedMean = (fixture.test.expected.mean as number[])[0];
+      const expectedMean = (fixture.test.expected.mean as Array<number>)[0];
       expect(sqMean).toBeCloseTo(expectedMean, 5);
     });
 
@@ -170,12 +175,7 @@ describe("relativize integration (internal consistency)", () => {
     });
 
     it("batch relativize produces correct length", () => {
-      const rel = relativizePredictions(
-        testResult.mean,
-        testResult.variance,
-        sqMean,
-        sqVar,
-      );
+      const rel = relativizePredictions(testResult.mean, testResult.variance, sqMean, sqVar);
       expect(rel.mean.length).toBe(testPoints.length);
       expect(rel.variance.length).toBe(testPoints.length);
     });
@@ -202,8 +202,12 @@ describe("relativize integration (internal consistency)", () => {
           biasCorrection: false,
         });
         if (sqMean > 0) {
-          if (absMean > sqMean) expect(rel.mean).toBeGreaterThan(0);
-          if (absMean < sqMean) expect(rel.mean).toBeLessThan(0);
+          if (absMean > sqMean) {
+            expect(rel.mean).toBeGreaterThan(0);
+          }
+          if (absMean < sqMean) {
+            expect(rel.mean).toBeLessThan(0);
+          }
         }
       }
     });
@@ -224,9 +228,7 @@ describe("relativize integration (internal consistency)", () => {
 
   // Noisy: FixedNoiseGP with known per-point noise
   describe("noisy (FixedNoiseGP: branin_fixed_noise)", () => {
-    const entry = manifest.fixtures.find(
-      (f) => f.name === "branin_fixed_noise",
-    )!;
+    const entry = manifest.fixtures.find((f) => f.name === "branin_fixed_noise")!;
     const fixture = loadFixture(entry.file);
     const model = loadModel(fixture.experiment.model_state) as SingleTaskGP;
     const allPoints = fixture.test.test_points;
@@ -247,7 +249,9 @@ describe("relativize integration (internal consistency)", () => {
       for (let i = 0; i < testPoints.length; i++) {
         const absMean = testResult.mean[i];
         const absSem = Math.sqrt(testResult.variance[i]);
-        if (absMean === sqMean && absSem === sqSem) continue;
+        if (absMean === sqMean && absSem === sqSem) {
+          continue;
+        }
 
         const relFull = relativize(absMean, absSem, sqMean, sqSem, {
           biasCorrection: false,
@@ -265,7 +269,9 @@ describe("relativize integration (internal consistency)", () => {
       for (let i = 0; i < testPoints.length; i++) {
         const absMean = testResult.mean[i];
         const absSem = Math.sqrt(testResult.variance[i]);
-        if (absMean === sqMean && absSem === sqSem) continue;
+        if (absMean === sqMean && absSem === sqSem) {
+          continue;
+        }
 
         const rel = relativize(absMean, absSem, sqMean, sqSem, {
           biasCorrection: true,
@@ -279,28 +285,17 @@ describe("relativize integration (internal consistency)", () => {
     });
 
     it("batch relativize matches per-point relativize", () => {
-      const batch = relativizePredictions(
-        testResult.mean,
-        testResult.variance,
-        sqMean,
-        sqVar,
-        { biasCorrection: false },
-      );
+      const batch = relativizePredictions(testResult.mean, testResult.variance, sqMean, sqVar, {
+        biasCorrection: false,
+      });
 
       for (let i = 0; i < testPoints.length; i++) {
         const absSem = Math.sqrt(testResult.variance[i]);
-        const perPoint = relativize(
-          testResult.mean[i],
-          absSem,
-          sqMean,
-          sqSem,
-          { biasCorrection: false },
-        );
+        const perPoint = relativize(testResult.mean[i], absSem, sqMean, sqSem, {
+          biasCorrection: false,
+        });
         expect(batch.mean[i]).toBeCloseTo(perPoint.mean, 10);
-        expect(batch.variance[i]).toBeCloseTo(
-          perPoint.sem * perPoint.sem,
-          10,
-        );
+        expect(batch.variance[i]).toBeCloseTo(perPoint.sem * perPoint.sem, 10);
       }
     });
 
@@ -315,9 +310,7 @@ describe("relativize integration (internal consistency)", () => {
 
   // Heteroscedastic noise
   describe("heteroscedastic (FixedNoiseGP: branin_heteroscedastic)", () => {
-    const entry = manifest.fixtures.find(
-      (f) => f.name === "branin_heteroscedastic",
-    )!;
+    const entry = manifest.fixtures.find((f) => f.name === "branin_heteroscedastic")!;
     const fixture = loadFixture(entry.file);
     const model = loadModel(fixture.experiment.model_state) as SingleTaskGP;
 
@@ -400,17 +393,20 @@ describe("relativize integration (internal consistency)", () => {
  */
 function verifyCovarianceProperties(
   label: string,
-  predict: (pts: number[][]) => { mean: Float64Array | number[]; variance: Float64Array | number[] },
-  predictCov: (pts: number[][], ref: number[]) => Float64Array,
-  testPoints: number[][],
-) {
+  predict: (pts: Array<Array<number>>) => {
+    mean: Float64Array | Array<number>;
+    variance: Float64Array | Array<number>;
+  },
+  predictCov: (pts: Array<Array<number>>, ref: Array<number>) => Float64Array,
+  testPoints: Array<Array<number>>,
+): void {
   describe(`${label}: covariance properties`, () => {
     const result = predict(testPoints);
 
     it("self-covariance equals variance", () => {
       for (let i = 0; i < testPoints.length; i++) {
         const cov = predictCov([testPoints[i]], testPoints[i]);
-        expect(cov[0]).toBeCloseTo(result.variance[i] as number, 6);
+        expect(cov[0]).toBeCloseTo(result.variance[i], 6);
       }
     });
 
@@ -426,9 +422,7 @@ function verifyCovarianceProperties(
       for (let i = 0; i < testPoints.length; i++) {
         for (let j = i + 1; j < Math.min(i + 3, testPoints.length); j++) {
           const cov = predictCov([testPoints[i]], testPoints[j]);
-          const bound = Math.sqrt(
-            (result.variance[i] as number) * (result.variance[j] as number),
-          );
+          const bound = Math.sqrt(result.variance[i] * result.variance[j]);
           expect(Math.abs(cov[0])).toBeLessThanOrEqual(bound + 1e-8);
         }
       }
@@ -454,14 +448,14 @@ function verifyCovarianceProperties(
         testResult.mean,
         testResult.variance,
         sqResult.mean[0],
-        sqResult.variance[0] as number,
+        sqResult.variance[0],
         { biasCorrection: false },
       );
       const withCov = relativizePredictions(
         testResult.mean,
         testResult.variance,
         sqResult.mean[0],
-        sqResult.variance[0] as number,
+        sqResult.variance[0],
         { biasCorrection: false },
         covs,
       );
@@ -492,9 +486,7 @@ describe("covariance: MultiTaskGP", () => {
 });
 
 describe("covariance: ModelListGP", () => {
-  const entry = manifest.fixtures.find(
-    (f) => f.name === "branincurrin_modellist",
-  )!;
+  const entry = manifest.fixtures.find((f) => f.name === "branincurrin_modellist")!;
   const fixture = loadFixture(entry.file);
   const model = loadModel(fixture.experiment.model_state) as ModelListGP;
 
@@ -523,9 +515,7 @@ describe("covariance: PairwiseGP", () => {
 });
 
 describe("covariance: EnsembleGP (SAAS)", () => {
-  const entry = manifest.fixtures.find(
-    (f) => f.name === "saas_highdim_nuts",
-  )!;
+  const entry = manifest.fixtures.find((f) => f.name === "saas_highdim_nuts")!;
   const fixture = loadFixture(entry.file);
   const model = loadModel(fixture.experiment.model_state) as EnsembleGP;
 
@@ -545,60 +535,61 @@ describe("covariance: EnsembleGP (SAAS)", () => {
 const relFixtures = manifest.fixtures.filter((entry) => {
   const f = loadFixture(entry.file);
   // Skip ax-level fixtures — tested in predictor_parity.test.ts with full Predictor pipeline
-  if (f.test.metadata?.ax_level) return false;
+  if (f.test.metadata?.ax_level) {
+    return false;
+  }
   return f.experiment.status_quo && f.test.expected_relative;
 });
 
-describe.skipIf(relFixtures.length === 0)(
-  "relativize parity with Ax",
-  () => {
-    for (const entry of relFixtures) {
-      describe(`fixture: ${entry.name}`, () => {
-        const fixture = loadFixture(entry.file);
-        const model = loadModel(fixture.experiment.model_state);
-        if (!(model instanceof SingleTaskGP)) return;
+describe.skipIf(relFixtures.length === 0)("relativize parity with Ax", () => {
+  for (const entry of relFixtures) {
+    describe(`fixture: ${entry.name}`, () => {
+      const fixture = loadFixture(entry.file);
+      const model = loadModel(fixture.experiment.model_state);
+      if (!(model instanceof SingleTaskGP)) {
+        return;
+      }
 
-        // Status quo is the first test point; remaining are treatment points
-        const allPoints = fixture.test.test_points;
-        const sqPoint = allPoints[0];
-        const testPoints = allPoints.slice(1);
-        const allExpectedMean = fixture.test.expected.mean as number[];
-        const allExpectedVar = fixture.test.expected.variance as number[];
+      // Status quo is the first test point; remaining are treatment points
+      const allPoints = fixture.test.test_points;
+      const sqPoint = allPoints[0];
+      const testPoints = allPoints.slice(1);
+      const allExpectedMean = fixture.test.expected.mean as Array<number>;
+      const allExpectedVar = fixture.test.expected.variance as Array<number>;
 
-        const testResult = model.predict(testPoints);
-        const sqResult = model.predict([sqPoint]);
+      const testResult = model.predict(testPoints);
+      const sqResult = model.predict([sqPoint]);
 
-        it("status quo prediction matches expected", () => {
-          expect(sqResult.mean[0]).toBeCloseTo(allExpectedMean[0], 5);
-          expect(sqResult.variance[0]).toBeCloseTo(allExpectedVar[0], 5);
-        });
-
-        it("relative means match Ax", () => {
-          const rel = relativizePredictions(
-            testResult.mean,
-            testResult.variance,
-            sqResult.mean[0],
-            sqResult.variance[0],
-          );
-          const expected = fixture.test.expected_relative!.mean;
-          for (let i = 0; i < expected.length; i++) {
-            expect(rel.mean[i]).toBeCloseTo(expected[i], 5);
-          }
-        });
-
-        it("relative variances match Ax", () => {
-          const rel = relativizePredictions(
-            testResult.mean,
-            testResult.variance,
-            sqResult.mean[0],
-            sqResult.variance[0],
-          );
-          const expected = fixture.test.expected_relative!.variance;
-          for (let i = 0; i < expected.length; i++) {
-            expect(rel.variance[i]).toBeCloseTo(expected[i], 5);
-          }
-        });
+      it("status quo prediction matches expected", () => {
+        expect(sqResult.mean[0]).toBeCloseTo(allExpectedMean[0], 5);
+        expect(sqResult.variance[0]).toBeCloseTo(allExpectedVar[0], 5);
       });
-    }
-  },
-);
+
+      it("relative means match Ax", () => {
+        const rel = relativizePredictions(
+          testResult.mean,
+          testResult.variance,
+          sqResult.mean[0],
+          sqResult.variance[0],
+        );
+        const expected = fixture.test.expected_relative!.mean;
+        for (let i = 0; i < expected.length; i++) {
+          expect(rel.mean[i]).toBeCloseTo(expected[i], 5);
+        }
+      });
+
+      it("relative variances match Ax", () => {
+        const rel = relativizePredictions(
+          testResult.mean,
+          testResult.variance,
+          sqResult.mean[0],
+          sqResult.variance[0],
+        );
+        const expected = fixture.test.expected_relative!.variance;
+        for (let i = 0; i < expected.length; i++) {
+          expect(rel.variance[i]).toBeCloseTo(expected[i], 5);
+        }
+      });
+    });
+  }
+});

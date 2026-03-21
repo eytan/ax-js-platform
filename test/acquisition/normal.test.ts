@@ -1,10 +1,8 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import { describe, it, expect } from "vitest";
-import {
-  normalPdf,
-  normalCdf,
-  logNormalPdf,
-  logNormalCdf,
-} from "../../src/acquisition/normal.js";
+
+import { normalPdf, normalCdf, logNormalPdf, logNormalCdf } from "../../src/acquisition/normal.js";
 
 describe("normalPdf", () => {
   it("peaks at x=0 with value 1/√(2π)", () => {
@@ -16,8 +14,8 @@ describe("normalPdf", () => {
   });
 
   it("matches known values", () => {
-    expect(normalPdf(1)).toBeCloseTo(0.24197072451914337, 10);
-    expect(normalPdf(2)).toBeCloseTo(0.05399096651318806, 10);
+    expect(normalPdf(1)).toBeCloseTo(0.241_970_724_519_143_37, 10);
+    expect(normalPdf(2)).toBeCloseTo(0.053_990_966_513_188_06, 10);
   });
 });
 
@@ -32,8 +30,8 @@ describe("normalCdf", () => {
   });
 
   it("matches known values", () => {
-    expect(normalCdf(1)).toBeCloseTo(0.8413447460685429, 6);
-    expect(normalCdf(-1)).toBeCloseTo(0.15865525393145702, 6);
+    expect(normalCdf(1)).toBeCloseTo(0.841_344_746_068_542_9, 6);
+    expect(normalCdf(-1)).toBeCloseTo(0.158_655_253_931_457_02, 6);
     expect(normalCdf(1.96)).toBeCloseTo(0.975, 3);
   });
 

@@ -169,7 +169,7 @@ def main():
     try:
         from nbconvert import HTMLExporter
         exporter = HTMLExporter()
-        exporter.template_name = "classic"
+        exporter.theme = "light"
         body, _ = exporter.from_notebook_node(nb)
         html_path = ROOT / "demo" / "jupyter-demo.html"
         html_path.write_text(body)

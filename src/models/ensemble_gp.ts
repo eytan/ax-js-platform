@@ -1,10 +1,8 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
+import type { EnsembleGPModelState, GPInternals, PredictionResult } from "./types.js";
+
 import { SingleTaskGP } from "./single_task.js";
-import type {
-  EnsembleGPModelState,
-  GPInternals,
-  GPModelState,
-  PredictionResult,
-} from "./types.js";
 
 /**
  * Ensemble GP that averages predictions from K posterior-sample GPs.
@@ -19,7 +17,7 @@ import type {
  *            = (1/K) * sum(var_k) + (1/K) * sum(mu_k^2) - mean^2
  */
 export class EnsembleGP {
-  private models: SingleTaskGP[];
+  private readonly models: Array<SingleTaskGP>;
 
   constructor(state: EnsembleGPModelState) {
     if (!state.models || state.models.length === 0) {
@@ -38,7 +36,7 @@ export class EnsembleGP {
     return this.models[index].getInternals();
   }
 
-  predict(testPoints: number[][]): PredictionResult {
+  predict(testPoints: Array<Array<number>>): PredictionResult {
     if (testPoints.length === 0) {
       throw new Error("testPoints must not be empty");
     }
@@ -54,10 +52,10 @@ export class EnsembleGP {
       let sumVar = 0;
       let sumMu2 = 0;
       for (let k = 0; k < K; k++) {
-        const mu_k = results[k].mean[i];
-        sumMu += mu_k;
+        const muK = results[k].mean[i];
+        sumMu += muK;
         sumVar += results[k].variance[i];
-        sumMu2 += mu_k * mu_k;
+        sumMu2 += muK * muK;
       }
       mean[i] = sumMu / K;
       // Law of total variance: E[Var] + Var[E]
@@ -76,17 +74,12 @@ export class EnsembleGP {
    * First term: average within-model covariance.
    * Second term: sample covariance of per-model means.
    */
-  predictCovarianceWith(
-    testPoints: number[][],
-    refPoint: number[],
-  ): Float64Array {
+  predictCovarianceWith(testPoints: Array<Array<number>>, refPoint: Array<number>): Float64Array {
     const K = this.models.length;
     const n = testPoints.length;
 
     // Collect per-model covariances and means
-    const covs = this.models.map((m) =>
-      m.predictCovarianceWith(testPoints, refPoint),
-    );
+    const covs = this.models.map((m) => m.predictCovarianceWith(testPoints, refPoint));
     const testResults = this.models.map((m) => m.predict(testPoints));
     const refResults = this.models.map((m) => m.predict([refPoint]));
 
@@ -105,8 +98,7 @@ export class EnsembleGP {
         sumMuAB += muA * muB;
       }
       // E[Cov_k] + Cov(mu_a, mu_b)
-      result[i] =
-        sumCov / K + (sumMuAB / K - (sumMuA / K) * (sumMuB / K));
+      result[i] = sumCov / K + (sumMuAB / K - (sumMuA / K) * (sumMuB / K));
     }
 
     return result;

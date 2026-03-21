@@ -1,4 +1,7 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import { describe, it, expect } from "vitest";
+
 import { Matrix } from "../../src/linalg/matrix.js";
 import { matmul, transpose, add, scale, dot } from "../../src/linalg/ops.js";
 
@@ -68,8 +71,14 @@ describe("matmul", () => {
 
 describe("add", () => {
   it("adds two matrices", () => {
-    const A = Matrix.from2D([[1, 2], [3, 4]]);
-    const B = Matrix.from2D([[5, 6], [7, 8]]);
+    const A = Matrix.from2D([
+      [1, 2],
+      [3, 4],
+    ]);
+    const B = Matrix.from2D([
+      [5, 6],
+      [7, 8],
+    ]);
     const C = add(A, B);
     expect(C.get(0, 0)).toBe(6);
     expect(C.get(1, 1)).toBe(12);
@@ -78,7 +87,10 @@ describe("add", () => {
 
 describe("scale", () => {
   it("scales a matrix", () => {
-    const A = Matrix.from2D([[2, 4], [6, 8]]);
+    const A = Matrix.from2D([
+      [2, 4],
+      [6, 8],
+    ]);
     const B = scale(A, 0.5);
     expect(B.get(0, 0)).toBe(1);
     expect(B.get(1, 1)).toBe(4);

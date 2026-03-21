@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import { Matrix } from "./matrix.js";
 
 export function transpose(a: Matrix): Matrix {
@@ -15,7 +17,9 @@ export function matmul(a: Matrix, b: Matrix): Matrix {
   for (let i = 0; i < a.rows; i++) {
     for (let k = 0; k < a.cols; k++) {
       const aik = a.data[i * a.cols + k];
-      if (aik === 0) continue;
+      if (aik === 0) {
+        continue;
+      }
       for (let j = 0; j < b.cols; j++) {
         result.data[i * b.cols + j] += aik * b.data[k * b.cols + j];
       }
@@ -42,6 +46,8 @@ export function scale(a: Matrix, s: number): Matrix {
 
 export function dot(a: Float64Array, b: Float64Array): number {
   let s = 0;
-  for (let i = 0; i < a.length; i++) s += a[i] * b[i];
+  for (let i = 0; i < a.length; i++) {
+    s += a[i] * b[i];
+  }
   return s;
 }

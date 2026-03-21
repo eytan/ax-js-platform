@@ -1,13 +1,16 @@
-import { Matrix } from "../linalg/matrix.js";
-import { cholesky } from "../linalg/cholesky.js";
-import { forwardSolve, solveCholesky } from "../linalg/solve.js";
-import type { Kernel } from "../kernels/types.js";
-import { kernelDiag } from "../kernels/composite.js";
-import { ConstantMean } from "../means/constant.js";
-import { InputNormalize } from "../transforms/normalize.js";
-import { InputWarp } from "../transforms/warp.js";
-import type { OutcomeUntransform } from "../transforms/outcome.js";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { GPInternals, PredictionResult } from "./types.js";
+import type { Kernel } from "../kernels/types.js";
+import type { ConstantMean } from "../means/constant.js";
+import type { InputNormalize } from "../transforms/normalize.js";
+import type { OutcomeUntransform } from "../transforms/outcome.js";
+import type { InputWarp } from "../transforms/warp.js";
+
+import { kernelDiag } from "../kernels/composite.js";
+import { cholesky } from "../linalg/cholesky.js";
+import { Matrix } from "../linalg/matrix.js";
+import { forwardSolve, solveCholesky } from "../linalg/solve.js";
 
 /**
  * Core ExactGP with Cholesky-based posterior.
@@ -22,14 +25,14 @@ import type { GPInternals, PredictionResult } from "./types.js";
  *   var = diag(k**) - sum(v²)   [diagonal only — O(m) not O(m²)]
  */
 export class ExactGP {
-  private kernel: Kernel;
-  private mean: ConstantMean;
-  private inputTransform: InputNormalize | null;
-  private inputWarp: InputWarp | null;
-  private outcomeTransform: OutcomeUntransform | null;
-  private trainXNorm: Matrix;
-  private L: Matrix;
-  private alpha: Matrix;
+  private readonly kernel: Kernel;
+  private readonly mean: ConstantMean;
+  private readonly inputTransform: InputNormalize | null;
+  private readonly inputWarp: InputWarp | null;
+  private readonly outcomeTransform: OutcomeUntransform | null;
+  private readonly trainXNorm: Matrix;
+  private readonly L: Matrix;
+  private readonly alpha: Matrix;
 
   constructor(
     trainX: Matrix,
@@ -81,11 +84,15 @@ export class ExactGP {
     const n = this.alpha.rows;
     const d = this.trainXNorm.cols;
     const alphaArr = new Float64Array(n);
-    for (let i = 0; i < n; i++) alphaArr[i] = this.alpha.get(i, 0);
-    const trainXArr: number[][] = new Array(n);
+    for (let i = 0; i < n; i++) {
+      alphaArr[i] = this.alpha.get(i, 0);
+    }
+    const trainXArr: Array<Array<number>> = new Array(n);
     for (let i = 0; i < n; i++) {
       const row = new Array(d);
-      for (let j = 0; j < d; j++) row[j] = this.trainXNorm.get(i, j);
+      for (let j = 0; j < d; j++) {
+        row[j] = this.trainXNorm.get(i, j);
+      }
       trainXArr[i] = row;
     }
     return {
@@ -97,9 +104,7 @@ export class ExactGP {
 
   /** Transform test inputs through normalize + warp pipeline. */
   private transformInputs(testX: Matrix): Matrix {
-    let testXNorm = this.inputTransform
-      ? this.inputTransform.forward(testX)
-      : testX;
+    let testXNorm = this.inputTransform ? this.inputTransform.forward(testX) : testX;
     if (this.inputWarp) {
       testXNorm = this.inputWarp.forward(testXNorm);
     }
@@ -184,14 +189,16 @@ export class ExactGP {
       // Forward-solve L * x = e_i
       const x = new Float64Array(n);
       for (let row = 0; row < n; row++) {
-        let s = row === i ? 1.0 : 0.0;
+        let s = row === i ? 1 : 0;
         for (let j = 0; j < row; j++) {
           s -= this.L.get(row, j) * x[j];
         }
         x[row] = s / this.L.get(row, row);
       }
       let sumSq = 0;
-      for (let j = 0; j < n; j++) sumSq += x[j] * x[j];
+      for (let j = 0; j < n; j++) {
+        sumSq += x[j] * x[j];
+      }
       diagKinv[i] = sumSq;
     }
 
@@ -201,7 +208,7 @@ export class ExactGP {
     for (let i = 0; i < n; i++) {
       const yi = trainY.get(i, 0);
       mean[i] = yi - this.alpha.get(i, 0) / diagKinv[i];
-      variance[i] = Math.max(0, 1.0 / diagKinv[i]);
+      variance[i] = Math.max(0, 1 / diagKinv[i]);
     }
 
     // Apply outcome untransform (same as predict())

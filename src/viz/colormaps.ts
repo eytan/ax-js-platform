@@ -1,18 +1,33 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { RGB } from "./types";
 
-const VIRIDIS_STOPS: RGB[] = [
-  [68, 1, 84], [72, 32, 111], [63, 64, 153], [50, 101, 176],
-  [38, 130, 142], [63, 151, 120], [92, 170, 98], [140, 188, 80],
-  [195, 203, 72], [253, 231, 37],
+const VIRIDIS_STOPS: Array<RGB> = [
+  [68, 1, 84],
+  [72, 32, 111],
+  [63, 64, 153],
+  [50, 101, 176],
+  [38, 130, 142],
+  [63, 151, 120],
+  [92, 170, 98],
+  [140, 188, 80],
+  [195, 203, 72],
+  [253, 231, 37],
 ];
 
-const PLASMA_STOPS: RGB[] = [
-  [13, 8, 135], [75, 3, 161], [125, 3, 168], [168, 34, 150],
-  [203, 70, 121], [229, 107, 93], [245, 144, 66], [252, 180, 36],
+const PLASMA_STOPS: Array<RGB> = [
+  [13, 8, 135],
+  [75, 3, 161],
+  [125, 3, 168],
+  [168, 34, 150],
+  [203, 70, 121],
+  [229, 107, 93],
+  [245, 144, 66],
+  [252, 180, 36],
   [241, 229, 29],
 ];
 
-function interpolateStops(t: number, stops: RGB[]): RGB {
+function interpolateStops(t: number, stops: Array<RGB>): RGB {
   t = Math.max(0, Math.min(1, t));
   const idx = t * (stops.length - 1);
   const lo = Math.floor(idx);
@@ -35,21 +50,41 @@ export function plasma(t: number): RGB {
   return interpolateStops(t, PLASMA_STOPS);
 }
 
+const PIYG_STOPS: Array<RGB> = [
+  [140, 0, 75],
+  [212, 0, 112],
+  [238, 65, 158],
+  [250, 148, 203],
+  [254, 214, 233],
+  [247, 247, 247],
+  [216, 248, 190],
+  [168, 232, 88],
+  [98, 198, 30],
+  [45, 162, 8],
+  [15, 115, 0],
+];
+
+/** PiYG divergent colormap. Pink → grey → green, grey at t=0.5 (zero change). */
+export function piYG(t: number): RGB {
+  return interpolateStops(t, PIYG_STOPS);
+}
+
 /**
  * Render a horizontal colorbar into a canvas element.
  * @param canvasId - DOM id of the `<canvas>` element.
  * @param colorFn - Colormap function mapping [0,1] to RGB.
  */
-export function drawColorbar(
-  canvasId: string,
-  colorFn: (t: number) => RGB,
-): void {
+export function drawColorbar(canvasId: string, colorFn: (t: number) => RGB): void {
   const cvs = document.getElementById(canvasId) as HTMLCanvasElement | null;
-  if (!cvs) return;
+  if (!cvs) {
+    return;
+  }
   cvs.width = cvs.offsetWidth || 200;
   cvs.height = cvs.offsetHeight || 24;
   const ctx = cvs.getContext("2d");
-  if (!ctx) return;
+  if (!ctx) {
+    return;
+  }
   const w = cvs.width;
   const h = cvs.height;
   for (let i = 0; i < w; i++) {
@@ -64,7 +99,7 @@ export function drawColorbar(
  */
 export function renderHeatmap(
   ctx: CanvasRenderingContext2D,
-  values: number[],
+  values: Array<number>,
   gridW: number,
   gridH: number,
   canvasW: number,

@@ -1,5 +1,8 @@
-import { Matrix } from "../linalg/matrix.js";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { Kernel } from "./types.js";
+
+import { Matrix } from "../linalg/matrix.js";
 
 /**
  * Categorical (Hamming distance) kernel.
@@ -13,7 +16,7 @@ import type { Kernel } from "./types.js";
 export class CategoricalKernel implements Kernel {
   readonly lengthscales: Float64Array;
 
-  constructor(lengthscale: number | number[]) {
+  constructor(lengthscale: number | Array<number>) {
     if (typeof lengthscale === "number") {
       this.lengthscales = Float64Array.from([lengthscale]);
     } else {
@@ -31,7 +34,7 @@ export class CategoricalKernel implements Kernel {
         let dist = 0;
         for (let k = 0; k < d; k++) {
           if (Math.abs(x1.get(i, k) - x2.get(j, k)) > 1e-8) {
-            dist += 1.0 / (ard ? this.lengthscales[k] : this.lengthscales[0]);
+            dist += 1 / (ard ? this.lengthscales[k] : this.lengthscales[0]);
           }
         }
         result.set(i, j, Math.exp(-dist / d));

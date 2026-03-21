@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 /**
  * **ax-js/acquisition** — Client-side acquisition functions and optimization.
  *
@@ -32,9 +34,4 @@ export type { OptimizeAcqfOptions, LBFGSOptions } from "./optimize.js";
 
 // Types — GPModel is the minimal GP interface for acqf evaluation;
 // AcquisitionFunction defines `evaluate(x) → number`.
-export type {
-  GPModel,
-  AcquisitionFunction,
-  OptimizeResult,
-  Bounds,
-} from "./types.js";
+export type { GPModel, AcquisitionFunction, OptimizeResult, Bounds } from "./types.js";

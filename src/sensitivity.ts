@@ -1,14 +1,17 @@
-import { Rng } from "./acquisition/sample_mvn.js";
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { SearchSpaceParam } from "./models/types.js";
+
+import { Rng } from "./acquisition/sample_mvn.js";
 
 /** Sobol' sensitivity analysis results for a GP posterior mean. */
 export interface SensitivityIndices {
   /** First-order Sobol' index per continuous dimension. */
-  firstOrder: number[];
+  firstOrder: Array<number>;
   /** Total-order Sobol' index per continuous dimension. */
-  totalOrder: number[];
+  totalOrder: Array<number>;
   /** Parameter names corresponding to each index. */
-  paramNames: string[];
+  paramNames: Array<string>;
   /** Total number of function evaluations used. */
   numEvaluations: number;
 }
@@ -19,8 +22,11 @@ export interface SaltelliOptions {
   seed?: number; // Default: 42
 }
 
-// First 20 primes for Halton sequence bases
-const PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71];
+// First 32 primes for Halton sequence bases (supports up to 32D)
+const PRIMES = [
+  2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97,
+  101, 103, 107, 109, 113, 127, 131,
+];
 
 /**
  * Generate a scrambled Halton quasi-random sequence in [0,1]^d.
@@ -28,22 +34,24 @@ const PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 
  * Uses Owen-style random digit scrambling via the provided Rng.
  * More uniform than pseudo-random for d <= 20 dimensions.
  */
-export function haltonSequence(n: number, d: number, rng?: Rng): number[][] {
+export function haltonSequence(n: number, d: number, rng?: Rng): Array<Array<number>> {
   if (d > PRIMES.length) {
     throw new Error(`haltonSequence supports up to ${PRIMES.length} dimensions, got ${d}`);
   }
   const r = rng ?? new Rng(42);
-  const result: number[][] = [];
+  const result: Array<Array<number>> = [];
 
   // Precompute per-dimension scrambling permutations
-  const permutations: number[][][] = [];
+  const permutations: Array<Array<Array<number>>> = [];
   for (let dim = 0; dim < d; dim++) {
     const base = PRIMES[dim];
     // For each digit position (up to ~20 digits), create a random permutation of [0, base-1]
-    const dimPerms: number[][] = [];
+    const dimPerms: Array<Array<number>> = [];
     for (let digitPos = 0; digitPos < 20; digitPos++) {
-      const perm: number[] = [];
-      for (let k = 0; k < base; k++) perm.push(k);
+      const perm: Array<number> = [];
+      for (let k = 0; k < base; k++) {
+        perm.push(k);
+      }
       // Fisher-Yates shuffle
       for (let k = base - 1; k > 0; k--) {
         const j = Math.floor(r.uniform() * (k + 1));
@@ -81,12 +89,12 @@ export function haltonSequence(n: number, d: number, rng?: Rng): number[][] {
 }
 
 /** Separate continuous and categorical dimensions from parameter specs. */
-function splitDimensions(paramSpecs: SearchSpaceParam[]): {
-  contDims: number[];
-  catDims: number[];
+function splitDimensions(paramSpecs: Array<SearchSpaceParam>): {
+  contDims: Array<number>;
+  catDims: Array<number>;
 } {
-  const contDims: number[] = [];
-  const catDims: number[] = [];
+  const contDims: Array<number> = [];
+  const catDims: Array<number> = [];
   for (let i = 0; i < paramSpecs.length; i++) {
     if (paramSpecs[i].type === "choice") {
       catDims.push(i);
@@ -112,16 +120,20 @@ function scaleValue(u: number, spec: SearchSpaceParam): number {
  * Returns arrays of categorical values indexed by catDims positions.
  */
 function categoricalCombinations(
-  paramSpecs: SearchSpaceParam[],
-  catDims: number[],
+  paramSpecs: Array<SearchSpaceParam>,
+  catDims: Array<number>,
   maxCombinations: number,
   rng: Rng,
-): number[][] {
-  if (catDims.length === 0) return [[]];
+): Array<Array<number>> {
+  if (catDims.length === 0) {
+    return [[]];
+  }
 
   const valueSets = catDims.map((d) => {
     const vals = paramSpecs[d].values;
-    if (!vals) return [0];
+    if (!vals) {
+      return [0];
+    }
     // Choice values are encoded as numeric indices in the model
     return vals.map((_, i) => i);
   });
@@ -130,14 +142,16 @@ function categoricalCombinations(
   let totalCombos = 1;
   for (const vs of valueSets) {
     totalCombos *= vs.length;
-    if (totalCombos > maxCombinations) break;
+    if (totalCombos > maxCombinations) {
+      break;
+    }
   }
 
   if (totalCombos <= maxCombinations) {
     // Enumerate all
-    const combos: number[][] = [[]];
+    const combos: Array<Array<number>> = [[]];
     for (const vs of valueSets) {
-      const next: number[][] = [];
+      const next: Array<Array<number>> = [];
       for (const combo of combos) {
         for (const v of vs) {
           next.push([...combo, v]);
@@ -150,7 +164,7 @@ function categoricalCombinations(
   }
 
   // Random subset
-  const combos: number[][] = [];
+  const combos: Array<Array<number>> = [];
   for (let i = 0; i < maxCombinations; i++) {
     const combo = valueSets.map((vs) => vs[Math.floor(rng.uniform() * vs.length)]);
     combos.push(combo);
@@ -162,12 +176,12 @@ function categoricalCombinations(
  * Build a full parameter point from continuous values and categorical values.
  */
 function buildPoint(
-  contValues: number[],
-  catValues: number[],
-  contDims: number[],
-  catDims: number[],
+  contValues: Array<number>,
+  catValues: Array<number>,
+  contDims: Array<number>,
+  catDims: Array<number>,
   totalDims: number,
-): number[] {
+): Array<number> {
   const pt = new Array(totalDims);
   for (let i = 0; i < contDims.length; i++) {
     pt[contDims[i]] = contValues[i];
@@ -193,8 +207,8 @@ const MAX_BATCH = 4096;
  * @returns First-order and total-order indices per continuous dimension
  */
 export function computeSobolIndices(
-  predictFn: (points: number[][]) => Float64Array,
-  paramSpecs: SearchSpaceParam[],
+  predictFn: (points: Array<Array<number>>) => Float64Array,
+  paramSpecs: Array<SearchSpaceParam>,
   options?: SaltelliOptions,
 ): SensitivityIndices {
   const N = options?.numSamples ?? 512;
@@ -217,11 +231,11 @@ export function computeSobolIndices(
   // Saltelli's estimator requires truly independent A and B matrices,
   // and scrambled Halton with the same index range can introduce subtle
   // correlations that bias the cross-term estimates.
-  const A: number[][] = [];
-  const B: number[][] = [];
+  const A: Array<Array<number>> = [];
+  const B: Array<Array<number>> = [];
   for (let i = 0; i < N; i++) {
-    const rowA: number[] = [];
-    const rowB: number[] = [];
+    const rowA: Array<number> = [];
+    const rowB: Array<number> = [];
     for (let j = 0; j < dCont; j++) {
       rowA.push(scaleValue(rng.uniform(), paramSpecs[contDims[j]]));
       rowB.push(scaleValue(rng.uniform(), paramSpecs[contDims[j]]));
@@ -243,7 +257,7 @@ export function computeSobolIndices(
   const totalPoints = pointsPerCombo * nCatCombos;
 
   // Build all points
-  const allPoints: number[][] = new Array(totalPoints);
+  const allPoints: Array<Array<number>> = new Array(totalPoints);
   let pIdx = 0;
   for (let cc = 0; cc < nCatCombos; cc++) {
     const catVals = catCombos[cc];
@@ -277,8 +291,10 @@ export function computeSobolIndices(
   // Average over categorical combos
   const fA = new Float64Array(N);
   const fB = new Float64Array(N);
-  const fAB: Float64Array[] = [];
-  for (let j = 0; j < dCont; j++) fAB.push(new Float64Array(N));
+  const fAB: Array<Float64Array> = [];
+  for (let j = 0; j < dCont; j++) {
+    fAB.push(new Float64Array(N));
+  }
 
   for (let cc = 0; cc < nCatCombos; cc++) {
     const base = cc * pointsPerCombo;
@@ -333,9 +349,9 @@ export function computeSobolIndices(
   }
 
   // Add categorical dimension indices if any
-  const allFirstOrder: number[] = [];
-  const allTotalOrder: number[] = [];
-  const allParamNames: string[] = [];
+  const allFirstOrder: Array<number> = [];
+  const allTotalOrder: Array<number> = [];
+  const allParamNames: Array<string> = [];
 
   // Interleave continuous and categorical results in original parameter order
   let contIdx = 0;
@@ -344,7 +360,14 @@ export function computeSobolIndices(
       // For categorical dims, compute conditional variance
       if (catDims.length > 0 && nCatCombos > 1) {
         const catSens = computeCategoricalSensitivity(
-          i, catDims, catCombos, allY, N, pointsPerCombo, nCatCombos, varY,
+          i,
+          catDims,
+          catCombos,
+          allY,
+          N,
+          pointsPerCombo,
+          nCatCombos,
+          varY,
         );
         allFirstOrder.push(catSens);
         allTotalOrder.push(catSens); // For categorical, S ≈ ST (no interaction decomposition)
@@ -375,32 +398,40 @@ export function computeSobolIndices(
  */
 function computeCategoricalSensitivity(
   dimIdx: number,
-  catDims: number[],
-  catCombos: number[][],
+  catDims: Array<number>,
+  catCombos: Array<Array<number>>,
   allY: Float64Array,
   N: number,
   pointsPerCombo: number,
   nCatCombos: number,
   varY: number,
 ): number {
-  if (varY < 1e-30) return 0;
+  if (varY < 1e-30) {
+    return 0;
+  }
 
   const catPos = catDims.indexOf(dimIdx);
-  if (catPos < 0) return 0;
+  if (catPos === -1) {
+    return 0;
+  }
 
   // Group categorical combos by the value of this specific dimension
-  const groups = new Map<number, number[]>();
+  const groups = new Map<number, Array<number>>();
   for (let cc = 0; cc < nCatCombos; cc++) {
     const val = catCombos[cc][catPos];
-    if (!groups.has(val)) groups.set(val, []);
+    if (!groups.has(val)) {
+      groups.set(val, []);
+    }
     groups.get(val)!.push(cc);
   }
 
-  if (groups.size <= 1) return 0;
+  if (groups.size <= 1) {
+    return 0;
+  }
 
   // Compute E[f|cat=v] for each value v (using A matrix points only)
-  const condMeans: number[] = [];
-  const condWeights: number[] = [];
+  const condMeans: Array<number> = [];
+  const condWeights: Array<number> = [];
   for (const [, combos] of groups) {
     let sum = 0;
     let count = 0;

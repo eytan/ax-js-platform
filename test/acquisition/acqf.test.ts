@@ -1,29 +1,25 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import { describe, it, expect } from "vitest";
-import { Matrix } from "../../src/linalg/matrix.js";
-import { ExactGP } from "../../src/models/gp.js";
-import { SingleTaskGP } from "../../src/models/single_task.js";
-import { RBFKernel } from "../../src/kernels/rbf.js";
-import { ScaleKernel } from "../../src/kernels/scale.js";
-import { ConstantMean } from "../../src/means/constant.js";
-import { UpperConfidenceBound } from "../../src/acquisition/ucb.js";
-import {
-  LogExpectedImprovement,
-  ExpectedImprovement,
-} from "../../src/acquisition/log_ei.js";
-import { ThompsonSampling, thompsonSamples } from "../../src/acquisition/thompson.js";
+
+import { LogExpectedImprovement, ExpectedImprovement } from "../../src/acquisition/log_ei.js";
+import { optimizeAcqf } from "../../src/acquisition/optimize.js";
 import { posteriorCovariance } from "../../src/acquisition/posterior.js";
 import { sampleMVN, Rng } from "../../src/acquisition/sample_mvn.js";
-import { optimizeAcqf } from "../../src/acquisition/optimize.js";
+import { ThompsonSampling, thompsonSamples } from "../../src/acquisition/thompson.js";
+import { UpperConfidenceBound } from "../../src/acquisition/ucb.js";
+import { Matrix } from "../../src/linalg/matrix.js";
+import { SingleTaskGP } from "../../src/models/single_task.js";
 
 // Helper: create a simple 1D GP for testing
-function make1DGP() {
-  const trainX = [[0], [0.25], [0.5], [0.75], [1.0]];
+function make1DGP(): SingleTaskGP {
+  const trainX = [[0], [0.25], [0.5], [0.75], [1]];
   const trainY = [0, 1, 0.5, 1.5, 0.2];
   return new SingleTaskGP({
     model_type: "SingleTaskGP",
     train_X: trainX,
     train_Y: trainY,
-    kernel: { type: "Scale", outputscale: 1.0, base_kernel: { type: "RBF", lengthscale: [0.3] } },
+    kernel: { type: "Scale", outputscale: 1, base_kernel: { type: "RBF", lengthscale: [0.3] } },
     mean_constant: 0,
     noise_variance: 1e-4,
   });
@@ -34,18 +30,18 @@ function make1DGP() {
 describe("UpperConfidenceBound", () => {
   it("returns μ + √β·σ", () => {
     const gp = make1DGP();
-    const ucb = new UpperConfidenceBound(gp, 4.0); // β=4 → √β=2
+    const ucb = new UpperConfidenceBound(gp, 4); // β=4 → √β=2
     const pred = gp.predict([[0.3]]);
     const values = ucb.evaluate([[0.3]]);
-    const expected = pred.mean[0] + 2.0 * Math.sqrt(pred.variance[0]);
+    const expected = pred.mean[0] + 2 * Math.sqrt(pred.variance[0]);
     expect(values[0]).toBeCloseTo(expected, 10);
   });
 
   it("prefers high-mean or high-variance points", () => {
     const gp = make1DGP();
-    const ucb = new UpperConfidenceBound(gp, 2.0);
+    const ucb = new UpperConfidenceBound(gp, 2);
     // Evaluate at training point (low var) vs far-away (high var)
-    const values = ucb.evaluate([[0.75], [5.0]]);
+    const values = ucb.evaluate([[0.75], [5]]);
     // The far-away point has higher variance, UCB should be competitive
     expect(values.length).toBe(2);
     expect(Number.isFinite(values[0])).toBe(true);
@@ -67,11 +63,11 @@ describe("UpperConfidenceBound", () => {
 describe("ExpectedImprovement", () => {
   it("is non-negative everywhere", () => {
     const gp = make1DGP();
-    const ei = new ExpectedImprovement(gp, 1.0);
+    const ei = new ExpectedImprovement(gp, 1);
     const candidates = Array.from({ length: 20 }, (_, i) => [i / 20]);
     const values = ei.evaluate(candidates);
-    for (let i = 0; i < values.length; i++) {
-      expect(values[i]).toBeGreaterThanOrEqual(0);
+    for (const val of values) {
+      expect(val).toBeGreaterThanOrEqual(0);
     }
   });
 
@@ -86,7 +82,7 @@ describe("ExpectedImprovement", () => {
   it("is higher where improvement is likely", () => {
     const gp = make1DGP();
     const ei = new ExpectedImprovement(gp, 0.5); // low bestF
-    const values = ei.evaluate([[0.75], [0.0]]); // 0.75 has high mean (~1.5)
+    const values = ei.evaluate([[0.75], [0]]); // 0.75 has high mean (~1.5)
     expect(values[0]).toBeGreaterThan(values[1]);
   });
 });
@@ -123,10 +119,15 @@ describe("LogExpectedImprovement", () => {
     const logeiVals = logei.evaluate(candidates);
 
     // Best point should be the same
-    let eiBest = 0, logeiBest = 0;
+    let eiBest = 0,
+      logeiBest = 0;
     for (let i = 1; i < candidates.length; i++) {
-      if (eiVals[i] > eiVals[eiBest]) eiBest = i;
-      if (logeiVals[i] > logeiVals[logeiBest]) logeiBest = i;
+      if (eiVals[i] > eiVals[eiBest]) {
+        eiBest = i;
+      }
+      if (logeiVals[i] > logeiVals[logeiBest]) {
+        logeiBest = i;
+      }
     }
     expect(logeiBest).toBe(eiBest);
   });
@@ -171,27 +172,35 @@ describe("sampleMVN", () => {
   it("samples have correct mean (empirical)", () => {
     const mean = Float64Array.from([1, 2, 3]);
     const Sigma = new Matrix(3, 3);
-    Sigma.set(0, 0, 1); Sigma.set(1, 1, 1); Sigma.set(2, 2, 1);
+    Sigma.set(0, 0, 1);
+    Sigma.set(1, 1, 1);
+    Sigma.set(2, 2, 1);
     const rng = new Rng(123);
-    const samples = sampleMVN(mean, Sigma, 10000, rng);
+    const samples = sampleMVN(mean, Sigma, 10_000, rng);
 
     for (let d = 0; d < 3; d++) {
       let sum = 0;
-      for (let s = 0; s < 10000; s++) sum += samples.get(s, d);
-      expect(sum / 10000).toBeCloseTo(mean[d], 1);
+      for (let s = 0; s < 10_000; s++) {
+        sum += samples.get(s, d);
+      }
+      expect(sum / 10_000).toBeCloseTo(mean[d], 1);
     }
   });
 
   it("respects covariance structure", () => {
     const mean = Float64Array.from([0, 0]);
     const Sigma = new Matrix(2, 2);
-    Sigma.set(0, 0, 1); Sigma.set(0, 1, 0.9);
-    Sigma.set(1, 0, 0.9); Sigma.set(1, 1, 1);
+    Sigma.set(0, 0, 1);
+    Sigma.set(0, 1, 0.9);
+    Sigma.set(1, 0, 0.9);
+    Sigma.set(1, 1, 1);
     const rng = new Rng(42);
     const samples = sampleMVN(mean, Sigma, 5000, rng);
 
     // Empirical correlation should be close to 0.9
-    let sumXY = 0, sumX2 = 0, sumY2 = 0;
+    let sumXY = 0,
+      sumX2 = 0,
+      sumY2 = 0;
     for (let s = 0; s < 5000; s++) {
       const x = samples.get(s, 0);
       const y = samples.get(s, 1);
@@ -206,7 +215,8 @@ describe("sampleMVN", () => {
   it("is reproducible with same seed", () => {
     const mean = Float64Array.from([0, 0]);
     const Sigma = Matrix.zeros(2, 2);
-    Sigma.set(0, 0, 1); Sigma.set(1, 1, 1);
+    Sigma.set(0, 0, 1);
+    Sigma.set(1, 1, 1);
 
     const s1 = sampleMVN(mean, Sigma, 5, new Rng(99));
     const s2 = sampleMVN(mean, Sigma, 5, new Rng(99));
@@ -242,7 +252,9 @@ describe("ThompsonSampling", () => {
     // Very unlikely to be identical
     let allEqual = true;
     for (let i = 0; i < 3; i++) {
-      if (v1[i] !== v2[i]) allEqual = false;
+      if (v1[i] !== v2[i]) {
+        allEqual = false;
+      }
     }
     expect(allEqual).toBe(false);
   });
@@ -261,7 +273,7 @@ describe("ThompsonSampling", () => {
 describe("optimizeAcqf", () => {
   it("finds a good point with random search", () => {
     const gp = make1DGP();
-    const ucb = new UpperConfidenceBound(gp, 2.0);
+    const ucb = new UpperConfidenceBound(gp, 2);
     const result = optimizeAcqf(ucb, [[0, 1]], {
       rawSamples: 500,
       seed: 42,
@@ -293,7 +305,7 @@ describe("optimizeAcqf", () => {
 
   it("respects bounds", () => {
     const gp = make1DGP();
-    const ucb = new UpperConfidenceBound(gp, 2.0);
+    const ucb = new UpperConfidenceBound(gp, 2);
     const result = optimizeAcqf(ucb, [[0.2, 0.8]], {
       rawSamples: 200,
       useLBFGS: true,
@@ -306,18 +318,35 @@ describe("optimizeAcqf", () => {
   it("works in 2D", () => {
     const gp2d = new SingleTaskGP({
       model_type: "SingleTaskGP",
-      train_X: [[0, 0], [1, 0], [0, 1], [1, 1], [0.5, 0.5]],
+      train_X: [
+        [0, 0],
+        [1, 0],
+        [0, 1],
+        [1, 1],
+        [0.5, 0.5],
+      ],
       train_Y: [0, 0, 0, 0, 1],
-      kernel: { type: "Scale", outputscale: 1.0, base_kernel: { type: "RBF", lengthscale: [0.3, 0.3] } },
+      kernel: {
+        type: "Scale",
+        outputscale: 1,
+        base_kernel: { type: "RBF", lengthscale: [0.3, 0.3] },
+      },
       mean_constant: 0,
       noise_variance: 1e-4,
     });
-    const ucb = new UpperConfidenceBound(gp2d, 2.0);
-    const result = optimizeAcqf(ucb, [[0, 1], [0, 1]], {
-      rawSamples: 500,
-      useLBFGS: true,
-      seed: 42,
-    });
+    const ucb = new UpperConfidenceBound(gp2d, 2);
+    const result = optimizeAcqf(
+      ucb,
+      [
+        [0, 1],
+        [0, 1],
+      ],
+      {
+        rawSamples: 500,
+        useLBFGS: true,
+        seed: 42,
+      },
+    );
     expect(result.point.length).toBe(2);
     // Should find something near (0.5, 0.5) where the peak is
     expect(result.point[0]).toBeGreaterThan(0.1);
@@ -328,7 +357,7 @@ describe("optimizeAcqf", () => {
 
   it("returnAll provides sorted candidates", () => {
     const gp = make1DGP();
-    const ucb = new UpperConfidenceBound(gp, 2.0);
+    const ucb = new UpperConfidenceBound(gp, 2);
     const result = optimizeAcqf(ucb, [[0, 1]], {
       rawSamples: 50,
       returnAll: true,

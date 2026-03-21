@@ -1,16 +1,15 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
 import type { Kernel } from "./types.js";
 import type { KernelState } from "../models/types.js";
+
+import { CategoricalKernel } from "./categorical.js";
+import { ActiveDimsKernel, AdditiveKernel, ProductKernel } from "./composite.js";
 import { MaternKernel } from "./matern.js";
 import { RBFKernel } from "./rbf.js";
 import { ScaleKernel } from "./scale.js";
-import { CategoricalKernel } from "./categorical.js";
-import {
-  ActiveDimsKernel,
-  AdditiveKernel,
-  ProductKernel,
-} from "./composite.js";
 
-function _validateLengthscale(ls: number[], kernelType: string): void {
+function _validateLengthscale(ls: Array<number>, kernelType: string): void {
   for (let i = 0; i < ls.length; i++) {
     if (ls[i] <= 0 || !isFinite(ls[i])) {
       throw new Error(
@@ -32,41 +31,45 @@ export function buildKernel(state: KernelState): Kernel {
   let kernel: Kernel;
 
   switch (state.type) {
-    case "Matern":
+    case "Matern": {
       _validateLengthscale(state.lengthscale!, "Matern");
       kernel = new MaternKernel(state.lengthscale!, (state.nu as 0.5 | 1.5 | 2.5) ?? 2.5);
       break;
+    }
 
-    case "RBF":
+    case "RBF": {
       _validateLengthscale(state.lengthscale!, "RBF");
       kernel = new RBFKernel(state.lengthscale!);
       break;
+    }
 
-    case "Categorical":
+    case "Categorical": {
       kernel = new CategoricalKernel(
         state.lengthscale && state.lengthscale.length > 1
           ? state.lengthscale
-          : state.lengthscale?.[0] ?? 1.0,
+          : (state.lengthscale?.[0] ?? 1),
       );
       break;
+    }
 
-    case "Scale":
-      kernel = new ScaleKernel(
-        buildKernel(state.base_kernel!),
-        state.outputscale!,
-      );
+    case "Scale": {
+      kernel = new ScaleKernel(buildKernel(state.base_kernel!), state.outputscale!);
       break;
+    }
 
-    case "Additive":
+    case "Additive": {
       kernel = new AdditiveKernel(state.kernels!.map(buildKernel));
       break;
+    }
 
-    case "Product":
+    case "Product": {
       kernel = new ProductKernel(state.kernels!.map(buildKernel));
       break;
+    }
 
-    default:
-      throw new Error(`Unknown kernel type: ${state.type}`);
+    default: {
+      throw new Error(`Unknown kernel type: ${String(state.type)}`);
+    }
   }
 
   // Legacy format: outputscale at top level for non-Scale types
