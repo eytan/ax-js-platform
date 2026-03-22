@@ -87,11 +87,18 @@ type ColorFn = (t: number) => [number, number, number];
  * Interactive mode: outcome selector, axis selectors with collision guard,
  * parameter sliders, click-to-pin with slider snapping.
  */
+/** Controller for programmatic interaction with an interactive response surface. */
+export interface ResponseSurfaceController {
+  setRelative(relative: boolean): void;
+  setOutcome(name: string): void;
+  destroy(): void;
+}
+
 export function renderResponseSurface(
   container: HTMLElement,
   predictor: RenderPredictor,
   options?: ResponseSurfaceOptions,
-): void {
+): ResponseSurfaceController {
   const interactive = options?.interactive !== false;
 
   if (!interactive) {
@@ -103,7 +110,7 @@ export function renderResponseSurface(
       options?.dimY ?? Math.min(1, predictor.paramNames.length - 1),
       options,
     );
-    return;
+    return { setRelative() {}, setOutcome() {}, destroy() { container.innerHTML = ""; } };
   }
 
   if (!container.id) {
@@ -124,6 +131,8 @@ export function renderResponseSurface(
   let selDimY = options?.dimY ?? (rangeDims.length > 1 ? rangeDims[1] : 0);
   const fixedValues: Array<number | string | boolean> =
     options?.fixedValues?.slice() ?? params.map((p) => defaultParamValue(p));
+  let isRelative = options?.relative === true;
+  const statusQuoPoint = options?.statusQuoPoint ?? predictor.statusQuoPoint ?? null;
   const tooltip = createTooltipDiv(container.id);
 
   // Pre-compute stable colorscale range across all slider positions
@@ -178,7 +187,7 @@ export function renderResponseSurface(
     axisDiv.append(wrapper);
     return select;
   }
-  axisSelects.x = makeDimSelect("X axis:", selDimX, (v) => {
+  const xSelect = makeDimSelect("X axis:", selDimX, (v) => {
     selDimX = v;
     if (selDimX === selDimY) {
       selDimY = (selDimX + 1) % params.length;
@@ -186,7 +195,9 @@ export function renderResponseSurface(
     }
     rebuildSliders();
   });
-  axisSelects.y = makeDimSelect("Y axis:", selDimY, (v) => {
+  xSelect.setAttribute("data-axis", "x");
+  axisSelects.x = xSelect;
+  const ySelect = makeDimSelect("Y axis:", selDimY, (v) => {
     selDimY = v;
     if (selDimX === selDimY) {
       selDimX = (selDimY + 1) % params.length;
@@ -194,6 +205,8 @@ export function renderResponseSurface(
     }
     rebuildSliders();
   });
+  ySelect.setAttribute("data-axis", "y");
+  axisSelects.y = ySelect;
 
   // Pinned state persists across re-renders
   let rsPinnedIdx = -1;
@@ -221,12 +234,11 @@ export function renderResponseSurface(
     plotsDiv.innerHTML = "";
     // Build stable colorscale range for the selected outcome
     const er = globalRangeData[selectedOutcome];
-    let range: { meanMin: number; meanMax: number; stdMax: number } | undefined;
+    let range: { meanMin: number; meanMax: number; stdMin: number; stdMax: number } | undefined;
     if (er) {
-      const estStdMax = (er.ciMax - er.muMax) / 1.96;
-      if (options?.relative) {
+      if (isRelative) {
         // For relative mode: predict at SQ, then relativize the global range
-        const sq = options.statusQuoPoint ?? predictor.statusQuoPoint ?? null;
+        const sq = statusQuoPoint;
         if (sq) {
           const sqPred = predictor.predict([sq])[selectedOutcome];
           if (sqPred && Math.abs(sqPred.mean[0]) >= 1e-15) {
@@ -234,13 +246,14 @@ export function renderResponseSurface(
             const sqS = Math.sqrt(sqPred.variance[0]);
             const [relMin] = deltaRelativize(er.muMin, 0, sqM, sqS);
             const [relMax] = deltaRelativize(er.muMax, 0, sqM, sqS);
-            const relStdMax = (estStdMax / Math.abs(sqM)) * 100;
+            const relStdMin = (er.stdMin / Math.abs(sqM)) * 100;
+            const relStdMax = (er.stdMax / Math.abs(sqM)) * 100;
             const maxAbs = Math.max(Math.abs(relMin), Math.abs(relMax));
-            range = { meanMin: -maxAbs, meanMax: maxAbs, stdMax: relStdMax };
+            range = { meanMin: -maxAbs, meanMax: maxAbs, stdMin: relStdMin, stdMax: relStdMax };
           }
         }
       } else {
-        range = { meanMin: er.muMin, meanMax: er.muMax, stdMax: Math.max(0, estStdMax) };
+        range = { meanMin: er.muMin, meanMax: er.muMax, stdMin: er.stdMin, stdMax: er.stdMax };
       }
     }
     renderResponseSurfaceStatic(
@@ -268,6 +281,23 @@ export function renderResponseSurface(
     );
   }
   redraw();
+
+  return {
+    setRelative(relative: boolean) {
+      if (relative === isRelative) return;
+      isRelative = relative;
+      redraw();
+    },
+    setOutcome(name: string) {
+      if (name === selectedOutcome) return;
+      selectedOutcome = name;
+      redraw();
+    },
+    destroy() {
+      removeTooltip(container.id);
+      container.innerHTML = "";
+    },
+  };
 }
 
 // ── Shared panel rendering ───────────────────────────────────────────────
@@ -466,7 +496,7 @@ function renderResponseSurfaceStatic(
   onSnapToPoint?: (pt: Array<number>) => void,
   getPinnedIdx?: () => number,
   setPinnedIdx?: (v: number) => void,
-  globalRange?: { meanMin: number; meanMax: number; stdMax: number },
+  globalRange?: { meanMin: number; meanMax: number; stdMin: number; stdMax: number },
 ): void {
   const gridSize = options?.gridSize ?? 80;
   const bounds = predictor.paramBounds;
@@ -576,7 +606,7 @@ function renderResponseSurfaceStatic(
     meanMin = Math.min(...means);
     meanMax = Math.max(...means);
   }
-  const stdMin = 0;
+  const stdMin = globalRange?.stdMin ?? Math.min(...stds);
   const stdMax = globalRange?.stdMax ?? Math.max(...stds);
 
   // Training dot data (positions computed per-panel since ML differs)

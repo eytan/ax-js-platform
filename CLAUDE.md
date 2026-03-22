@@ -33,7 +33,7 @@ npm run build               # Build library + demos
 ## API Usage Rules
 
 - **Always use `Predictor`** (not `loadModel` directly) unless the specific use case absolutely requires low-level model access. `Predictor` handles input transforms, output transforms, adapter untransforms, and outcome naming automatically — using `loadModel` bypasses all of this and leads to subtle bugs (e.g., lengthscales in the wrong space, missing normalization).
-- When constructing synthetic model states (e.g., in demos), always include `input_transform` with proper `Normalize` bounds so that lengthscales are in normalized `[0,1]` space, matching real Ax/BoTorch exports.
+- **Do not synthesize `input_transform` on models that lack it.** The analytic Sobol handles raw-space models by integrating over `paramBounds` directly.
 
 ## Plans & Guides
 
@@ -123,3 +123,12 @@ never read `train_Y` directly.**
 - IIFE bundles: `ax.js` (`window.Ax`), `ax-acquisition.js` (`Ax.acquisition`), `ax-viz.js` (`Ax.viz`)
 - ESM + CJS for all three entry points
 - TypeDoc API reference: `npm run docs`
+
+## Debugging Rules
+
+- **Reproduce what the user sees** before claiming correctness. Mathematical proofs don't
+  override empirical observation — test at real data points, not just synthetic ones.
+- **Cache keys must be collision-resistant across all input dimensions.** Never hash only
+  a subset of matrix elements.
+- Models may have `train_X` in raw parameter space (no `input_transform`). The analytic
+  Sobol handles this by integrating over `paramBounds`. Do not retroactively add transforms.

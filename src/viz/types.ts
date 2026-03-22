@@ -108,6 +108,8 @@ export interface SlicePlotOptions {
   relative?: boolean;
   /** Override the status quo reference point. Falls back to predictor.statusQuoPoint. */
   statusQuoPoint?: Array<number>;
+  /** "grid" shows all dims as small multiples (default). "single" shows one dim with a selector. */
+  layout?: "grid" | "single";
 }
 
 /** Options for renderResponseSurface. */

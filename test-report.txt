@@ -1,8 +1,8 @@
 ax-js Test Report
 ============================================================
-Date: 2026-03-21
+Date: 2026-03-22
 
-Result: ALL PASSED (587/587 tests)
+Result: ALL PASSED (604/604 tests)
 
 ------------------------------------------------------------
 Category                         Tests  Status
@@ -12,16 +12,16 @@ Ax-Level Parity                     44  44 passed
 Relativization                      52  52 passed
 Cockpit Metadata                    10  10 passed
 Predictor                           25  25 passed
-API Smoke Tests                     25  25 passed
-Kernels                             32  32 passed
-Linear Algebra                      30  30 passed
-Models                               9  9 passed
+API Smoke Tests                      7  7 passed
+Kernels                             38  38 passed
+Linear Algebra                      32  32 passed
+Models                              13  13 passed
 Transforms                          40  40 passed
 IO / Deserialization                 6  6 passed
 Acquisition Functions               43  43 passed
-Other                              132  132 passed
+Other                              155  155 passed
 ------------------------------------------------------------
-Total                              587  ALL PASSED
+Total                              604  ALL PASSED
 
 Detailed Breakdown
 ============================================================
@@ -49,16 +49,7 @@ Detailed Breakdown
   25/25  Predictor
 
 [API Smoke Tests]
-  1/1  Public API imports
-  4/4  Predictor properties
-  4/4  Predictor.predict()
-  3/3  Predictor.getTrainingData()
-  1/1  Predictor.getLengthscales()
-  2/2  Predictor.loocv()
-  2/2  Predictor.rankDimensionsByImportance()
-  2/2  Predictor.kernelCorrelation()
-  4/4  Viz imports
-  2/2  Acquisition imports
+  7/7  Public API smoke
 
 [Kernels]
   4/4  buildKernel
@@ -67,6 +58,7 @@ Detailed Breakdown
   2/2  ProductKernel
   3/3  CategoricalKernel
   1/1  kernelDiag
+  6/6  Kernel.computeDiag parity
   2/2  cdistSquared
   2/2  cdist
   7/7  MaternKernel
@@ -84,10 +76,11 @@ Detailed Breakdown
   1/1  add
   1/1  scale
   1/1  dot
-  4/4  triangular solvers
+  6/6  triangular solvers
 
 [Models]
   3/3  ExactGP
+  4/4  ExactGP K* caching (Tier 2.2)
   6/6  MultiTaskGP
 
 [Transforms]
@@ -121,6 +114,8 @@ Detailed Breakdown
   4/4  logNormalCdf
 
 [Other]
+  18/18  cockpit data layer
+  5/5  buildMetricConfigs
   7/7  haltonSequence
   12/12  computeSobolIndices
   7/7  Predictor.computeSensitivity

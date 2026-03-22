@@ -25,6 +25,10 @@ export interface EstimatedRange {
   ciMin: number;
   /** Maximum of μ + k·σ (upper CI bound). */
   ciMax: number;
+  /** Minimum posterior std. */
+  stdMin: number;
+  /** Maximum posterior std. */
+  stdMax: number;
 }
 
 // First 32 primes — enough for Halton in up to 32 active dimensions
@@ -174,7 +178,7 @@ export function estimateRange(
   for (const outcome of names) {
     const pred = allPreds[outcome];
     if (!pred) {
-      result[outcome] = { muMin: 0, muMax: 1, ciMin: 0, ciMax: 1 };
+      result[outcome] = { muMin: 0, muMax: 1, ciMin: 0, ciMax: 1, stdMin: 0, stdMax: 1 };
       continue;
     }
 
@@ -182,6 +186,8 @@ export function estimateRange(
       muMax = -Infinity;
     let ciMin = Infinity,
       ciMax = -Infinity;
+    let sMin = Infinity,
+      sMax = -Infinity;
 
     // Track top candidates for optimization
     interface Cand {
@@ -198,18 +204,12 @@ export function estimateRange(
       const up = mu + ciMultiplier * s;
       const lo = mu - ciMultiplier * s;
 
-      if (mu < muMin) {
-        muMin = mu;
-      }
-      if (mu > muMax) {
-        muMax = mu;
-      }
-      if (lo < ciMin) {
-        ciMin = lo;
-      }
-      if (up > ciMax) {
-        ciMax = up;
-      }
+      if (mu < muMin) muMin = mu;
+      if (mu > muMax) muMax = mu;
+      if (s < sMin) sMin = s;
+      if (s > sMax) sMax = s;
+      if (lo < ciMin) ciMin = lo;
+      if (up > ciMax) ciMax = up;
 
       // Only track Halton points as candidates (not training points)
       if (i < nInitial) {
@@ -258,18 +258,12 @@ export function estimateRange(
         const val0 = isMax ? mu0 + ciMultiplier * s0 : mu0 - ciMultiplier * s0;
 
         // Update global range
-        if (mu0 > muMax) {
-          muMax = mu0;
-        }
-        if (mu0 < muMin) {
-          muMin = mu0;
-        }
-        if (mu0 + ciMultiplier * s0 > ciMax) {
-          ciMax = mu0 + ciMultiplier * s0;
-        }
-        if (mu0 - ciMultiplier * s0 < ciMin) {
-          ciMin = mu0 - ciMultiplier * s0;
-        }
+        if (mu0 > muMax) muMax = mu0;
+        if (mu0 < muMin) muMin = mu0;
+        if (s0 < sMin) sMin = s0;
+        if (s0 > sMax) sMax = s0;
+        if (mu0 + ciMultiplier * s0 > ciMax) ciMax = mu0 + ciMultiplier * s0;
+        if (mu0 - ciMultiplier * s0 < ciMin) ciMin = mu0 - ciMultiplier * s0;
 
         // Compute gradient w.r.t. active dims
         const grad: Array<number> = [];
@@ -307,23 +301,17 @@ export function estimateRange(
         for (let i = 0; i < finalPts.length; i++) {
           const mu = fPred.mean[i];
           const s = Math.sqrt(fPred.variance[i]);
-          if (mu > muMax) {
-            muMax = mu;
-          }
-          if (mu < muMin) {
-            muMin = mu;
-          }
-          if (mu + ciMultiplier * s > ciMax) {
-            ciMax = mu + ciMultiplier * s;
-          }
-          if (mu - ciMultiplier * s < ciMin) {
-            ciMin = mu - ciMultiplier * s;
-          }
+          if (mu > muMax) muMax = mu;
+          if (mu < muMin) muMin = mu;
+          if (s < sMin) sMin = s;
+          if (s > sMax) sMax = s;
+          if (mu + ciMultiplier * s > ciMax) ciMax = mu + ciMultiplier * s;
+          if (mu - ciMultiplier * s < ciMin) ciMin = mu - ciMultiplier * s;
         }
       }
     }
 
-    result[outcome] = { muMin, muMax, ciMin, ciMax };
+    result[outcome] = { muMin, muMax, ciMin, ciMax, stdMin: sMin, stdMax: sMax };
   }
 
   return result;

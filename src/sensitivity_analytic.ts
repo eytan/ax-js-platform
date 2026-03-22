@@ -20,21 +20,31 @@ import { normalCdf } from "./math.js";
 
 // ── RBF closed-form primitives ──────────────────────────────────────────
 
-/** RBF marginal: ∫₀¹ exp(-0.5(x-c)²/ℓ²) dx = ℓ√(2π) [Φ((1-c)/ℓ) - Φ(-c/ℓ)] */
-export function rbfMarginal(c: number, ell: number): number {
-  return ell * Math.sqrt(2 * Math.PI) * (normalCdf((1 - c) / ell) - normalCdf(-c / ell));
+/**
+ * RBF marginal: E_x[k(x, c)] where x ~ Uniform(lo, hi).
+ *   = (1/(hi-lo)) ∫_lo^hi exp(-0.5(x-c)²/ℓ²) dx
+ *   = (ℓ√(2π) / (hi-lo)) [Φ((hi-c)/ℓ) - Φ((lo-c)/ℓ)]
+ */
+export function rbfMarginal(c: number, ell: number, lo: number = 0, hi: number = 1): number {
+  const range = hi - lo;
+  return (ell * Math.sqrt(2 * Math.PI) * (normalCdf((hi - c) / ell) - normalCdf((lo - c) / ell))) / range;
 }
 
 /**
  * Generalized RBF cross integral with potentially different lengthscales:
- *   ∫₀¹ exp(-0.5(x-a)²/ℓ₁²) · exp(-0.5(x-b)²/ℓ₂²) dx
+ *   E_x[k₁(x,a)·k₂(x,b)] where x ~ Uniform(lo, hi)
+ *   = (1/(hi-lo)) ∫_lo^hi exp(-0.5(x-a)²/ℓ₁²) · exp(-0.5(x-b)²/ℓ₂²) dx
  *
  * The product of two Gaussians is Gaussian with:
  *   σ* = ℓ₁ℓ₂/√(ℓ₁²+ℓ₂²),  μ* = (aℓ₂² + bℓ₁²)/(ℓ₁²+ℓ₂²)
  *
  * When ℓ₁ = ℓ₂ = ℓ, reduces to σ* = ℓ/√2, μ* = (a+b)/2.
  */
-export function rbfGeneralizedCross(a: number, b: number, ell1: number, ell2: number): number {
+export function rbfGeneralizedCross(
+  a: number, b: number, ell1: number, ell2: number,
+  lo: number = 0, hi: number = 1,
+): number {
+  const range = hi - lo;
   const s2 = ell1 * ell1 + ell2 * ell2;
   const sigma = (ell1 * ell2) / Math.sqrt(s2);
   const mu = (a * ell2 * ell2 + b * ell1 * ell1) / s2;
@@ -43,8 +53,8 @@ export function rbfGeneralizedCross(a: number, b: number, ell1: number, ell2: nu
     Math.exp(-(diff * diff) / (2 * s2)) *
     sigma *
     Math.sqrt(2 * Math.PI) *
-    (normalCdf((1 - mu) / sigma) - normalCdf(-mu / sigma))
-  );
+    (normalCdf((hi - mu) / sigma) - normalCdf((lo - mu) / sigma))
+  ) / range;
 }
 
 // ── DimIntegrator interface ─────────────────────────────────────────────
@@ -58,14 +68,18 @@ export interface DimIntegrator {
 // ── RBF integrator ──────────────────────────────────────────────────────
 
 export class RbfDimIntegrator implements DimIntegrator {
-  constructor(private readonly ell: number) {}
+  constructor(
+    private readonly ell: number,
+    private readonly lo: number = 0,
+    private readonly hi: number = 1,
+  ) {}
 
   marginal(c: number): number {
-    return rbfMarginal(c, this.ell);
+    return rbfMarginal(c, this.ell, this.lo, this.hi);
   }
 
   cross(a: number, b: number): number {
-    return rbfGeneralizedCross(a, b, this.ell, this.ell);
+    return rbfGeneralizedCross(a, b, this.ell, this.ell, this.lo, this.hi);
   }
 }
 
@@ -102,8 +116,8 @@ function maternKernel1D(nu: 0.5 | 1.5 | 2.5, ell: number): (x: number, c: number
 export class MaternDimIntegrator implements DimIntegrator {
   private readonly integrator: QuadratureDimIntegrator;
 
-  constructor(nu: 0.5 | 1.5 | 2.5, ell: number, nNodes: number = 128) {
-    this.integrator = new QuadratureDimIntegrator(maternKernel1D(nu, ell), nNodes);
+  constructor(nu: 0.5 | 1.5 | 2.5, ell: number, nNodes: number = 128, lo: number = 0, hi: number = 1) {
+    this.integrator = new QuadratureDimIntegrator(maternKernel1D(nu, ell), nNodes, lo, hi);
   }
 
   marginal(c: number): number {
@@ -217,11 +231,17 @@ export class QuadratureDimIntegrator implements DimIntegrator {
   private readonly nodes: Float64Array;
   private readonly weights: Float64Array;
 
-  constructor(kernelFn: (x: number, c: number) => number, nNodes: number = 32) {
+  constructor(kernelFn: (x: number, c: number) => number, nNodes: number = 32, lo: number = 0, hi: number = 1) {
     this.kernelFn = kernelFn;
     const gl = gaussLegendre01(nNodes);
-    this.nodes = gl.nodes;
-    this.weights = gl.weights;
+    // Map GL nodes from [0,1] to [lo, hi], scale weights by range
+    const range = hi - lo;
+    this.nodes = new Float64Array(gl.nodes.length);
+    this.weights = new Float64Array(gl.weights.length);
+    for (let i = 0; i < gl.nodes.length; i++) {
+      this.nodes[i] = lo + range * gl.nodes[i];
+      this.weights[i] = gl.weights[i]; // GL weights already sum to 1 on [0,1], which is E_Uniform[f(x)]
+    }
   }
 
   marginal(c: number): number {
@@ -278,6 +298,7 @@ export function extractKernelComponents(
   kernelState: KernelState,
   paramSpecs: Array<SearchSpaceParam>,
   warpParams?: WarpParams,
+  paramBounds?: Array<[number, number]>,
 ): Array<KernelComponent> | null {
   // Handle Scale wrapper only — legacy outputscale (on RBF/Matern directly)
   // is handled by extractSingleComponent to avoid double-counting
@@ -293,7 +314,7 @@ export function extractKernelComponents(
     // Requires disjoint active_dims across components.
     const components: Array<KernelComponent> = [];
     for (const sub of baseKernel.kernels) {
-      const comp = extractSingleComponent(sub, paramSpecs, warpParams, outputscale);
+      const comp = extractSingleComponent(sub, paramSpecs, warpParams, outputscale, paramBounds);
       if (!comp) {
         return null;
       }
@@ -313,7 +334,7 @@ export function extractKernelComponents(
   }
 
   // Single component (Product, RBF, etc.)
-  const comp = extractSingleComponent(baseKernel, paramSpecs, warpParams, outputscale);
+  const comp = extractSingleComponent(baseKernel, paramSpecs, warpParams, outputscale, paramBounds);
   if (!comp) {
     return null;
   }
@@ -329,6 +350,7 @@ function extractSingleComponent(
   paramSpecs: Array<SearchSpaceParam>,
   warpParams: WarpParams | undefined,
   parentOutputscale: number,
+  paramBounds?: Array<[number, number]>,
 ): KernelComponent | null {
   // Handle Scale wrapper on this component
   let outputscale = parentOutputscale;
@@ -356,6 +378,7 @@ function extractSingleComponent(
     for (let k = 0; k < activeDims.length; k++) {
       const j = activeDims[k];
       const ell = ls[k];
+      const dimBounds = paramBounds?.[j] ?? [0, 1];
       if (isWarpedDim(j, hasWarp, warpIndicesSet)) {
         if (baseKernel.type === "Matern" && nu !== undefined) {
           integrators.push(makeWarpedMaternIntegrator(j, nu, ell, warpParams!));
@@ -364,9 +387,9 @@ function extractSingleComponent(
         }
       } else {
         if (baseKernel.type === "Matern" && nu !== undefined) {
-          integrators.push(new MaternDimIntegrator(nu, ell));
+          integrators.push(new MaternDimIntegrator(nu, ell, 128, dimBounds[0], dimBounds[1]));
         } else {
-          integrators.push(new RbfDimIntegrator(ell));
+          integrators.push(new RbfDimIntegrator(ell, dimBounds[0], dimBounds[1]));
         }
       }
     }
@@ -401,6 +424,7 @@ function extractSingleComponent(
         for (let k = 0; k < dims.length; k++) {
           const j = dims[k];
           const ell = ls[k];
+          const dimBounds = paramBounds?.[j] ?? [0, 1];
           activeDims.push(j);
           if (isWarpedDim(j, hasWarp, warpIndicesSet)) {
             if (subKernel.type === "Matern" && nu !== undefined) {
@@ -410,9 +434,9 @@ function extractSingleComponent(
             }
           } else {
             if (subKernel.type === "Matern" && nu !== undefined) {
-              integrators.push(new MaternDimIntegrator(nu, ell));
+              integrators.push(new MaternDimIntegrator(nu, ell, 128, dimBounds[0], dimBounds[1]));
             } else {
-              integrators.push(new RbfDimIntegrator(ell));
+              integrators.push(new RbfDimIntegrator(ell, dimBounds[0], dimBounds[1]));
             }
           }
         }

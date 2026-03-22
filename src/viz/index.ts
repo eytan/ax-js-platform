@@ -18,6 +18,7 @@ export type {
   SlicePlotOptions,
   ResponseSurfaceOptions,
 } from "./types";
+export type { NormalizedExperiment } from "./fixture";
 
 // ── Styles ────────────────────────────────────────────────────────────────
 export { injectStyles, injectScopedStyles } from "./styles";
@@ -26,7 +27,7 @@ export { injectStyles, injectScopedStyles } from "./styles";
 export { viridis, plasma, piYG, drawColorbar, renderHeatmap } from "./colormaps";
 
 // ── Data point rendering ──────────────────────────────────────────────────
-export { drawDataDot } from "./drawDataDot";
+export { drawDataDot } from "./dots";
 
 // ── Search-space & fixture helpers ────────────────────────────────────────
 export {
@@ -35,19 +36,26 @@ export {
   defaultParamValue,
   formatParamValue,
   normalizeFixture,
+  normalizeExperimentData,
   computeDimOrder,
   computeParamSigns,
   pointRelevance,
 } from "./params";
+
+// ── Tooltip helpers ───────────────────────────────────────────────────────
+export {
+  showTooltip,
+  hideTooltip,
+  createTooltipDiv,
+  positionTooltip,
+  removeTooltip,
+} from "./tooltip";
 
 // ── Widget helpers ────────────────────────────────────────────────────────
 export {
   createOutcomeSelector,
   createParamSliders,
   setupFileUpload,
-  showTooltip,
-  hideTooltip,
-  removeTooltip,
 } from "./widgets";
 
 // ── Dot interactivity helpers ─────────────────────────────────────────────
@@ -69,4 +77,9 @@ export { renderFeatureImportance } from "./plots/importance";
 export { renderCrossValidation } from "./plots/cv";
 export { renderOptimizationTrace } from "./plots/trace";
 export { renderSlicePlot } from "./plots/slice";
+export type { SlicePlotController } from "./plots/slice";
 export { renderResponseSurface } from "./plots/surface";
+export type { ResponseSurfaceController } from "./plots/surface";
+
+// ── Cockpit (multi-panel experiment explorer) ─────────────────────────────
+export * as cockpit from "./cockpit/index";

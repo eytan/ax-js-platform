@@ -36,31 +36,29 @@ ${vizScript()}
 ${fixtureScript('__DEFAULT_FIXTURE__', hartmannMixedFixture)}
 <script>
 var Predictor = Ax.Predictor;
-var predictor, fixture;
+var predictor, fixture, slicePlot;
 
 function loadFixtureData(data) {
   fixture = Ax.viz.normalizeFixture(data);
   predictor = new Predictor(fixture);
   document.getElementById('subtitle').textContent =
     fixture.metadata.name + ' — ' + fixture.metadata.description;
-  render();
-}
-
-function render() {
+  if (slicePlot) slicePlot.destroy();
   var container = document.getElementById('plotContainer');
-  container.innerHTML = '';
   var isRelative = document.getElementById('modeSelect').value === 'relative';
   var sqPoint = fixture.status_quo
     ? fixture.status_quo.point
     : predictor.paramBounds.map(function(b) { return (b[0] + b[1]) / 2; });
-  Ax.viz.renderSlicePlot(container, predictor, {
+  slicePlot = Ax.viz.renderSlicePlot(container, predictor, {
     interactive: true,
     relative: isRelative,
     statusQuoPoint: sqPoint,
   });
 }
 
-document.getElementById('modeSelect').addEventListener('change', function() { render(); });
+document.getElementById('modeSelect').addEventListener('change', function() {
+  if (slicePlot) slicePlot.setRelative(this.value === 'relative');
+});
 
 document.getElementById('fileInput').addEventListener('change', function(e) {
   var file = e.target.files[0]; if (!file) return;

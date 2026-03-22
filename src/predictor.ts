@@ -389,7 +389,11 @@ export class Predictor {
       return analyticResult;
     }
 
-    // Fall back to MC (Saltelli's estimator)
+    // Fall back to MC (Saltelli's estimator) — much slower than analytic
+    console.warn(
+      `[ax-js] computeSensitivity("${name}"): analytic Sobol unavailable, falling back to Monte Carlo. ` +
+      `This is ~10x slower. Ensure model has input_transform for analytic path.`,
+    );
     const predictFn = (points: Array<Array<number>>): Float64Array => {
       const preds = this.predict(points);
       return preds[name].mean;
@@ -442,18 +446,19 @@ export class Predictor {
       return null;
     }
 
-    // Analytic integrals assume trainXNorm is in [0,1]. Without input_transform,
-    // trainXNorm is in raw parameter space → integrals silently produce zeros.
-    if (!sub.input_transform) {
-      return null;
-    }
+    // When input_transform exists, train_X is normalized to [0,1] and integrals
+    // use [0,1] bounds. When absent, train_X is in raw space and we integrate
+    // over the actual parameter bounds.
+    const bounds: Array<[number, number]> | undefined = sub.input_transform
+      ? undefined // [0,1] default
+      : this.paramBounds;
 
-    const components = extractKernelComponents(sub.kernel, this.paramSpecs, sub.input_warp);
+    const components = extractKernelComponents(sub.kernel, this.paramSpecs, sub.input_warp, bounds);
     if (!components) {
       return null;
     }
 
-    // Get model internals (alpha, trainXNorm)
+    // Get model internals (alpha, trainXNorm — raw train_X when no input_transform)
     let internals;
     if (this.model instanceof ModelListGP) {
       const idx = this.outcomeNames.indexOf(outcomeName);
@@ -484,13 +489,11 @@ export class Predictor {
       return null;
     }
 
-    // Analytic integrals assume trainXNorm is in [0,1]. Without input_transform,
-    // trainXNorm is in raw parameter space → integrals silently produce zeros.
-    if (!ms.input_transform) {
-      return null;
-    }
+    const bounds: Array<[number, number]> | undefined = ms.input_transform
+      ? undefined
+      : this.paramBounds;
 
-    const components = extractKernelComponents(ms.data_kernel, this.paramSpecs, ms.input_warp);
+    const components = extractKernelComponents(ms.data_kernel, this.paramSpecs, ms.input_warp, bounds);
     if (!components) {
       return null;
     }
@@ -524,9 +527,6 @@ export class Predictor {
     for (let mi = 0; mi < ms.models.length; mi++) {
       const sub = ms.models[mi];
       if (hasNonlinearOutcomeTransform(sub.outcome_transform)) {
-        return null;
-      }
-      if (!sub.input_transform) {
         return null;
       }
 

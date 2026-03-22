@@ -99,11 +99,18 @@ function getParamSpecs(predictor: RenderPredictor): Array<ParamSpec> {
  * parameters (discrete dots with error bars), stable y-axis,
  * hover line/dot on mean curve, and click-to-pin with slider snapping.
  */
+/** Controller for programmatic interaction with an interactive slice plot. */
+export interface SlicePlotController {
+  setRelative(relative: boolean): void;
+  setOutcome(name: string): void;
+  destroy(): void;
+}
+
 export function renderSlicePlot(
   container: HTMLElement,
   predictor: RenderPredictor,
   options?: SlicePlotOptions,
-): void {
+): SlicePlotController {
   const interactive = options?.interactive !== false;
 
   if (!interactive) {
@@ -113,7 +120,7 @@ export function renderSlicePlot(
       options?.outcome ?? predictor.outcomeNames[0],
       options,
     );
-    return;
+    return { setRelative() {}, setOutcome() {}, destroy() { container.innerHTML = ""; } };
   }
 
   if (!container.id) {
@@ -138,9 +145,11 @@ export function renderSlicePlot(
   const tooltip = createTooltipDiv(container.id);
 
   // Relative mode: resolve SQ means/stds per outcome for delta-method
-  const isRelative = options?.relative === true;
+  let isRelative = options?.relative === true;
   let sqStats: Record<string, { mean: number; std: number }> | undefined;
-  if (isRelative) {
+  function computeSqStats(): void {
+    sqStats = undefined;
+    if (!isRelative) return;
     const sq = resolveStatusQuo(predictor, options);
     if (sq) {
       const sqPred = predictor.predict([sq]);
@@ -157,6 +166,7 @@ export function renderSlicePlot(
       }
     }
   }
+  computeSqStats();
 
   // Pre-compute stable y-axis via Halton + optimization
   const rawRange = estimateRange(predictor);
@@ -183,6 +193,10 @@ export function renderSlicePlot(
   // Shared pinned state — persists across re-renders
   let slicePinnedIdx = -1;
 
+  // Single-dim mode state
+  const isSingleLayout = options?.layout === "single";
+  let selectedDim: number | null = null; // null means "all" in grid mode
+
   const controlsDiv = document.createElement("div");
   controlsDiv.style.cssText = CTRL_CSS + "padding:8px 16px;";
   const slidersDiv = document.createElement("div");
@@ -202,12 +216,57 @@ export function renderSlicePlot(
     controlsDiv.append(wrapper);
   }
 
+  // Dimension selector for single-dim layout
+  let dimSelect: HTMLSelectElement | null = null;
+  if (isSingleLayout) {
+    const { wrapper, select } = makeSelectEl("Parameter:");
+    dimSelect = select;
+    // Populate with parameter names; default to most important
+    const initDimOrder = computeDimOrder(
+      predictor as DimensionRanker,
+      predictor.paramNames.length,
+      selectedOutcome,
+    );
+    selectedDim = initDimOrder[0] ?? 0;
+    for (const di of initDimOrder) {
+      const opt = document.createElement("option");
+      opt.value = String(di);
+      opt.textContent = predictor.paramNames[di];
+      select.append(opt);
+    }
+    select.value = String(selectedDim);
+    select.addEventListener("change", () => {
+      selectedDim = +select.value;
+      redrawPlots();
+    });
+    controlsDiv.append(wrapper);
+  }
+
   function rebuildSliders(): void {
     const dimOrd = computeDimOrder(
       predictor as DimensionRanker,
       predictor.paramNames.length,
       selectedOutcome,
     );
+    // In single mode, update dimension selector options order
+    if (dimSelect && isSingleLayout) {
+      const prevVal = dimSelect.value;
+      dimSelect.innerHTML = "";
+      for (const di of dimOrd) {
+        const opt = document.createElement("option");
+        opt.value = String(di);
+        opt.textContent = predictor.paramNames[di];
+        dimSelect.append(opt);
+      }
+      // Preserve selection if still valid, else pick most important
+      if (dimOrd.includes(+prevVal)) {
+        dimSelect.value = prevVal;
+        selectedDim = +prevVal;
+      } else {
+        selectedDim = dimOrd[0] ?? 0;
+        dimSelect.value = String(selectedDim);
+      }
+    }
     createParamSliders(
       predictor,
       params,
@@ -245,6 +304,7 @@ export function renderSlicePlot(
         redrawPlots();
       },
       sqStats,
+      isSingleLayout && selectedDim !== null ? selectedDim : undefined,
     );
   }
 
@@ -254,6 +314,24 @@ export function renderSlicePlot(
     redrawPlots();
   }
   redraw();
+
+  return {
+    setRelative(relative: boolean) {
+      if (relative === isRelative) return;
+      isRelative = relative;
+      computeSqStats();
+      redrawPlots();
+    },
+    setOutcome(name: string) {
+      if (name === selectedOutcome) return;
+      selectedOutcome = name;
+      redraw();
+    },
+    destroy() {
+      removeTooltip(container.id);
+      container.innerHTML = "";
+    },
+  };
 }
 
 function renderSlicePlotStatic(
@@ -269,10 +347,12 @@ function renderSlicePlotStatic(
   setPinnedIdx?: (v: number) => void,
   onSnapToPoint?: (pt: Array<number>) => void,
   sqStats?: Record<string, { mean: number; std: number }>,
+  singleDim?: number,
 ): void {
   const numPoints = options?.numPoints ?? 80;
-  const W = options?.width ?? 340;
-  const H = options?.height ?? 220;
+  // Single-dim mode renders larger by default
+  const W = options?.width ?? (singleDim !== undefined ? 560 : 340);
+  const H = options?.height ?? (singleDim !== undefined ? 320 : 220);
   const bounds = predictor.paramBounds;
   const names = predictor.paramNames;
   const nDim = names.length;
@@ -305,8 +385,11 @@ function renderSlicePlotStatic(
       localPinnedIdx = v;
     });
 
-  // Sort dimensions by importance
-  const dimOrder = computeDimOrder(predictor as DimensionRanker, nDim, outcome);
+  // Sort dimensions by importance; in single-dim mode, render only the selected dim
+  const dimOrder =
+    singleDim !== undefined
+      ? [singleDim]
+      : computeDimOrder(predictor as DimensionRanker, nDim, outcome);
 
   for (const dim of dimOrder) {
     const p = params[dim];

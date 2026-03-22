@@ -222,6 +222,8 @@ export interface Observation {
   trial_status?: string;
   /** How this arm was generated (e.g., "Sobol", "BoTorch"). */
   generation_method?: string;
+  /** Explicit batch grouping index. When absent, inferred from generation_method. */
+  batch_index?: number;
 }
 
 // ── ExperimentState: shared schema for both exports and fixtures ──────────
@@ -334,6 +336,36 @@ export interface SensitivityIndices {
   paramNames: Array<string>;
   /** Total number of function evaluations used. */
   numEvaluations: number;
+}
+
+// ── Trial status & metric classification ─────────────────────────────────
+
+/** Trial lifecycle status, matching Ax's TrialStatus enum. */
+export type TrialStatus =
+  | "CANDIDATE"
+  | "STAGED"
+  | "RUNNING"
+  | "COMPLETED"
+  | "FAILED"
+  | "ABANDONED"
+  | "EARLY_STOPPED";
+
+/** Metric role derived from OptimizationConfig. */
+export type MetricIntent = "objective" | "constraint" | "tracking";
+
+/**
+ * Unified metric configuration: consolidates objective direction,
+ * constraint bounds, and thresholds into a single per-metric record.
+ * Can be derived from OptimizationConfig via `buildMetricConfigs()` or
+ * supplied directly (e.g., from a GraphQL layer).
+ */
+export interface MetricConfig {
+  name: string;
+  intent: MetricIntent;
+  lower_is_better?: boolean;
+  bound?: number;
+  op?: "LEQ" | "GEQ";
+  relative?: boolean;
 }
 
 // ── Candidate arms (round-trip workflow) ──────────────────────────────────

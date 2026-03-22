@@ -69,4 +69,10 @@ export type {
   DimensionImportance,
   SensitivityIndices,
   GPInternals,
+  TrialStatus,
+  MetricIntent,
+  MetricConfig,
 } from "./models/types.js";
+
+// Metric config derivation utility
+export { buildMetricConfigs } from "./models/utils.js";

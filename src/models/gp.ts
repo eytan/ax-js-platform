@@ -147,10 +147,16 @@ export class ExactGP {
     if (n === 0) {
       return "empty";
     }
-    // Use dimensions + first/last values for fast collision-resistant key
-    const first = testXNorm.data[0];
-    const last = testXNorm.data[n - 1];
-    return `${testXNorm.rows}:${testXNorm.cols}:${first}:${last}`;
+    // FNV-1a-inspired hash over all data elements for collision resistance.
+    // The previous first/last-only key missed changes to interior dimensions.
+    let h = 2166136261;
+    for (let i = 0; i < n; i++) {
+      // Mix in the float bits via a 32-bit view of the upper half
+      const v = testXNorm.data[i];
+      const bits = (v * 2654435761) | 0; // multiplicative hash of the float
+      h = ((h ^ bits) * 16777619) | 0;
+    }
+    return `${testXNorm.rows}:${testXNorm.cols}:${h >>> 0}`;
   }
 
   /** Compute V = L⁻¹ @ K*ᵀ for a set of transformed test points. */
