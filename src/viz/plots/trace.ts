@@ -11,6 +11,12 @@ import { svgEl } from "./_svg";
 const CTRL_CSS =
   "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
 
+/** Controller for programmatic interaction with an interactive optimization trace plot. */
+export interface OptimizationTraceController {
+  setOutcome(name: string): void;
+  destroy(): void;
+}
+
 /**
  * Render an optimization trace plot into a container.
  *
@@ -21,7 +27,7 @@ export function renderOptimizationTrace(
   container: HTMLElement,
   predictor: RenderPredictor,
   options?: OptimizationTraceOptions,
-): void {
+): OptimizationTraceController {
   const interactive = options?.interactive !== false;
 
   if (!interactive) {
@@ -31,7 +37,7 @@ export function renderOptimizationTrace(
       options?.outcome ?? predictor.outcomeNames[0],
       options,
     );
-    return;
+    return { setOutcome() {}, destroy() { container.innerHTML = ""; } };
   }
 
   if (!container.id) {
@@ -70,6 +76,18 @@ export function renderOptimizationTrace(
     );
   }
   redraw();
+
+  return {
+    setOutcome(name: string) {
+      if (name === selectedOutcome) return;
+      selectedOutcome = name;
+      redraw();
+    },
+    destroy() {
+      removeTooltip(container.id);
+      container.innerHTML = "";
+    },
+  };
 }
 
 function renderOptimizationTraceStatic(
@@ -82,7 +100,8 @@ function renderOptimizationTraceStatic(
 ): void {
   const W = options?.width ?? 440;
   const H = options?.height ?? 440;
-  const minimize = options?.minimize ?? true;
+  const minimize =
+    options?.minimize ?? predictor.outcomeDirections?.[outcome] === "min";
   const td = predictor.getTrainingData(outcome);
   if (td.Y.length === 0) {
     target.textContent = "No data";

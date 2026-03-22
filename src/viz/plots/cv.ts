@@ -23,6 +23,12 @@ interface HighlightPanel {
   clear(): void;
 }
 
+/** Controller for programmatic interaction with an interactive cross-validation plot. */
+export interface CrossValidationController {
+  setOutcome(name: string): void;
+  destroy(): void;
+}
+
 /**
  * Render a leave-one-out cross-validation scatter plot into a container.
  *
@@ -34,7 +40,7 @@ export function renderCrossValidation(
   container: HTMLElement,
   predictor: RenderPredictor,
   options?: CrossValidationOptions,
-): void {
+): CrossValidationController {
   const interactive = options?.interactive !== false;
 
   if (!interactive) {
@@ -44,7 +50,7 @@ export function renderCrossValidation(
       options?.outcome ?? predictor.outcomeNames[0],
       options,
     );
-    return;
+    return { setOutcome() {}, destroy() { container.innerHTML = ""; } };
   }
 
   if (!container.id) {
@@ -157,6 +163,22 @@ export function renderCrossValidation(
     }
   }
   redraw();
+
+  return {
+    setOutcome(name: string) {
+      if (name === selectedOutcome) return;
+      selectedOutcome = name;
+      if (hasMulti) {
+        const select = controlsDiv.querySelector("select");
+        if (select) (select as HTMLSelectElement).value = name;
+      }
+      redraw();
+    },
+    destroy() {
+      removeTooltip(container.id);
+      container.innerHTML = "";
+    },
+  };
 }
 
 /** Render a single CV panel with cross-panel coordination. */
@@ -382,6 +404,9 @@ function renderCVPanel(
 
   // Interactivity
   const HOVER_R = isSmall ? 8 : 12;
+  let pinnedDotLocalIdx = -1;
+  let pinnedRels: { raw: Array<number>; max: number } | null = null;
+  let hoverHighlight = false;
   svg.addEventListener("mousemove", (e: MouseEvent) => {
     const rect = svg.getBoundingClientRect();
     const px = e.clientX - rect.left,
@@ -397,13 +422,17 @@ function renderCVPanel(
       tooltip.innerHTML = html;
       tooltip.style.display = "block";
       positionTooltip(tooltip, e.clientX, e.clientY);
-      if (getPinnedIdx() < 0) {
-        broadcastHighlight(best, computeKernelRels(predictor, cvDots, best, outcome));
-      }
+      broadcastHighlight(best, computeKernelRels(predictor, cvDots, best, outcome));
+      hoverHighlight = true;
     } else {
       tooltip.style.display = "none";
-      if (getPinnedIdx() < 0) {
-        broadcastClear();
+      if (hoverHighlight) {
+        if (pinnedDotLocalIdx >= 0 && pinnedRels) {
+          broadcastHighlight(pinnedDotLocalIdx, pinnedRels);
+        } else {
+          broadcastClear();
+        }
+        hoverHighlight = false;
       }
     }
   });
@@ -414,17 +443,38 @@ function renderCVPanel(
       py = e.clientY - rect.top;
     const best = findNearestDot(cvDots, px, py, HOVER_R);
     if (best >= 0) {
-      setPinnedIdx(best);
-      broadcastHighlight(best, computeKernelRels(predictor, cvDots, best, outcome));
+      if (getPinnedIdx() === best) {
+        setPinnedIdx(-1);
+        pinnedDotLocalIdx = -1;
+        pinnedRels = null;
+        broadcastClear();
+      } else {
+        const rels = computeKernelRels(predictor, cvDots, best, outcome);
+        setPinnedIdx(best);
+        pinnedDotLocalIdx = best;
+        pinnedRels = rels;
+        broadcastHighlight(best, rels);
+      }
     } else {
+      if (getPinnedIdx() >= 0) {
+        setPinnedIdx(-1);
+        pinnedDotLocalIdx = -1;
+        pinnedRels = null;
+      }
       broadcastClear();
     }
+    hoverHighlight = false;
   });
 
   svg.addEventListener("mouseleave", () => {
     tooltip.style.display = "none";
-    if (getPinnedIdx() < 0) {
-      broadcastClear();
+    if (hoverHighlight) {
+      if (pinnedDotLocalIdx >= 0 && pinnedRels) {
+        broadcastHighlight(pinnedDotLocalIdx, pinnedRels);
+      } else {
+        broadcastClear();
+      }
+      hoverHighlight = false;
     }
   });
 }

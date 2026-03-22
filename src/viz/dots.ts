@@ -43,6 +43,9 @@ export function applyDotHighlight(
       if (d.whisker) {
         d.whisker.setAttribute("stroke", "rgba(217,95,78,0.5)");
       }
+      if (d.whiskers) {
+        for (const w of d.whiskers) w.setAttribute("stroke", "rgba(217,95,78,0.5)");
+      }
     } else {
       const relNorm = rels.max > 0 ? rels.raw[i] / rels.max : 0;
       const fa = Math.max(0.08, Math.min(0.9, Math.sqrt(relNorm)));
@@ -52,6 +55,9 @@ export function applyDotHighlight(
       d.el.setAttribute("r", String(d.defaultR));
       if (d.whisker) {
         d.whisker.setAttribute("stroke", `rgba(217,95,78,${(fa * 0.35).toFixed(3)})`);
+      }
+      if (d.whiskers) {
+        for (const w of d.whiskers) w.setAttribute("stroke", `rgba(217,95,78,${(fa * 0.35).toFixed(3)})`);
       }
     }
   }
@@ -66,6 +72,9 @@ export function clearDotHighlight(dots: Array<DotInfo>): void {
     d.el.setAttribute("r", String(d.defaultR));
     if (d.whisker) {
       d.whisker.setAttribute("stroke", "rgba(217,95,78,0.3)");
+    }
+    if (d.whiskers) {
+      for (const w of d.whiskers) w.setAttribute("stroke", "rgba(217,95,78,0.3)");
     }
   }
 }
@@ -132,6 +141,8 @@ export function attachDotInteractivity(
 ): { getPinnedIdx: () => number } {
   let localPinnedIdx = -1;
   let hoverHighlight = false;
+  let pinnedDotIdx = -1;
+  let pinnedRels: { raw: Array<number>; max: number } | null = null;
 
   const getPinnedIdx = options?.getPinnedIdx ?? (() => localPinnedIdx);
   const setPinnedIdx =
@@ -148,18 +159,20 @@ export function attachDotInteractivity(
 
     if (hitIdx >= 0) {
       svg.style.cursor = "pointer";
-      if (getPinnedIdx() < 0) {
-        applyDotHighlight(dots, hitIdx, computeKernelRels(predictor, dots, hitIdx, outcome));
-        hoverHighlight = true;
-      }
+      applyDotHighlight(dots, hitIdx, computeKernelRels(predictor, dots, hitIdx, outcome));
+      hoverHighlight = true;
       const html = buildPointTooltipHtml(predictor, dots[hitIdx].idx, outcome);
       tooltip.innerHTML = html;
       tooltip.style.display = "block";
       positionTooltip(tooltip, e.clientX, e.clientY);
     } else {
       svg.style.cursor = "crosshair";
-      if (getPinnedIdx() < 0 && hoverHighlight) {
-        clearDotHighlight(dots);
+      if (hoverHighlight) {
+        if (pinnedDotIdx >= 0 && pinnedRels) {
+          applyDotHighlight(dots, pinnedDotIdx, pinnedRels);
+        } else {
+          clearDotHighlight(dots);
+        }
         hoverHighlight = false;
       }
       if (options?.fallbackMouseMove) {
@@ -180,14 +193,21 @@ export function attachDotInteractivity(
       const hitTrainIdx = dots[hitIdx].idx;
       if (getPinnedIdx() === hitTrainIdx) {
         setPinnedIdx(-1);
+        pinnedDotIdx = -1;
+        pinnedRels = null;
         clearDotHighlight(dots);
       } else {
+        const rels = computeKernelRels(predictor, dots, hitIdx, outcome);
         setPinnedIdx(hitTrainIdx);
-        applyDotHighlight(dots, hitIdx, computeKernelRels(predictor, dots, hitIdx, outcome));
+        pinnedDotIdx = hitIdx;
+        pinnedRels = rels;
+        applyDotHighlight(dots, hitIdx, rels);
       }
     } else {
       if (getPinnedIdx() >= 0) {
         setPinnedIdx(-1);
+        pinnedDotIdx = -1;
+        pinnedRels = null;
         clearDotHighlight(dots);
       }
     }
@@ -198,8 +218,12 @@ export function attachDotInteractivity(
   svg.addEventListener("mouseleave", () => {
     svg.style.cursor = "crosshair";
     tooltip.style.display = "none";
-    if (getPinnedIdx() < 0 && hoverHighlight) {
-      clearDotHighlight(dots);
+    if (hoverHighlight) {
+      if (pinnedDotIdx >= 0 && pinnedRels) {
+        applyDotHighlight(dots, pinnedDotIdx, pinnedRels);
+      } else {
+        clearDotHighlight(dots);
+      }
       hoverHighlight = false;
     }
   });

@@ -20,6 +20,8 @@ export interface RenderPredictor {
   readonly paramSpecs?: Array<ParamSpec>;
   /** Status quo baseline point for relative mode. */
   readonly statusQuoPoint?: Array<number> | null;
+  /** Per-outcome optimization direction from optimization_config. */
+  readonly outcomeDirections?: Record<string, "min" | "max">;
   predict(
     points: Array<Array<number>>,
   ): Record<string, { mean: Float64Array; variance: Float64Array }>;
@@ -63,6 +65,8 @@ export interface DotInfo {
   defaultStroke: string;
   /** Default radius. */
   defaultR: number;
+  /** Additional whisker elements (x/y CI lines for scatter plots). */
+  whiskers?: Array<SVGLineElement>;
 }
 
 /** Options for renderFeatureImportance. */
@@ -124,6 +128,49 @@ export interface ResponseSurfaceOptions {
   interactive?: boolean;
   backgroundColor?: string;
   /** Show predictions as % change vs status quo. Default: false. */
+  relative?: boolean;
+  /** Override the status quo reference point. Falls back to predictor.statusQuoPoint. */
+  statusQuoPoint?: Array<number>;
+}
+
+/** Options for renderScatter. */
+export interface ScatterPlotOptions {
+  xAxis?: string;
+  yAxis?: string;
+  width?: number;
+  height?: number;
+  interactive?: boolean;
+  diagonalLine?: boolean;
+}
+
+/** Options for renderParetoPlot. */
+export interface ParetoPlotOptions {
+  xOutcome?: string;
+  yOutcome?: string;
+  directions?: Record<string, "min" | "max">;
+  interactive?: boolean;
+  showStatusQuo?: boolean;
+  width?: number;
+  height?: number;
+}
+
+/** Options for renderObservedPredicted. */
+export interface ObservedPredictedOptions {
+  outcome?: string;
+  interactive?: boolean;
+  width?: number;
+  height?: number;
+}
+
+/** Options for renderEffectsPlot. */
+export interface EffectsPlotOptions {
+  outcome?: string;
+  interactive?: boolean;
+  width?: number;
+  height?: number;
+  /** Sort order for trials. Default: "trial". */
+  sort?: "trial" | "predicted" | "observed";
+  /** Show as % change vs status quo. Default: false. */
   relative?: boolean;
   /** Override the status quo reference point. Falls back to predictor.statusQuoPoint. */
   statusQuoPoint?: Array<number>;

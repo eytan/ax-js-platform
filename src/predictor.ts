@@ -64,6 +64,8 @@ export class Predictor {
   readonly paramSpecs: Array<SearchSpaceParam>;
   /** Status quo baseline point for relativization, or null if not defined. */
   readonly statusQuoPoint: Array<number> | null;
+  /** Per-outcome optimization direction inferred from optimization_config. */
+  readonly outcomeDirections: Record<string, "min" | "max">;
   private readonly model: AnyModel;
   private readonly _state: ExperimentState;
   private readonly adapterUntransforms: Map<string, OutcomeUntransform> | null;
@@ -83,6 +85,14 @@ export class Predictor {
     } else {
       this.outcomeNames = ["y"];
     }
+    // Extract optimization directions from config
+    const dirs: Record<string, "min" | "max"> = {};
+    if (exported.optimization_config?.objectives) {
+      for (const obj of exported.optimization_config.objectives) {
+        dirs[obj.name] = obj.minimize ? "min" : "max";
+      }
+    }
+    this.outcomeDirections = dirs;
     this.adapterUntransforms = buildAdapterUntransforms(
       exported.adapter_transforms,
       this.outcomeNames,

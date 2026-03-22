@@ -32,6 +32,13 @@ const SOBOL_COLORS = {
   neutral: { first: "#4872f9", interaction: "#a8c4ff" }, // blue = categorical / no directional main effect
 };
 
+/** Controller for programmatic interaction with an interactive feature importance plot. */
+export interface FeatureImportanceController {
+  setOutcome(name: string): void;
+  setMode(mode: "lengthscale" | "sobol"): void;
+  destroy(): void;
+}
+
 /**
  * Render a horizontal bar chart of feature importance into a container.
  *
@@ -43,7 +50,7 @@ export function renderFeatureImportance(
   container: HTMLElement,
   predictor: RenderPredictor,
   options?: FeatureImportanceOptions,
-): void {
+): FeatureImportanceController {
   const interactive = options?.interactive !== false;
   const initialMode = options?.mode ?? "lengthscale";
 
@@ -58,7 +65,7 @@ export function renderFeatureImportance(
     } else {
       renderLengthscaleStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0]);
     }
-    return;
+    return { setOutcome() {}, setMode() {}, destroy() { container.innerHTML = ""; } };
   }
 
   if (!container.id) {
@@ -126,6 +133,23 @@ export function renderFeatureImportance(
     }
   }
   redraw();
+
+  return {
+    setOutcome(name: string) {
+      if (name === selectedOutcome) return;
+      selectedOutcome = name;
+      redraw();
+    },
+    setMode(m: "lengthscale" | "sobol") {
+      if (m === mode) return;
+      mode = m;
+      redraw();
+    },
+    destroy() {
+      removeTooltip(container.id);
+      container.innerHTML = "";
+    },
+  };
 }
 
 // ── Lengthscale bars (original implementation) ──────────────────────────

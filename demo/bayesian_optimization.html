@@ -3006,6 +3006,8 @@ var Ax = (() => {
     paramSpecs;
     /** Status quo baseline point for relativization, or null if not defined. */
     statusQuoPoint;
+    /** Per-outcome optimization direction inferred from optimization_config. */
+    outcomeDirections;
     model;
     _state;
     adapterUntransforms;
@@ -3024,6 +3026,13 @@ var Ax = (() => {
       } else {
         this.outcomeNames = ["y"];
       }
+      const dirs = {};
+      if (exported.optimization_config?.objectives) {
+        for (const obj of exported.optimization_config.objectives) {
+          dirs[obj.name] = obj.minimize ? "min" : "max";
+        }
+      }
+      this.outcomeDirections = dirs;
       this.adapterUntransforms = buildAdapterUntransforms(
         exported.adapter_transforms,
         this.outcomeNames
@@ -3861,10 +3870,15 @@ var Ax;
     positionTooltip: () => positionTooltip,
     removeTooltip: () => removeTooltip,
     renderCrossValidation: () => renderCrossValidation,
+    renderEffectsPlot: () => renderEffectsPlot,
     renderFeatureImportance: () => renderFeatureImportance,
     renderHeatmap: () => renderHeatmap,
+    renderObservedPredicted: () => renderObservedPredicted,
     renderOptimizationTrace: () => renderOptimizationTrace,
+    renderParetoPlot: () => renderParetoPlot,
     renderResponseSurface: () => renderResponseSurface,
+    renderScatter: () => renderScatter,
+    renderScatterStatic: () => renderScatterStatic,
     renderSlicePlot: () => renderSlicePlot,
     setupFileUpload: () => setupFileUpload,
     showTooltip: () => showTooltip,
@@ -4143,6 +4157,9 @@ var Ax;
         if (d.whisker) {
           d.whisker.setAttribute("stroke", "rgba(217,95,78,0.5)");
         }
+        if (d.whiskers) {
+          for (const w of d.whiskers) w.setAttribute("stroke", "rgba(217,95,78,0.5)");
+        }
       } else {
         const relNorm = rels.max > 0 ? rels.raw[i] / rels.max : 0;
         const fa = Math.max(0.08, Math.min(0.9, Math.sqrt(relNorm)));
@@ -4152,6 +4169,9 @@ var Ax;
         d.el.setAttribute("r", String(d.defaultR));
         if (d.whisker) {
           d.whisker.setAttribute("stroke", `rgba(217,95,78,${(fa * 0.35).toFixed(3)})`);
+        }
+        if (d.whiskers) {
+          for (const w of d.whiskers) w.setAttribute("stroke", `rgba(217,95,78,${(fa * 0.35).toFixed(3)})`);
         }
       }
     }
@@ -4164,6 +4184,9 @@ var Ax;
       d.el.setAttribute("r", String(d.defaultR));
       if (d.whisker) {
         d.whisker.setAttribute("stroke", "rgba(217,95,78,0.3)");
+      }
+      if (d.whiskers) {
+        for (const w of d.whiskers) w.setAttribute("stroke", "rgba(217,95,78,0.3)");
       }
     }
   }
@@ -4204,6 +4227,8 @@ var Ax;
   function attachDotInteractivity(svg, dots, predictor, outcome, tooltip, tooltipContainer, options) {
     let localPinnedIdx = -1;
     let hoverHighlight = false;
+    let pinnedDotIdx = -1;
+    let pinnedRels = null;
     const getPinnedIdx = options?.getPinnedIdx ?? (() => localPinnedIdx);
     const setPinnedIdx = options?.setPinnedIdx ?? ((v) => {
       localPinnedIdx = v;
@@ -4215,18 +4240,20 @@ var Ax;
       const hitIdx = findNearestDot(dots, px, py);
       if (hitIdx >= 0) {
         svg.style.cursor = "pointer";
-        if (getPinnedIdx() < 0) {
-          applyDotHighlight(dots, hitIdx, computeKernelRels(predictor, dots, hitIdx, outcome));
-          hoverHighlight = true;
-        }
+        applyDotHighlight(dots, hitIdx, computeKernelRels(predictor, dots, hitIdx, outcome));
+        hoverHighlight = true;
         const html = buildPointTooltipHtml(predictor, dots[hitIdx].idx, outcome);
         tooltip.innerHTML = html;
         tooltip.style.display = "block";
         positionTooltip(tooltip, e.clientX, e.clientY);
       } else {
         svg.style.cursor = "crosshair";
-        if (getPinnedIdx() < 0 && hoverHighlight) {
-          clearDotHighlight(dots);
+        if (hoverHighlight) {
+          if (pinnedDotIdx >= 0 && pinnedRels) {
+            applyDotHighlight(dots, pinnedDotIdx, pinnedRels);
+          } else {
+            clearDotHighlight(dots);
+          }
           hoverHighlight = false;
         }
         if (options?.fallbackMouseMove) {
@@ -4245,14 +4272,21 @@ var Ax;
         const hitTrainIdx = dots[hitIdx].idx;
         if (getPinnedIdx() === hitTrainIdx) {
           setPinnedIdx(-1);
+          pinnedDotIdx = -1;
+          pinnedRels = null;
           clearDotHighlight(dots);
         } else {
+          const rels = computeKernelRels(predictor, dots, hitIdx, outcome);
           setPinnedIdx(hitTrainIdx);
-          applyDotHighlight(dots, hitIdx, computeKernelRels(predictor, dots, hitIdx, outcome));
+          pinnedDotIdx = hitIdx;
+          pinnedRels = rels;
+          applyDotHighlight(dots, hitIdx, rels);
         }
       } else {
         if (getPinnedIdx() >= 0) {
           setPinnedIdx(-1);
+          pinnedDotIdx = -1;
+          pinnedRels = null;
           clearDotHighlight(dots);
         }
       }
@@ -4262,8 +4296,12 @@ var Ax;
     svg.addEventListener("mouseleave", () => {
       svg.style.cursor = "crosshair";
       tooltip.style.display = "none";
-      if (getPinnedIdx() < 0 && hoverHighlight) {
-        clearDotHighlight(dots);
+      if (hoverHighlight) {
+        if (pinnedDotIdx >= 0 && pinnedRels) {
+          applyDotHighlight(dots, pinnedDotIdx, pinnedRels);
+        } else {
+          clearDotHighlight(dots);
+        }
         hoverHighlight = false;
       }
     });
@@ -4921,7 +4959,11 @@ var Ax;
       } else {
         renderLengthscaleStatic(container, predictor, options?.outcome ?? predictor.outcomeNames[0]);
       }
-      return;
+      return { setOutcome() {
+      }, setMode() {
+      }, destroy() {
+        container.innerHTML = "";
+      } };
     }
     if (!container.id) {
       container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
@@ -4982,6 +5024,22 @@ var Ax;
       }
     }
     redraw();
+    return {
+      setOutcome(name) {
+        if (name === selectedOutcome) return;
+        selectedOutcome = name;
+        redraw();
+      },
+      setMode(m) {
+        if (m === mode) return;
+        mode = m;
+        redraw();
+      },
+      destroy() {
+        removeTooltip(container.id);
+        container.innerHTML = "";
+      }
+    };
   }
   function renderLengthscaleStatic(target, predictor, outcome, tooltip, tooltipContainer) {
     const ranked = predictor.rankDimensionsByImportance(outcome);
@@ -5223,7 +5281,10 @@ var Ax;
         options?.outcome ?? predictor.outcomeNames[0],
         options
       );
-      return;
+      return { setOutcome() {
+      }, destroy() {
+        container.innerHTML = "";
+      } };
     }
     if (!container.id) {
       container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
@@ -5325,6 +5386,21 @@ var Ax;
       }
     }
     redraw();
+    return {
+      setOutcome(name) {
+        if (name === selectedOutcome) return;
+        selectedOutcome = name;
+        if (hasMulti) {
+          const select = controlsDiv.querySelector("select");
+          if (select) select.value = name;
+        }
+        redraw();
+      },
+      destroy() {
+        removeTooltip(container.id);
+        container.innerHTML = "";
+      }
+    };
   }
   function renderCVPanel(target, predictor, outcome, W, H, isSmall, tooltip, panels, getPinnedIdx, setPinnedIdx, broadcastHighlight, broadcastClear) {
     const loo = predictor.loocv(outcome);
@@ -5508,6 +5584,9 @@ var Ax;
     }
     panels.push({ highlight: highlightDots, clear: clearDots });
     const HOVER_R = isSmall ? 8 : 12;
+    let pinnedDotLocalIdx = -1;
+    let pinnedRels = null;
+    let hoverHighlight = false;
     svg.addEventListener("mousemove", (e) => {
       const rect = svg.getBoundingClientRect();
       const px = e.clientX - rect.left, py = e.clientY - rect.top;
@@ -5522,13 +5601,17 @@ var Ax;
         tooltip.innerHTML = html;
         tooltip.style.display = "block";
         positionTooltip(tooltip, e.clientX, e.clientY);
-        if (getPinnedIdx() < 0) {
-          broadcastHighlight(best, computeKernelRels(predictor, cvDots, best, outcome));
-        }
+        broadcastHighlight(best, computeKernelRels(predictor, cvDots, best, outcome));
+        hoverHighlight = true;
       } else {
         tooltip.style.display = "none";
-        if (getPinnedIdx() < 0) {
-          broadcastClear();
+        if (hoverHighlight) {
+          if (pinnedDotLocalIdx >= 0 && pinnedRels) {
+            broadcastHighlight(pinnedDotLocalIdx, pinnedRels);
+          } else {
+            broadcastClear();
+          }
+          hoverHighlight = false;
         }
       }
     });
@@ -5537,16 +5620,37 @@ var Ax;
       const px = e.clientX - rect.left, py = e.clientY - rect.top;
       const best = findNearestDot(cvDots, px, py, HOVER_R);
       if (best >= 0) {
-        setPinnedIdx(best);
-        broadcastHighlight(best, computeKernelRels(predictor, cvDots, best, outcome));
+        if (getPinnedIdx() === best) {
+          setPinnedIdx(-1);
+          pinnedDotLocalIdx = -1;
+          pinnedRels = null;
+          broadcastClear();
+        } else {
+          const rels = computeKernelRels(predictor, cvDots, best, outcome);
+          setPinnedIdx(best);
+          pinnedDotLocalIdx = best;
+          pinnedRels = rels;
+          broadcastHighlight(best, rels);
+        }
       } else {
+        if (getPinnedIdx() >= 0) {
+          setPinnedIdx(-1);
+          pinnedDotLocalIdx = -1;
+          pinnedRels = null;
+        }
         broadcastClear();
       }
+      hoverHighlight = false;
     });
     svg.addEventListener("mouseleave", () => {
       tooltip.style.display = "none";
-      if (getPinnedIdx() < 0) {
-        broadcastClear();
+      if (hoverHighlight) {
+        if (pinnedDotLocalIdx >= 0 && pinnedRels) {
+          broadcastHighlight(pinnedDotLocalIdx, pinnedRels);
+        } else {
+          broadcastClear();
+        }
+        hoverHighlight = false;
       }
     });
   }
@@ -5594,7 +5698,10 @@ var Ax;
         options?.outcome ?? predictor.outcomeNames[0],
         options
       );
-      return;
+      return { setOutcome() {
+      }, destroy() {
+        container.innerHTML = "";
+      } };
     }
     if (!container.id) {
       container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
@@ -5629,11 +5736,22 @@ var Ax;
       );
     }
     redraw();
+    return {
+      setOutcome(name) {
+        if (name === selectedOutcome) return;
+        selectedOutcome = name;
+        redraw();
+      },
+      destroy() {
+        removeTooltip(container.id);
+        container.innerHTML = "";
+      }
+    };
   }
   function renderOptimizationTraceStatic(target, predictor, outcome, options, tooltip, tooltipContainer) {
     const W = options?.width ?? 440;
     const H = options?.height ?? 440;
-    const minimize = options?.minimize ?? true;
+    const minimize = options?.minimize ?? predictor.outcomeDirections?.[outcome] === "min";
     const td = predictor.getTrainingData(outcome);
     if (td.Y.length === 0) {
       target.textContent = "No data";
@@ -6728,13 +6846,14 @@ var Ax;
           range = { meanMin: er.muMin, meanMax: er.muMax, stdMin: er.stdMin, stdMax: er.stdMax };
         }
       }
+      const effectiveOptions = isRelative !== (options?.relative ?? false) ? { ...options, relative: isRelative } : options;
       renderResponseSurfaceStatic(
         plotsDiv,
         predictor,
         selectedOutcome,
         selDimX,
         selDimY,
-        options,
+        effectiveOptions,
         fixedValues,
         tooltip,
         container,
@@ -7174,6 +7293,7 @@ var Ax;
     redrawAllDots();
     if (tooltip && tooltipContainer) {
       let hoverHighlight = false;
+      let pinnedDotDataIdx = -1;
       for (const ref of canvasRefs) {
         let findHit2 = function(mx, my) {
           let best = -1, bestD = 144;
@@ -7215,18 +7335,20 @@ var Ax;
           const best = findHit2(mx, my);
           if (best >= 0) {
             ref.canvas.style.cursor = "pointer";
-            if (_getPinned() < 0) {
-              applyCanvasHighlight(best);
-              redrawAllDots();
-              hoverHighlight = true;
-            }
+            applyCanvasHighlight(best);
+            redrawAllDots();
+            hoverHighlight = true;
             tooltip.innerHTML = buildPointTooltipHtml(predictor, dotData[best].idx, outcome);
             tooltip.style.display = "block";
             positionTooltip(tooltip, e.clientX, e.clientY);
           } else {
             ref.canvas.style.cursor = "crosshair";
-            if (_getPinned() < 0 && hoverHighlight) {
-              clearCanvasHighlight();
+            if (hoverHighlight) {
+              if (pinnedDotDataIdx >= 0) {
+                applyCanvasHighlight(pinnedDotDataIdx);
+              } else {
+                clearCanvasHighlight();
+              }
               redrawAllDots();
               hoverHighlight = false;
             }
@@ -7253,9 +7375,11 @@ var Ax;
             const hitTrainIdx = dotData[best].idx;
             if (_getPinned() === hitTrainIdx) {
               _setPinned(-1);
+              pinnedDotDataIdx = -1;
               clearCanvasHighlight();
             } else {
               _setPinned(hitTrainIdx);
+              pinnedDotDataIdx = best;
               applyCanvasHighlight(best);
               if (onSnapToPoint) {
                 onSnapToPoint(dotData[best].pt);
@@ -7265,6 +7389,7 @@ var Ax;
           } else {
             if (_getPinned() >= 0) {
               _setPinned(-1);
+              pinnedDotDataIdx = -1;
               clearCanvasHighlight();
             }
           }
@@ -7274,8 +7399,12 @@ var Ax;
         ref.canvas.addEventListener("mouseleave", () => {
           ref.canvas.style.cursor = "crosshair";
           tooltip.style.display = "none";
-          if (_getPinned() < 0 && hoverHighlight) {
-            clearCanvasHighlight();
+          if (hoverHighlight) {
+            if (pinnedDotDataIdx >= 0) {
+              applyCanvasHighlight(pinnedDotDataIdx);
+            } else {
+              clearCanvasHighlight();
+            }
             redrawAllDots();
             hoverHighlight = false;
           }
@@ -7283,6 +7412,1462 @@ var Ax;
       }
     }
     target.append(panelWrap);
+  }
+
+  // src/viz/plots/scatter.ts
+  var CTRL_CSS6 = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
+  function resolveAxisData(predictor, name) {
+    if (predictor.outcomeNames.includes(name)) {
+      const td = predictor.getTrainingData(name);
+      const pred = predictor.predict(td.X)[name];
+      const stds = pred ? Array.from(pred.variance).map((v) => Math.sqrt(v)) : void 0;
+      return { values: Array.from(td.Y), label: name, pts: td.X, stds };
+    }
+    const dimIdx = predictor.paramNames.indexOf(name);
+    if (dimIdx >= 0) {
+      const td = predictor.getTrainingData(predictor.outcomeNames[0]);
+      return { values: td.X.map((x) => x[dimIdx]), label: name, pts: td.X };
+    }
+    return null;
+  }
+  function buildScatterPoints(xData, yData) {
+    if (xData.pts === yData.pts || xData.pts.length === yData.pts.length) {
+      const n = Math.min(xData.values.length, yData.values.length);
+      return Array.from({ length: n }, (_, i) => ({
+        x: xData.values[i],
+        y: yData.values[i],
+        idx: i,
+        pt: xData.pts[i],
+        xWhisker: xData.stds ? 2 * xData.stds[i] : void 0,
+        yWhisker: yData.stds ? 2 * yData.stds[i] : void 0
+      }));
+    }
+    const points = [];
+    for (let i = 0; i < xData.pts.length; i++) {
+      const xPt = xData.pts[i];
+      for (let j = 0; j < yData.pts.length; j++) {
+        if (xPt.length === yData.pts[j].length && xPt.every((v, k) => v === yData.pts[j][k])) {
+          points.push({
+            x: xData.values[i],
+            y: yData.values[j],
+            idx: i,
+            pt: xPt,
+            xWhisker: xData.stds ? 2 * xData.stds[i] : void 0,
+            yWhisker: yData.stds ? 2 * yData.stds[j] : void 0
+          });
+          break;
+        }
+      }
+    }
+    return points;
+  }
+  function renderScatterStatic(target, predictor, outcome, config, tooltip, tooltipContainer) {
+    const { points, xLabel, yLabel, width: W, height: H } = config;
+    if (points.length === 0) {
+      target.textContent = "No data";
+      return;
+    }
+    let [xlo, xhi] = config.xRange ?? [
+      Math.min(...points.map((p) => p.x)),
+      Math.max(...points.map((p) => p.x))
+    ];
+    let [ylo, yhi] = config.yRange ?? [
+      Math.min(...points.map((p) => p.y)),
+      Math.max(...points.map((p) => p.y))
+    ];
+    if (!config.xRange) {
+      const xPad = 0.08 * (xhi - xlo || 1);
+      xlo -= xPad;
+      xhi += xPad;
+    }
+    if (!config.yRange) {
+      const yPad = 0.08 * (yhi - ylo || 1);
+      ylo -= yPad;
+      yhi += yPad;
+    }
+    const margin = { top: 30, right: 20, bottom: 40, left: 55 };
+    const pw = W - margin.left - margin.right;
+    const ph = H - margin.top - margin.bottom;
+    const sx = (v) => margin.left + (v - xlo) / (xhi - xlo) * pw;
+    const sy = (v) => margin.top + ph - (v - ylo) / (yhi - ylo) * ph;
+    const svg = svgEl("svg", { width: W, height: H });
+    svg.append(
+      svgEl("line", {
+        x1: margin.left,
+        x2: margin.left + pw,
+        y1: margin.top + ph,
+        y2: margin.top + ph,
+        stroke: "rgba(0,0,0,0.20)",
+        "stroke-width": 1
+      })
+    );
+    svg.append(
+      svgEl("line", {
+        x1: margin.left,
+        x2: margin.left,
+        y1: margin.top,
+        y2: margin.top + ph,
+        stroke: "rgba(0,0,0,0.20)",
+        "stroke-width": 1
+      })
+    );
+    if (config.diagonalLine) {
+      const dlo = Math.min(xlo, ylo);
+      const dhi = Math.max(xhi, yhi);
+      svg.append(
+        svgEl("line", {
+          x1: sx(dlo),
+          y1: sy(dlo),
+          x2: sx(dhi),
+          y2: sy(dhi),
+          stroke: "rgba(0,0,0,0.20)",
+          "stroke-width": 1.5,
+          "stroke-dasharray": "6,4"
+        })
+      );
+    }
+    const nTicks = 5;
+    for (let t = 0; t <= nTicks; t++) {
+      const xv = xlo + (xhi - xlo) * t / nTicks;
+      const yv = ylo + (yhi - ylo) * t / nTicks;
+      svg.append(
+        svgEl("line", {
+          x1: margin.left,
+          x2: margin.left + pw,
+          y1: sy(yv),
+          y2: sy(yv),
+          stroke: "rgba(0,0,0,0.06)"
+        })
+      );
+      svg.append(
+        Object.assign(
+          svgEl("text", {
+            x: sx(xv),
+            y: margin.top + ph + 16,
+            fill: "#999",
+            "font-size": 10,
+            "text-anchor": "middle"
+          }),
+          { textContent: xv.toFixed(2) }
+        )
+      );
+      svg.append(
+        Object.assign(
+          svgEl("text", {
+            x: margin.left - 4,
+            y: sy(yv) + 3,
+            fill: "#999",
+            "font-size": 10,
+            "text-anchor": "end"
+          }),
+          { textContent: yv.toFixed(2) }
+        )
+      );
+    }
+    config.renderOverlay?.(svg, sx, sy, { xlo, xhi, ylo, yhi });
+    const dotR = 4;
+    const defaultFill = "rgba(217,95,78,0.85)";
+    const defaultStroke = "rgba(68,68,68,0.35)";
+    const whiskerColor = "rgba(217,95,78,0.45)";
+    const dots = [];
+    for (const p of points) {
+      const cx = sx(p.x);
+      const cy = sy(p.y);
+      const whiskerEls = [];
+      if (p.yWhisker != null && p.yWhisker > 0) {
+        const w = svgEl("line", {
+          x1: cx,
+          x2: cx,
+          y1: sy(p.y + p.yWhisker),
+          y2: sy(p.y - p.yWhisker),
+          stroke: whiskerColor,
+          "stroke-width": 1.5
+        });
+        svg.append(w);
+        whiskerEls.push(w);
+      }
+      if (p.xWhisker != null && p.xWhisker > 0) {
+        const w = svgEl("line", {
+          x1: sx(p.x - p.xWhisker),
+          x2: sx(p.x + p.xWhisker),
+          y1: cy,
+          y2: cy,
+          stroke: whiskerColor,
+          "stroke-width": 1.5
+        });
+        svg.append(w);
+        whiskerEls.push(w);
+      }
+      const dot = svgEl("circle", {
+        cx,
+        cy,
+        r: dotR,
+        fill: defaultFill,
+        stroke: defaultStroke,
+        "stroke-width": 1
+      });
+      svg.append(dot);
+      dots.push({
+        cx,
+        cy,
+        idx: p.idx,
+        pt: p.pt,
+        el: dot,
+        defaultFill,
+        defaultStroke,
+        defaultR: dotR,
+        ...whiskerEls.length > 0 ? { whiskers: whiskerEls } : {}
+      });
+    }
+    config.renderAnnotation?.(svg, margin, pw, ph, sx, sy);
+    svg.append(
+      Object.assign(
+        svgEl("text", {
+          x: margin.left + pw / 2,
+          y: H - 6,
+          fill: "#666",
+          "font-size": 13,
+          "text-anchor": "middle"
+        }),
+        { textContent: xLabel }
+      )
+    );
+    svg.append(
+      Object.assign(
+        svgEl("text", {
+          x: 14,
+          y: margin.top + ph / 2,
+          fill: "#666",
+          "font-size": 13,
+          "text-anchor": "middle",
+          transform: `rotate(-90,14,${margin.top + ph / 2})`
+        }),
+        { textContent: yLabel }
+      )
+    );
+    target.append(svg);
+    if (tooltip && tooltipContainer) {
+      const buildTooltipFn = config.buildTooltip ?? ((idx) => buildPointTooltipHtml(predictor, idx, outcome));
+      let hoverHighlight = false;
+      let pinnedDotIdx = -1;
+      let pinnedRels = null;
+      svg.addEventListener("mousemove", (e) => {
+        const rect = svg.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+        const hitIdx = findNearestDot(dots, px, py);
+        if (hitIdx >= 0) {
+          svg.style.cursor = "pointer";
+          applyDotHighlight(
+            dots,
+            hitIdx,
+            computeKernelRels(predictor, dots, hitIdx, outcome)
+          );
+          hoverHighlight = true;
+          tooltip.innerHTML = buildTooltipFn(dots[hitIdx].idx);
+          tooltip.style.display = "block";
+          positionTooltip(tooltip, e.clientX, e.clientY);
+        } else {
+          svg.style.cursor = "crosshair";
+          if (hoverHighlight) {
+            if (pinnedDotIdx >= 0 && pinnedRels) {
+              applyDotHighlight(dots, pinnedDotIdx, pinnedRels);
+            } else {
+              clearDotHighlight(dots);
+            }
+            hoverHighlight = false;
+          }
+          tooltip.style.display = "none";
+        }
+      });
+      svg.addEventListener("click", (e) => {
+        const rect = svg.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+        const hitIdx = findNearestDot(dots, px, py);
+        if (hitIdx >= 0) {
+          if (pinnedDotIdx === hitIdx) {
+            pinnedDotIdx = -1;
+            pinnedRels = null;
+            clearDotHighlight(dots);
+          } else {
+            const rels = computeKernelRels(predictor, dots, hitIdx, outcome);
+            pinnedDotIdx = hitIdx;
+            pinnedRels = rels;
+            applyDotHighlight(dots, hitIdx, rels);
+          }
+        } else {
+          if (pinnedDotIdx >= 0) {
+            pinnedDotIdx = -1;
+            pinnedRels = null;
+            clearDotHighlight(dots);
+          }
+        }
+        hoverHighlight = false;
+      });
+      svg.addEventListener("mouseleave", () => {
+        svg.style.cursor = "crosshair";
+        tooltip.style.display = "none";
+        if (hoverHighlight) {
+          if (pinnedDotIdx >= 0 && pinnedRels) {
+            applyDotHighlight(dots, pinnedDotIdx, pinnedRels);
+          } else {
+            clearDotHighlight(dots);
+          }
+          hoverHighlight = false;
+        }
+      });
+    }
+  }
+  function renderScatter(container, predictor, options) {
+    const interactive = options?.interactive !== false;
+    const W = options?.width ?? 440;
+    const H = options?.height ?? 440;
+    if (!interactive) {
+      const xName = options?.xAxis ?? predictor.outcomeNames[0] ?? predictor.paramNames[0];
+      const yName = options?.yAxis ?? (predictor.outcomeNames.length > 1 ? predictor.outcomeNames[1] : predictor.paramNames[0]);
+      const xData = resolveAxisData(predictor, xName);
+      const yData = resolveAxisData(predictor, yName);
+      if (xData && yData) {
+        renderScatterStatic(container, predictor, predictor.outcomeNames[0], {
+          points: buildScatterPoints(xData, yData),
+          xLabel: xName,
+          yLabel: yName,
+          width: W,
+          height: H,
+          diagonalLine: options?.diagonalLine
+        });
+      }
+      return {
+        setXAxis() {
+        },
+        setYAxis() {
+        },
+        destroy() {
+          container.innerHTML = "";
+        }
+      };
+    }
+    if (!container.id) {
+      container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    }
+    removeTooltip(container.id);
+    container.innerHTML = "";
+    injectScopedStyles(container);
+    const allNames = [...predictor.outcomeNames, ...predictor.paramNames];
+    let selXName = options?.xAxis ?? allNames[0];
+    let selYName = options?.yAxis ?? (allNames.length > 1 ? allNames[1] : allNames[0]);
+    const tooltip = createTooltipDiv(container.id);
+    const controlsDiv = document.createElement("div");
+    controlsDiv.style.cssText = CTRL_CSS6;
+    const plotsDiv = document.createElement("div");
+    container.append(controlsDiv);
+    container.append(plotsDiv);
+    const { wrapper: xWrapper, select: xSelect } = makeSelectEl("X axis:");
+    allNames.forEach((name) => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      xSelect.append(opt);
+    });
+    xSelect.value = selXName;
+    xSelect.addEventListener("change", () => {
+      selXName = xSelect.value;
+      if (selXName === selYName && allNames.length > 1) {
+        selYName = allNames.find((n) => n !== selXName) ?? allNames[0];
+        ySelect.value = selYName;
+      }
+      redraw();
+    });
+    controlsDiv.append(xWrapper);
+    const { wrapper: yWrapper, select: ySelect } = makeSelectEl("Y axis:");
+    allNames.forEach((name) => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      ySelect.append(opt);
+    });
+    ySelect.value = selYName;
+    ySelect.addEventListener("change", () => {
+      selYName = ySelect.value;
+      if (selXName === selYName && allNames.length > 1) {
+        selXName = allNames.find((n) => n !== selYName) ?? allNames[0];
+        xSelect.value = selXName;
+      }
+      redraw();
+    });
+    controlsDiv.append(yWrapper);
+    function redraw() {
+      plotsDiv.innerHTML = "";
+      const xData = resolveAxisData(predictor, selXName);
+      const yData = resolveAxisData(predictor, selYName);
+      if (!xData || !yData) {
+        plotsDiv.textContent = "Invalid axis selection";
+        return;
+      }
+      const outcomeForHighlight = predictor.outcomeNames.includes(selYName) ? selYName : predictor.outcomeNames.includes(selXName) ? selXName : predictor.outcomeNames[0];
+      renderScatterStatic(
+        plotsDiv,
+        predictor,
+        outcomeForHighlight,
+        {
+          points: buildScatterPoints(xData, yData),
+          xLabel: selXName,
+          yLabel: selYName,
+          width: W,
+          height: H,
+          diagonalLine: options?.diagonalLine
+        },
+        tooltip,
+        container
+      );
+    }
+    redraw();
+    return {
+      setXAxis(name) {
+        if (name === selXName) return;
+        selXName = name;
+        xSelect.value = name;
+        redraw();
+      },
+      setYAxis(name) {
+        if (name === selYName) return;
+        selYName = name;
+        ySelect.value = name;
+        redraw();
+      },
+      destroy() {
+        removeTooltip(container.id);
+        container.innerHTML = "";
+      }
+    };
+  }
+
+  // src/viz/plots/pareto.ts
+  var CTRL_CSS7 = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
+  function computeParetoFrontier(points, xMax, yMax) {
+    if (points.length === 0) return [];
+    const indices = points.map((_, i) => i);
+    indices.sort((a, b) => {
+      const dx = xMax ? points[b].x - points[a].x : points[a].x - points[b].x;
+      return dx !== 0 ? dx : yMax ? points[b].y - points[a].y : points[a].y - points[b].y;
+    });
+    const frontier = [];
+    let bestY = yMax ? -Infinity : Infinity;
+    for (const idx of indices) {
+      const y = points[idx].y;
+      if (yMax ? y > bestY : y < bestY) {
+        frontier.push(idx);
+        bestY = y;
+      }
+    }
+    return frontier;
+  }
+  function buildParetoPoints(predictor, xOutcome, yOutcome) {
+    const xTd = predictor.getTrainingData(xOutcome);
+    const yTd = predictor.getTrainingData(yOutcome);
+    const n = Math.min(xTd.Y.length, yTd.Y.length);
+    const pred = predictor.predict(xTd.X.slice(0, n));
+    const xPred = pred[xOutcome];
+    const yPred = pred[yOutcome];
+    return Array.from({ length: n }, (_, i) => ({
+      x: xTd.Y[i],
+      y: yTd.Y[i],
+      idx: i,
+      pt: xTd.X[i],
+      xWhisker: xPred ? 2 * Math.sqrt(xPred.variance[i]) : void 0,
+      yWhisker: yPred ? 2 * Math.sqrt(yPred.variance[i]) : void 0
+    }));
+  }
+  function renderParetoPlot(container, predictor, options) {
+    const interactive = options?.interactive !== false;
+    const W = options?.width ?? 440;
+    const H = options?.height ?? 440;
+    const directions = options?.directions ?? predictor.outcomeDirections ?? {};
+    if (predictor.outcomeNames.length < 2) {
+      container.textContent = "Pareto plot requires at least 2 outcomes";
+      return {
+        setXOutcome() {
+        },
+        setYOutcome() {
+        },
+        destroy() {
+          container.innerHTML = "";
+        }
+      };
+    }
+    if (!interactive) {
+      const xOut = options?.xOutcome ?? predictor.outcomeNames[0];
+      const yOut = options?.yOutcome ?? predictor.outcomeNames[1];
+      renderParetoStatic(
+        container,
+        predictor,
+        xOut,
+        yOut,
+        W,
+        H,
+        directions,
+        options?.showStatusQuo
+      );
+      return {
+        setXOutcome() {
+        },
+        setYOutcome() {
+        },
+        destroy() {
+          container.innerHTML = "";
+        }
+      };
+    }
+    if (!container.id) {
+      container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    }
+    removeTooltip(container.id);
+    container.innerHTML = "";
+    injectScopedStyles(container);
+    let selX = options?.xOutcome ?? predictor.outcomeNames[0];
+    let selY = options?.yOutcome ?? predictor.outcomeNames[1];
+    const dirs = { ...directions };
+    const tooltip = createTooltipDiv(container.id);
+    const controlsDiv = document.createElement("div");
+    controlsDiv.style.cssText = CTRL_CSS7;
+    const plotsDiv = document.createElement("div");
+    container.append(controlsDiv);
+    container.append(plotsDiv);
+    function makeDirBtn(getOutcome) {
+      const btn = document.createElement("button");
+      btn.style.cssText = "font-size:11px;padding:2px 6px;border-radius:4px;border:0.5px solid #d0d0d0;background:#f8f8f8;cursor:pointer;min-width:32px";
+      btn.addEventListener("click", () => {
+        const o = getOutcome();
+        dirs[o] = (dirs[o] ?? "max") === "max" ? "min" : "max";
+        syncBtn(btn, o);
+        redraw();
+      });
+      return btn;
+    }
+    function syncBtn(btn, outcome) {
+      const d = dirs[outcome] ?? "max";
+      btn.textContent = d;
+      btn.style.color = d === "min" ? "#d95f4e" : "#4872f9";
+    }
+    const { wrapper: xW, select: xSel } = makeSelectEl("X:");
+    const { wrapper: yW, select: ySel } = makeSelectEl("Y:");
+    predictor.outcomeNames.forEach((name) => {
+      const xo = document.createElement("option");
+      xo.value = name;
+      xo.textContent = name;
+      xSel.append(xo);
+      const yo = document.createElement("option");
+      yo.value = name;
+      yo.textContent = name;
+      ySel.append(yo);
+    });
+    xSel.value = selX;
+    ySel.value = selY;
+    const xDirBtn = makeDirBtn(() => selX);
+    const yDirBtn = makeDirBtn(() => selY);
+    syncBtn(xDirBtn, selX);
+    syncBtn(yDirBtn, selY);
+    xSel.addEventListener("change", () => {
+      selX = xSel.value;
+      if (selX === selY) {
+        selY = predictor.outcomeNames.find((n) => n !== selX) ?? selX;
+        ySel.value = selY;
+      }
+      syncBtn(xDirBtn, selX);
+      redraw();
+    });
+    ySel.addEventListener("change", () => {
+      selY = ySel.value;
+      if (selX === selY) {
+        selX = predictor.outcomeNames.find((n) => n !== selY) ?? selY;
+        xSel.value = selX;
+      }
+      syncBtn(yDirBtn, selY);
+      redraw();
+    });
+    xW.append(xDirBtn);
+    yW.append(yDirBtn);
+    controlsDiv.append(xW, yW);
+    function redraw() {
+      plotsDiv.innerHTML = "";
+      renderParetoStatic(
+        plotsDiv,
+        predictor,
+        selX,
+        selY,
+        W,
+        H,
+        dirs,
+        options?.showStatusQuo,
+        tooltip,
+        container
+      );
+    }
+    redraw();
+    return {
+      setXOutcome(name) {
+        if (name === selX) return;
+        selX = name;
+        xSel.value = name;
+        redraw();
+      },
+      setYOutcome(name) {
+        if (name === selY) return;
+        selY = name;
+        ySel.value = name;
+        redraw();
+      },
+      destroy() {
+        removeTooltip(container.id);
+        container.innerHTML = "";
+      }
+    };
+  }
+  function renderParetoStatic(target, predictor, xOutcome, yOutcome, W, H, directions, showStatusQuo, tooltip, tooltipContainer) {
+    const points = buildParetoPoints(predictor, xOutcome, yOutcome);
+    const xMax = (directions[xOutcome] ?? "max") === "max";
+    const yMax = (directions[yOutcome] ?? "max") === "max";
+    const activeFrontier = computeParetoFrontier(points, xMax, yMax);
+    const dualFrontier = computeParetoFrontier(points, !xMax, !yMax);
+    const sortedActive = [...activeFrontier].sort(
+      (a, b) => points[a].x - points[b].x
+    );
+    const sortedDual = [...dualFrontier].sort(
+      (a, b) => points[a].x - points[b].x
+    );
+    const isActiveMaxMax = xMax && yMax;
+    const maxMaxSorted = isActiveMaxMax ? sortedActive : sortedDual;
+    const minMinSorted = isActiveMaxMax ? sortedDual : sortedActive;
+    const maxMaxIsActive = isActiveMaxMax;
+    const isMixed = xMax !== yMax;
+    renderScatterStatic(
+      target,
+      predictor,
+      xOutcome,
+      {
+        points,
+        xLabel: xOutcome,
+        yLabel: yOutcome,
+        width: W,
+        height: H,
+        renderAnnotation: (svg, margin, pw, ph, sxFn, syFn) => {
+          const sx = sxFn;
+          const sy = syFn;
+          const plotL = margin.left;
+          const plotR = margin.left + pw;
+          const plotT = margin.top;
+          const plotB = margin.top + ph;
+          function drawStaircase(sorted, color, fillColor, sw, opa, extendYBetter, extendXBetter, cornerX, cornerY, reverse) {
+            if (sorted.length === 0) return;
+            const coords = sorted.map((fi) => [
+              sx(points[fi].x),
+              sy(points[fi].y)
+            ]);
+            const waypoints = [];
+            if (!reverse) {
+              waypoints.push([coords[0][0], extendYBetter]);
+              for (const c of coords) waypoints.push(c);
+              waypoints.push([extendXBetter, coords[coords.length - 1][1]]);
+            } else {
+              waypoints.push([coords[coords.length - 1][0], extendYBetter]);
+              for (let i = coords.length - 1; i >= 0; i--) waypoints.push(coords[i]);
+              waypoints.push([extendXBetter, coords[0][1]]);
+            }
+            const polyPoints = waypoints.map(([x, y]) => `${x},${y}`).concat([`${cornerX},${cornerY}`]).join(" ");
+            svg.append(
+              svgEl("polygon", {
+                points: polyPoints,
+                fill: fillColor,
+                stroke: "none"
+              })
+            );
+            for (let i = 0; i < waypoints.length - 1; i++) {
+              const [x1, y1] = waypoints[i];
+              const [x2, y2] = waypoints[i + 1];
+              if (Math.abs(x1 - x2) < 0.5) {
+                svg.append(svgEl("line", {
+                  x1,
+                  y1,
+                  x2,
+                  y2,
+                  stroke: color,
+                  "stroke-width": sw,
+                  opacity: opa
+                }));
+              } else {
+                svg.append(svgEl("line", {
+                  x1,
+                  y1,
+                  x2,
+                  y2: y1,
+                  stroke: color,
+                  "stroke-width": sw,
+                  opacity: opa
+                }));
+                if (Math.abs(y1 - y2) > 0.5) {
+                  svg.append(svgEl("line", {
+                    x1: x2,
+                    y1,
+                    x2,
+                    y2,
+                    stroke: color,
+                    "stroke-width": sw,
+                    opacity: opa
+                  }));
+                }
+              }
+            }
+          }
+          const mmActive = maxMaxIsActive && !isMixed;
+          drawStaircase(
+            maxMaxSorted,
+            "#4872f9",
+            "rgba(72,114,249,0.06)",
+            mmActive ? 2.5 : 1.5,
+            mmActive ? "0.7" : "0.35",
+            plotT,
+            // extend UP
+            plotR,
+            // extend RIGHT
+            plotR,
+            plotT,
+            // corner: top-right
+            false
+          );
+          const mmInactive = !maxMaxIsActive && !isMixed;
+          drawStaircase(
+            minMinSorted,
+            "#e6a23c",
+            "rgba(230,162,60,0.06)",
+            mmInactive ? 2.5 : 1.5,
+            mmInactive ? "0.7" : "0.35",
+            plotB,
+            // extend DOWN
+            plotL,
+            // extend LEFT
+            plotL,
+            plotB,
+            // corner: bottom-left
+            true
+          );
+          const activeColor = isMixed ? "#4872f9" : maxMaxIsActive ? "#4872f9" : "#e6a23c";
+          for (const fi of sortedActive) {
+            const p = points[fi];
+            svg.append(
+              svgEl("circle", {
+                cx: sx(p.x),
+                cy: sy(p.y),
+                r: 8,
+                fill: "none",
+                stroke: activeColor,
+                "stroke-width": 1.5,
+                opacity: "0.5"
+              })
+            );
+          }
+        },
+        renderOverlay: (svg, sx, sy, bounds) => {
+          if (showStatusQuo && predictor.statusQuoPoint) {
+            const sq = predictor.statusQuoPoint;
+            const sqPred = predictor.predict([sq]);
+            const sqXVal = sqPred[xOutcome]?.mean[0];
+            const sqYVal = sqPred[yOutcome]?.mean[0];
+            if (sqXVal != null && sqYVal != null) {
+              const cx = sx(sqXVal);
+              const cy = sy(sqYVal);
+              svg.append(
+                svgEl("polygon", {
+                  points: `${cx},${cy - 7} ${cx + 7},${cy} ${cx},${cy + 7} ${cx - 7},${cy}`,
+                  fill: "#4872f9",
+                  stroke: "#fff",
+                  "stroke-width": 1.5,
+                  opacity: "0.8"
+                })
+              );
+            }
+          }
+        }
+      },
+      tooltip,
+      tooltipContainer
+    );
+  }
+
+  // src/viz/plots/observed_predicted.ts
+  var CTRL_CSS8 = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
+  function renderObservedPredicted(container, predictor, options) {
+    const interactive = options?.interactive !== false;
+    const W = options?.width ?? 440;
+    const H = options?.height ?? 440;
+    if (!interactive) {
+      const outcome = options?.outcome ?? predictor.outcomeNames[0];
+      renderOPStatic(container, predictor, outcome, W, H);
+      return {
+        setOutcome() {
+        },
+        destroy() {
+          container.innerHTML = "";
+        }
+      };
+    }
+    if (!container.id) {
+      container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    }
+    removeTooltip(container.id);
+    container.innerHTML = "";
+    injectScopedStyles(container);
+    let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
+    const tooltip = createTooltipDiv(container.id);
+    const controlsDiv = document.createElement("div");
+    controlsDiv.style.cssText = CTRL_CSS8;
+    const plotsDiv = document.createElement("div");
+    container.append(controlsDiv);
+    container.append(plotsDiv);
+    if (predictor.outcomeNames.length > 1) {
+      const { wrapper, select } = makeSelectEl("Outcome:");
+      createOutcomeSelector(predictor, select, (name) => {
+        selectedOutcome = name;
+        redraw();
+      });
+      controlsDiv.append(wrapper);
+    }
+    function redraw() {
+      plotsDiv.innerHTML = "";
+      renderOPStatic(
+        plotsDiv,
+        predictor,
+        selectedOutcome,
+        W,
+        H,
+        tooltip,
+        container
+      );
+    }
+    redraw();
+    return {
+      setOutcome(name) {
+        if (name === selectedOutcome) return;
+        selectedOutcome = name;
+        redraw();
+      },
+      destroy() {
+        removeTooltip(container.id);
+        container.innerHTML = "";
+      }
+    };
+  }
+  function renderOPStatic(target, predictor, outcome, W, H, tooltip, tooltipContainer) {
+    const td = predictor.getTrainingData(outcome);
+    if (td.Y.length === 0) {
+      target.textContent = "No data";
+      return;
+    }
+    const observed = td.Y;
+    const pred = predictor.predict(td.X)[outcome];
+    if (!pred) {
+      target.textContent = "No predictions for outcome: " + outcome;
+      return;
+    }
+    const predicted = Array.from(pred.mean);
+    const predStd = Array.from(pred.variance).map((v) => Math.sqrt(v));
+    const n = observed.length;
+    const meanObs = observed.reduce((a, b) => a + b, 0) / n;
+    const ssTot = observed.reduce((s, v) => s + (v - meanObs) ** 2, 0);
+    const ssRes = observed.reduce(
+      (s, v, i) => s + (v - predicted[i]) ** 2,
+      0
+    );
+    const r2 = 1 - ssRes / ssTot;
+    const points = observed.map((obs, i) => ({
+      x: obs,
+      y: predicted[i],
+      idx: i,
+      pt: td.X[i],
+      yWhisker: 2 * predStd[i]
+    }));
+    let lo = Math.min(...observed, ...predicted);
+    let hi = Math.max(...observed, ...predicted);
+    for (let i = 0; i < n; i++) {
+      lo = Math.min(lo, predicted[i] - 2 * predStd[i]);
+      hi = Math.max(hi, predicted[i] + 2 * predStd[i]);
+    }
+    const pad = 0.08 * (hi - lo || 1);
+    lo -= pad;
+    hi += pad;
+    renderScatterStatic(
+      target,
+      predictor,
+      outcome,
+      {
+        points,
+        xLabel: "Observed",
+        yLabel: "Predicted",
+        xRange: [lo, hi],
+        yRange: [lo, hi],
+        width: W,
+        height: H,
+        diagonalLine: true,
+        renderAnnotation: (svg, margin) => {
+          svg.append(
+            Object.assign(
+              svgEl("text", {
+                x: margin.left + 6,
+                y: margin.top + 18,
+                fill: "#4872f9",
+                "font-size": 14,
+                "font-weight": "600"
+              }),
+              { textContent: `R\xB2 = ${r2.toFixed(4)}` }
+            )
+          );
+        },
+        buildTooltip: (idx) => {
+          let html = `<div style="font-weight:600;color:#666;margin-bottom:4px">${outcome} \u2014 trial ${idx}</div>`;
+          html += `observed = <span style="color:#4872f9">${observed[idx].toFixed(4)}</span><br>`;
+          html += `predicted = <span style="color:#4872f9">${predicted[idx].toFixed(4)}</span><br>`;
+          html += `\xB1 2\u03C3 = [${(predicted[idx] - 2 * predStd[idx]).toFixed(4)}, ${(predicted[idx] + 2 * predStd[idx]).toFixed(4)}]`;
+          return html;
+        }
+      },
+      tooltip,
+      tooltipContainer
+    );
+  }
+
+  // src/viz/plots/effects.ts
+  var CTRL_CSS9 = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;pointer-events:auto";
+  function deltaRelativize3(mT, sT, mC, sC) {
+    const absC = Math.abs(mC);
+    const rHat = (mT - mC) / absC - sC * sC * mT / (absC * absC * absC);
+    const variance = (sT * sT + (mT / mC * sC) ** 2) / (mC * mC);
+    return [rHat * 100, Math.sqrt(Math.max(0, variance)) * 100];
+  }
+  function formatPct3(v) {
+    const sign = v > 0 ? "+" : "";
+    const abs = Math.abs(v);
+    if (abs === 0) return "0.0%";
+    if (abs < 1e-3) return sign + v.toExponential(1) + "%";
+    if (abs < 0.1) return sign + v.toFixed(3) + "%";
+    if (abs < 1) return sign + v.toFixed(2) + "%";
+    if (abs < 100) return sign + v.toFixed(1) + "%";
+    return sign + v.toFixed(0) + "%";
+  }
+  function renderEffectsPlot(container, predictor, options) {
+    const interactive = options?.interactive !== false;
+    const W = options?.width ?? 520;
+    const H = options?.height ?? 400;
+    if (!interactive) {
+      const outcome = options?.outcome ?? predictor.outcomeNames[0];
+      const sort = options?.sort ?? "trial";
+      const relative = options?.relative === true;
+      const sqPt = options?.statusQuoPoint ?? predictor.statusQuoPoint ?? null;
+      renderEffectsStatic(
+        container,
+        predictor,
+        outcome,
+        W,
+        H,
+        sort,
+        relative,
+        sqPt
+      );
+      return {
+        setOutcome() {
+        },
+        setSort() {
+        },
+        destroy() {
+          container.innerHTML = "";
+        }
+      };
+    }
+    if (!container.id) {
+      container.id = "axjs_" + Math.random().toString(36).slice(2, 10);
+    }
+    removeTooltip(container.id);
+    container.innerHTML = "";
+    injectScopedStyles(container);
+    let selectedOutcome = options?.outcome ?? predictor.outcomeNames[0];
+    let sortMode = options?.sort ?? "trial";
+    let isRelative = options?.relative === true;
+    const sqPoint = options?.statusQuoPoint ?? predictor.statusQuoPoint ?? null;
+    const tooltip = createTooltipDiv(container.id);
+    const controlsDiv = document.createElement("div");
+    controlsDiv.style.cssText = CTRL_CSS9;
+    const plotsDiv = document.createElement("div");
+    container.append(controlsDiv);
+    container.append(plotsDiv);
+    if (predictor.outcomeNames.length > 1) {
+      const { wrapper, select } = makeSelectEl("Outcome:");
+      createOutcomeSelector(predictor, select, (name) => {
+        selectedOutcome = name;
+        redraw();
+      });
+      controlsDiv.append(wrapper);
+    }
+    const { wrapper: sortWrapper, select: sortSelect } = makeSelectEl("Sort:");
+    for (const [val, label] of [
+      ["trial", "Trial order"],
+      ["predicted", "Predicted value"],
+      ["observed", "Observed value"]
+    ]) {
+      const opt = document.createElement("option");
+      opt.value = val;
+      opt.textContent = label;
+      sortSelect.append(opt);
+    }
+    sortSelect.value = sortMode;
+    sortSelect.addEventListener("change", () => {
+      sortMode = sortSelect.value;
+      redraw();
+    });
+    controlsDiv.append(sortWrapper);
+    if (sqPoint) {
+      const relLabel = document.createElement("label");
+      relLabel.style.cssText = "font-size:13px;color:#555;display:flex;align-items:center;gap:4px";
+      const relCheck = document.createElement("input");
+      relCheck.type = "checkbox";
+      relCheck.checked = isRelative;
+      relCheck.addEventListener("change", () => {
+        isRelative = relCheck.checked;
+        redraw();
+      });
+      relLabel.append(relCheck, "% vs SQ");
+      controlsDiv.append(relLabel);
+    }
+    function redraw() {
+      plotsDiv.innerHTML = "";
+      renderEffectsStatic(
+        plotsDiv,
+        predictor,
+        selectedOutcome,
+        W,
+        H,
+        sortMode,
+        isRelative,
+        sqPoint,
+        tooltip,
+        container
+      );
+    }
+    redraw();
+    return {
+      setOutcome(name) {
+        if (name === selectedOutcome) return;
+        selectedOutcome = name;
+        redraw();
+      },
+      setSort(sort) {
+        if (sort === sortMode) return;
+        sortMode = sort;
+        sortSelect.value = sort;
+        redraw();
+      },
+      destroy() {
+        removeTooltip(container.id);
+        container.innerHTML = "";
+      }
+    };
+  }
+  function renderEffectsStatic(target, predictor, outcome, W, H, sortMode, isRelative, sqPoint, tooltip, tooltipContainer) {
+    const td = predictor.getTrainingData(outcome);
+    const n = td.Y.length;
+    if (n === 0) {
+      target.textContent = "No data";
+      return;
+    }
+    const loo = predictor.loocv(outcome);
+    const observed = loo.observed;
+    const predicted = loo.mean;
+    const predStd = loo.variance.map((v) => Math.sqrt(v));
+    let relActive = false;
+    let sqMean = 0;
+    let sqStd = 0;
+    let obsValues = observed;
+    let predValues = predicted;
+    let predSigmas = predStd;
+    if (isRelative && sqPoint) {
+      const sqPred = predictor.predict([sqPoint])[outcome];
+      if (sqPred && Math.abs(sqPred.mean[0]) >= 1e-15) {
+        sqMean = sqPred.mean[0];
+        sqStd = Math.sqrt(sqPred.variance[0]);
+        relActive = true;
+        obsValues = observed.map(
+          (y) => (y - sqMean) / Math.abs(sqMean) * 100
+        );
+        predValues = [];
+        predSigmas = [];
+        for (let i = 0; i < n; i++) {
+          const [rm, rs] = deltaRelativize3(
+            predicted[i],
+            predStd[i],
+            sqMean,
+            sqStd
+          );
+          predValues.push(rm);
+          predSigmas.push(rs);
+        }
+      }
+    }
+    const indices = Array.from({ length: n }, (_, i) => i);
+    if (sortMode === "predicted") {
+      indices.sort((a, b) => predValues[a] - predValues[b]);
+    } else if (sortMode === "observed") {
+      indices.sort((a, b) => obsValues[a] - obsValues[b]);
+    }
+    let ylo = Infinity;
+    let yhi = -Infinity;
+    for (let i = 0; i < n; i++) {
+      ylo = Math.min(ylo, obsValues[i], predValues[i] - 2 * predSigmas[i]);
+      yhi = Math.max(yhi, obsValues[i], predValues[i] + 2 * predSigmas[i]);
+    }
+    const yPad = 0.08 * (yhi - ylo || 1);
+    ylo -= yPad;
+    yhi += yPad;
+    const margin = { top: 24, right: 20, bottom: 40, left: 55 };
+    const pw = W - margin.left - margin.right;
+    const ph = H - margin.top - margin.bottom;
+    const sx = (pos) => margin.left + (pos + 0.5) / n * pw;
+    const sy = (v) => margin.top + ph - (v - ylo) / (yhi - ylo) * ph;
+    const svg = svgEl("svg", { width: W, height: H });
+    svg.append(
+      svgEl("line", {
+        x1: margin.left,
+        x2: margin.left + pw,
+        y1: margin.top + ph,
+        y2: margin.top + ph,
+        stroke: "rgba(0,0,0,0.20)",
+        "stroke-width": 1
+      })
+    );
+    svg.append(
+      svgEl("line", {
+        x1: margin.left,
+        x2: margin.left,
+        y1: margin.top,
+        y2: margin.top + ph,
+        stroke: "rgba(0,0,0,0.20)",
+        "stroke-width": 1
+      })
+    );
+    const nYTicks = 5;
+    const fmtY = relActive ? formatPct3 : (v) => v.toFixed(2);
+    for (let t = 0; t <= nYTicks; t++) {
+      const v = ylo + (yhi - ylo) * t / nYTicks;
+      svg.append(
+        svgEl("line", {
+          x1: margin.left,
+          x2: margin.left + pw,
+          y1: sy(v),
+          y2: sy(v),
+          stroke: "rgba(0,0,0,0.06)"
+        })
+      );
+      svg.append(
+        Object.assign(
+          svgEl("text", {
+            x: margin.left - 4,
+            y: sy(v) + 3,
+            fill: "#999",
+            "font-size": 10,
+            "text-anchor": "end"
+          }),
+          { textContent: fmtY(v) }
+        )
+      );
+    }
+    const xStep = Math.max(1, Math.ceil(n / 15));
+    for (let di = 0; di < n; di += xStep) {
+      svg.append(
+        Object.assign(
+          svgEl("text", {
+            x: sx(di),
+            y: margin.top + ph + 16,
+            fill: "#999",
+            "font-size": 10,
+            "text-anchor": "middle"
+          }),
+          { textContent: String(indices[di]) }
+        )
+      );
+    }
+    if (relActive && ylo < 0 && yhi > 0) {
+      svg.append(
+        svgEl("line", {
+          x1: margin.left,
+          x2: margin.left + pw,
+          y1: sy(0),
+          y2: sy(0),
+          stroke: "rgba(0,0,0,0.25)",
+          "stroke-width": 1,
+          "stroke-dasharray": "6,4"
+        })
+      );
+    }
+    const defaultFill = "rgba(217,95,78,0.85)";
+    const defaultStroke = "rgba(68,68,68,0.35)";
+    const dotR = 4;
+    const capW = 4;
+    const dots = [];
+    for (let di = 0; di < n; di++) {
+      const i = indices[di];
+      const px = sx(di);
+      const ciHi = sy(predValues[i] + 2 * predSigmas[i]);
+      const ciLo = sy(predValues[i] - 2 * predSigmas[i]);
+      const predY = sy(predValues[i]);
+      const obsY = sy(obsValues[i]);
+      const whiskerEls = [];
+      const blueStem = svgEl("line", {
+        x1: px,
+        x2: px,
+        y1: ciHi,
+        y2: ciLo,
+        stroke: "rgba(72,114,249,0.5)",
+        "stroke-width": 2
+      });
+      svg.append(blueStem);
+      whiskerEls.push(blueStem);
+      const blueCap1 = svgEl("line", {
+        x1: px - capW,
+        x2: px + capW,
+        y1: ciHi,
+        y2: ciHi,
+        stroke: "rgba(72,114,249,0.5)",
+        "stroke-width": 2
+      });
+      svg.append(blueCap1);
+      whiskerEls.push(blueCap1);
+      const blueCap2 = svgEl("line", {
+        x1: px - capW,
+        x2: px + capW,
+        y1: ciLo,
+        y2: ciLo,
+        stroke: "rgba(72,114,249,0.5)",
+        "stroke-width": 2
+      });
+      svg.append(blueCap2);
+      whiskerEls.push(blueCap2);
+      const redHi = obsY - (predY - ciHi);
+      const redLo = obsY + (ciLo - predY);
+      const redStem = svgEl("line", {
+        x1: px,
+        x2: px,
+        y1: redHi,
+        y2: redLo,
+        stroke: "rgba(217,95,78,0.35)",
+        "stroke-width": 1.5
+      });
+      svg.append(redStem);
+      whiskerEls.push(redStem);
+      const redCap1 = svgEl("line", {
+        x1: px - capW,
+        x2: px + capW,
+        y1: redHi,
+        y2: redHi,
+        stroke: "rgba(217,95,78,0.35)",
+        "stroke-width": 1.5
+      });
+      svg.append(redCap1);
+      whiskerEls.push(redCap1);
+      const redCap2 = svgEl("line", {
+        x1: px - capW,
+        x2: px + capW,
+        y1: redLo,
+        y2: redLo,
+        stroke: "rgba(217,95,78,0.35)",
+        "stroke-width": 1.5
+      });
+      svg.append(redCap2);
+      whiskerEls.push(redCap2);
+      svg.append(
+        svgEl("circle", {
+          cx: px,
+          cy: predY,
+          r: 3,
+          fill: "#4872f9",
+          stroke: "#fff",
+          "stroke-width": 1
+        })
+      );
+      const dot = svgEl("circle", {
+        cx: px,
+        cy: obsY,
+        r: dotR,
+        fill: defaultFill,
+        stroke: defaultStroke,
+        "stroke-width": 1
+      });
+      svg.append(dot);
+      dots.push({
+        cx: px,
+        cy: obsY,
+        idx: i,
+        pt: td.X[i],
+        el: dot,
+        whiskers: whiskerEls,
+        defaultFill,
+        defaultStroke,
+        defaultR: dotR
+      });
+    }
+    svg.append(
+      Object.assign(
+        svgEl("text", {
+          x: margin.left + pw / 2,
+          y: H - 6,
+          fill: "#666",
+          "font-size": 13,
+          "text-anchor": "middle"
+        }),
+        { textContent: "Trial" }
+      )
+    );
+    const yLabel = relActive ? `${outcome} (% vs SQ)` : outcome;
+    svg.append(
+      Object.assign(
+        svgEl("text", {
+          x: 14,
+          y: margin.top + ph / 2,
+          fill: "#666",
+          "font-size": 13,
+          "text-anchor": "middle",
+          transform: `rotate(-90,14,${margin.top + ph / 2})`
+        }),
+        { textContent: yLabel }
+      )
+    );
+    const lx = margin.left + pw - 140;
+    const ly = margin.top + 6;
+    svg.append(
+      svgEl("circle", {
+        cx: lx,
+        cy: ly,
+        r: 3.5,
+        fill: defaultFill,
+        stroke: defaultStroke,
+        "stroke-width": 1
+      })
+    );
+    svg.append(
+      Object.assign(
+        svgEl("text", {
+          x: lx + 7,
+          y: ly + 3.5,
+          fill: "#666",
+          "font-size": 10
+        }),
+        { textContent: "observed \xB12\u03C3" }
+      )
+    );
+    svg.append(
+      svgEl("circle", {
+        cx: lx + 62,
+        cy: ly,
+        r: 2.5,
+        fill: "#4872f9",
+        stroke: "none"
+      })
+    );
+    svg.append(
+      Object.assign(
+        svgEl("text", {
+          x: lx + 68,
+          y: ly + 3.5,
+          fill: "#666",
+          "font-size": 10
+        }),
+        { textContent: "LOO pred. \xB12\u03C3" }
+      )
+    );
+    target.append(svg);
+    if (tooltip && tooltipContainer) {
+      let hoverHighlight = false;
+      let pinnedDotIdx = -1;
+      let pinnedRels = null;
+      svg.addEventListener("mousemove", (e) => {
+        const rect = svg.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+        const hitIdx = findNearestDot(dots, px, py);
+        if (hitIdx >= 0) {
+          svg.style.cursor = "pointer";
+          applyDotHighlight(
+            dots,
+            hitIdx,
+            computeKernelRels(predictor, dots, hitIdx, outcome)
+          );
+          hoverHighlight = true;
+          const i = dots[hitIdx].idx;
+          let html = `<div style="font-weight:600;color:#666;margin-bottom:4px">${outcome} \u2014 trial ${i}</div>`;
+          if (relActive) {
+            html += `observed = <span style="color:#d95f4e">${formatPct3(obsValues[i])}</span><br>`;
+            html += `LOO predicted = <span style="color:#4872f9">${formatPct3(predValues[i])}</span><br>`;
+            html += `\xB1 2\u03C3 = [${formatPct3(predValues[i] - 2 * predSigmas[i])}, ${formatPct3(predValues[i] + 2 * predSigmas[i])}]`;
+          } else {
+            html += `observed = <span style="color:#d95f4e">${obsValues[i].toFixed(4)}</span><br>`;
+            html += `LOO predicted = <span style="color:#4872f9">${predValues[i].toFixed(4)}</span><br>`;
+            html += `\xB1 2\u03C3 = [${(predValues[i] - 2 * predSigmas[i]).toFixed(4)}, ${(predValues[i] + 2 * predSigmas[i]).toFixed(4)}]<br>`;
+            html += `residual = <span style="color:#666">${(obsValues[i] - predValues[i]).toFixed(4)}</span>`;
+          }
+          html += '<hr style="border-color:#e8e8e8;margin:4px 0">';
+          for (let j = 0; j < predictor.paramNames.length; j++) {
+            html += `<span style="color:#666">${predictor.paramNames[j]}</span> = ${td.X[i][j].toFixed(4)}<br>`;
+          }
+          tooltip.innerHTML = html;
+          tooltip.style.display = "block";
+          positionTooltip(tooltip, e.clientX, e.clientY);
+        } else {
+          svg.style.cursor = "default";
+          if (hoverHighlight) {
+            if (pinnedDotIdx >= 0 && pinnedRels) {
+              applyDotHighlight(dots, pinnedDotIdx, pinnedRels);
+            } else {
+              clearDotHighlight(dots);
+            }
+            hoverHighlight = false;
+          }
+          tooltip.style.display = "none";
+        }
+      });
+      svg.addEventListener("click", (e) => {
+        const rect = svg.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+        const hitIdx = findNearestDot(dots, px, py);
+        if (hitIdx >= 0) {
+          if (pinnedDotIdx === hitIdx) {
+            pinnedDotIdx = -1;
+            pinnedRels = null;
+            clearDotHighlight(dots);
+          } else {
+            const rels = computeKernelRels(predictor, dots, hitIdx, outcome);
+            pinnedDotIdx = hitIdx;
+            pinnedRels = rels;
+            applyDotHighlight(dots, hitIdx, rels);
+          }
+        } else {
+          if (pinnedDotIdx >= 0) {
+            pinnedDotIdx = -1;
+            pinnedRels = null;
+            clearDotHighlight(dots);
+          }
+        }
+        hoverHighlight = false;
+      });
+      svg.addEventListener("mouseleave", () => {
+        svg.style.cursor = "default";
+        tooltip.style.display = "none";
+        if (hoverHighlight) {
+          if (pinnedDotIdx >= 0 && pinnedRels) {
+            applyDotHighlight(dots, pinnedDotIdx, pinnedRels);
+          } else {
+            clearDotHighlight(dots);
+          }
+          hoverHighlight = false;
+        }
+      });
+    }
   }
 
   // src/viz/cockpit/index.ts
@@ -7524,7 +9109,7 @@ var Ax;
       nextCandidateId
     };
   }
-  function deltaRelativize3(mean, sem, sqMean, sqSem) {
+  function deltaRelativize4(mean, sem, sqMean, sqSem) {
     const absC = Math.abs(sqMean);
     if (absC < 1e-10) throw new Error("Control mean \u2248 0");
     const rHat = ((mean - sqMean) / absC - sqSem * sqSem * mean / (absC * absC * absC)) * 100;
@@ -7549,7 +9134,7 @@ var Ax;
       }
       const sqSem = Math.sqrt(Math.max(0, sqVar));
       try {
-        result[name] = deltaRelativize3(mean, sem, sqMean, sqSem);
+        result[name] = deltaRelativize4(mean, sem, sqMean, sqSem);
       } catch {
         result[name] = null;
       }
@@ -8641,7 +10226,7 @@ Falls ${violatedOp === "LEQ" ? "above" : "below"} constraint threshold ${violate
       }
       return niceRange(lo, hi);
     }
-    function renderScatter() {
+    function renderScatter2() {
       if (!data) return;
       if (xOutIdx !== stickyScatterXIdx) {
         stickyScatterX = null;
@@ -8714,7 +10299,7 @@ Falls ${violatedOp === "LEQ" ? "above" : "below"} constraint threshold ${violate
           if (!cand.edited) cand.edited = true;
           const sqPreds = data.arms[data.sqIdx].preds;
           predictCandidate(cand, data.predictor, sqPreds, data.outcomeNames);
-          renderScatter();
+          renderScatter2();
           showDeltoid(selectedItem);
         },
         onClone() {
@@ -8819,7 +10404,7 @@ Falls ${violatedOp === "LEQ" ? "above" : "below"} constraint threshold ${violate
       data.candidates.push(cand);
       selectedItem = { type: "candidate", idx: data.candidates.length - 1 };
       renderLegend();
-      renderScatter();
+      renderScatter2();
       showDeltoid();
       renderSliders();
     }
@@ -8835,7 +10420,7 @@ Falls ${violatedOp === "LEQ" ? "above" : "below"} constraint threshold ${violate
         }
       }
       renderLegend();
-      renderScatter();
+      renderScatter2();
       showDeltoid();
       renderSliders();
     }
@@ -8853,7 +10438,7 @@ Falls ${violatedOp === "LEQ" ? "above" : "below"} constraint threshold ${violate
       curIdx = (curIdx + dir + items.length) % items.length;
       prevSelectedItem = selectedItem;
       selectedItem = items[curIdx];
-      renderScatter();
+      renderScatter2();
       showDeltoid();
       renderSliders();
     }
@@ -8900,7 +10485,7 @@ Falls ${violatedOp === "LEQ" ? "above" : "below"} constraint threshold ${violate
       if (selectedItem?.type === info.type && selectedItem?.idx === info.idx) return;
       prevSelectedItem = selectedItem;
       selectedItem = info;
-      renderScatter();
+      renderScatter2();
       showDeltoid();
       renderSliders();
     });
@@ -9029,7 +10614,7 @@ Falls ${violatedOp === "LEQ" ? "above" : "below"} constraint threshold ${violate
           if (hiddenGenMethods[gen]) delete hiddenGenMethods[gen];
           else hiddenGenMethods[gen] = true;
           renderLegend();
-          renderScatter();
+          renderScatter2();
           return;
         }
         el = el.parentNode;
@@ -9041,7 +10626,7 @@ Falls ${violatedOp === "LEQ" ? "above" : "below"} constraint threshold ${violate
         yOutIdx = (xOutIdx + 1) % data.outcomeNames.length;
         dom.selY.value = String(yOutIdx);
       }
-      renderScatter();
+      renderScatter2();
       showDeltoid();
     });
     dom.selY.addEventListener("change", () => {
@@ -9050,14 +10635,14 @@ Falls ${violatedOp === "LEQ" ? "above" : "below"} constraint threshold ${violate
         xOutIdx = (yOutIdx + 1) % data.outcomeNames.length;
         dom.selX.value = String(xOutIdx);
       }
-      renderScatter();
+      renderScatter2();
       showDeltoid();
     });
     dom.selSQ.addEventListener("change", () => {
       if (!data) return;
       data.sqIdx = +dom.selSQ.value;
       computeAllRelData(data.arms, data.candidates, data.sqIdx, data.predictor, data.outcomeNames);
-      renderScatter();
+      renderScatter2();
       showDeltoid();
     });
     dom.selDistMode.addEventListener("change", () => updateOpacities());
@@ -9132,7 +10717,7 @@ Falls ${violatedOp === "LEQ" ? "above" : "below"} constraint threshold ${violate
       populateDropdowns();
       renderLegend();
       updateSubtitle();
-      renderScatter();
+      renderScatter2();
       showDeltoid();
       renderSliders();
     }
@@ -9144,14 +10729,14 @@ Falls ${violatedOp === "LEQ" ? "above" : "below"} constraint threshold ${violate
       selectArm(idx) {
         prevSelectedItem = selectedItem;
         selectedItem = { type: "arm", idx };
-        renderScatter();
+        renderScatter2();
         showDeltoid();
         renderSliders();
       },
       selectCandidate(idx) {
         prevSelectedItem = selectedItem;
         selectedItem = { type: "candidate", idx };
-        renderScatter();
+        renderScatter2();
         showDeltoid();
         renderSliders();
       },

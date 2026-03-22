@@ -20,6 +20,7 @@ import featureImportance from './demos/feature_importance.js';
 import optimizationTrace from './demos/optimization_trace.js';
 import bayesianOptimization from './demos/bayesian_optimization.js';
 import preferenceExplorer from './demos/preference_explorer.js';
+import scatterPlots from './demos/scatter_plots.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -27,12 +28,13 @@ const demos = [
   ['slice_plot.html', slicePlot],
   ['response_surface.html', responseSurface],
   ['radar.html', radar],
-  ['ax_cockpit.html', scatteroid],
+  ['ax_cockpit_old.html', scatteroid],
   ['cross_validation.html', crossValidation],
   ['feature_importance.html', featureImportance],
   ['optimization_trace.html', optimizationTrace],
   ['bayesian_optimization.html', bayesianOptimization],
   ['pbo.html', preferenceExplorer],
+  ['scatter_plots.html', scatterPlots],
 ];
 
 for (const [filename, buildFn] of demos) {

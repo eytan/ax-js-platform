@@ -256,13 +256,16 @@ export function renderResponseSurface(
         range = { meanMin: er.muMin, meanMax: er.muMax, stdMin: er.stdMin, stdMax: er.stdMax };
       }
     }
+    const effectiveOptions = isRelative !== (options?.relative ?? false)
+      ? { ...options, relative: isRelative }
+      : options;
     renderResponseSurfaceStatic(
       plotsDiv,
       predictor,
       selectedOutcome,
       selDimX,
       selDimY,
-      options,
+      effectiveOptions,
       fixedValues as Array<number>,
       tooltip,
       container,
@@ -856,6 +859,7 @@ function renderResponseSurfaceStatic(
   // Attach interactivity to both canvases
   if (tooltip && tooltipContainer) {
     let hoverHighlight = false;
+    let pinnedDotDataIdx = -1;
 
     for (const ref of canvasRefs) {
       const rml = ref.ml;
@@ -906,18 +910,20 @@ function renderResponseSurfaceStatic(
 
         if (best >= 0) {
           ref.canvas.style.cursor = "pointer";
-          if (_getPinned() < 0) {
-            applyCanvasHighlight(best);
-            redrawAllDots();
-            hoverHighlight = true;
-          }
+          applyCanvasHighlight(best);
+          redrawAllDots();
+          hoverHighlight = true;
           tooltip.innerHTML = buildPointTooltipHtml(predictor, dotData[best].idx, outcome);
           tooltip.style.display = "block";
           positionTooltip(tooltip, e.clientX, e.clientY);
         } else {
           ref.canvas.style.cursor = "crosshair";
-          if (_getPinned() < 0 && hoverHighlight) {
-            clearCanvasHighlight();
+          if (hoverHighlight) {
+            if (pinnedDotDataIdx >= 0) {
+              applyCanvasHighlight(pinnedDotDataIdx);
+            } else {
+              clearCanvasHighlight();
+            }
             redrawAllDots();
             hoverHighlight = false;
           }
@@ -952,9 +958,11 @@ function renderResponseSurfaceStatic(
           const hitTrainIdx = dotData[best].idx;
           if (_getPinned() === hitTrainIdx) {
             _setPinned(-1);
+            pinnedDotDataIdx = -1;
             clearCanvasHighlight();
           } else {
             _setPinned(hitTrainIdx);
+            pinnedDotDataIdx = best;
             applyCanvasHighlight(best);
             if (onSnapToPoint) {
               onSnapToPoint(dotData[best].pt);
@@ -964,6 +972,7 @@ function renderResponseSurfaceStatic(
         } else {
           if (_getPinned() >= 0) {
             _setPinned(-1);
+            pinnedDotDataIdx = -1;
             clearCanvasHighlight();
           }
         }
@@ -974,8 +983,12 @@ function renderResponseSurfaceStatic(
       ref.canvas.addEventListener("mouseleave", () => {
         ref.canvas.style.cursor = "crosshair";
         tooltip.style.display = "none";
-        if (_getPinned() < 0 && hoverHighlight) {
-          clearCanvasHighlight();
+        if (hoverHighlight) {
+          if (pinnedDotDataIdx >= 0) {
+            applyCanvasHighlight(pinnedDotDataIdx);
+          } else {
+            clearCanvasHighlight();
+          }
           redrawAllDots();
           hoverHighlight = false;
         }

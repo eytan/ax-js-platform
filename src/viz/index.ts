@@ -17,6 +17,10 @@ export type {
   OptimizationTraceOptions,
   SlicePlotOptions,
   ResponseSurfaceOptions,
+  ScatterPlotOptions,
+  ParetoPlotOptions,
+  ObservedPredictedOptions,
+  EffectsPlotOptions,
 } from "./types";
 export type { NormalizedExperiment } from "./fixture";
 
@@ -74,12 +78,23 @@ export type { EstimatedRange } from "./estimateRange";
 
 // ── Embeddable render functions ───────────────────────────────────────────
 export { renderFeatureImportance } from "./plots/importance";
+export type { FeatureImportanceController } from "./plots/importance";
 export { renderCrossValidation } from "./plots/cv";
+export type { CrossValidationController } from "./plots/cv";
 export { renderOptimizationTrace } from "./plots/trace";
+export type { OptimizationTraceController } from "./plots/trace";
 export { renderSlicePlot } from "./plots/slice";
 export type { SlicePlotController } from "./plots/slice";
 export { renderResponseSurface } from "./plots/surface";
 export type { ResponseSurfaceController } from "./plots/surface";
+export { renderScatter, renderScatterStatic } from "./plots/scatter";
+export type { ScatterPlotController, ScatterPointData, ScatterConfig } from "./plots/scatter";
+export { renderParetoPlot } from "./plots/pareto";
+export type { ParetoPlotController } from "./plots/pareto";
+export { renderObservedPredicted } from "./plots/observed_predicted";
+export type { ObservedPredictedController } from "./plots/observed_predicted";
+export { renderEffectsPlot } from "./plots/effects";
+export type { EffectsPlotController } from "./plots/effects";
 
 // ── Cockpit (multi-panel experiment explorer) ─────────────────────────────
 export * as cockpit from "./cockpit/index";
