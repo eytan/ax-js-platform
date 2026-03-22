@@ -14,6 +14,12 @@
   }
   h1 { font-size: 18px; font-weight: 500; color: #111; margin-bottom: 4px; }
   .subtitle { font-size: 13px; color: #666; margin-bottom: 16px; }
+  details.description { font-size: 13px; color: #555; line-height: 1.6; max-width: 720px; margin-bottom: 16px; }
+  details.description summary { cursor: pointer; color: #888; font-size: 12px; }
+  details.description p { margin: 8px 0; }
+  details.description ul { margin: 4px 0 4px 20px; }
+  details.description li { margin: 3px 0; }
+  details.description b { color: #333; }
   .controls { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
   button {
     font-size: 13px; padding: 6px 16px;
@@ -110,6 +116,12 @@
 
 <h1><a href="index.html" style="text-decoration:none"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="24" height="24" style="vertical-align:middle;margin-right:8px;margin-top:-2px;opacity:0.7"><path fill="#222" d="M761.76,600h0l200-346.16H550.12l-400,692.32H961.76ZM573.41,274H926.82L750.12,579.85ZM550.12,926H185.06L555.94,284.07,738.47,600Zm23.29,0L750.12,620.15,926.82,926Z"/></svg></a>Preferential Bayesian Optimization</h1>
 <p class="subtitle">Pick whichever pattern you find more beautiful — the model learns your aesthetic preferences in 4D</p>
+<details class="description" open>
+  <summary>About this demo</summary>
+  <p>Instead of observing a numeric outcome, you simply choose which of two options you prefer. The model learns a latent utility function from these pairwise comparisons and suggests increasingly better options.</p>
+  <p><b>How it works:</b> A Pairwise GP models your preferences using Laplace approximation. The EUBO (Expected Utility of Best Option) acquisition function picks the next pair to show you — the pair most likely to reveal new information about what you like.</p>
+  <p><b>Interactivity:</b> Click the pattern you prefer. After a few rounds, the model converges on your taste. Switch to <b>Auto Mode</b> to let a simulated user make choices, or try different visual styles from the dropdown.</p>
+</details>
 
 <div class="controls">
   <select id="selMode">

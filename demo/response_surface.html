@@ -15,11 +15,30 @@
   label { font-size: 13px; color: #555; }
   select, input[type=file] { font-size: 13px; padding: 5px 10px;
     border-radius: 6px; border: 0.5px solid #d0d0d0; background: #fff; color: #333; cursor: pointer; outline: none; }
+  details.description { font-size: 13px; color: #555; line-height: 1.6; max-width: 720px; margin-bottom: 16px; }
+  details.description summary { cursor: pointer; color: #888; font-size: 12px; }
+  details.description p { margin: 8px 0; }
+  details.description ul { margin: 4px 0 4px 20px; }
+  details.description li { margin: 3px 0; }
+  details.description b { color: #333; }
 </style>
 </head>
 <body>
 <h1><a href="index.html" style="text-decoration:none"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="24" height="24" style="vertical-align:middle;margin-right:8px;margin-top:-2px;opacity:0.7"><path fill="#222" d="M761.76,600h0l200-346.16H550.12l-400,692.32H961.76ZM573.41,274H926.82L750.12,579.85ZM550.12,926H185.06L555.94,284.07,738.47,600Zm23.29,0L750.12,620.15,926.82,926Z"/></svg></a>2D Response Surface</h1>
 <p class="subtitle" id="subtitle">Load a fixture JSON to visualize GP posterior</p>
+<details class="description" open>
+  <summary>About this plot</summary>
+  <p>A heatmap of the GP posterior mean over two input parameters, with all others held fixed. This reveals how pairs of parameters jointly influence the outcome — including interactions that 1D slices can't capture.</p>
+  <p>Color encodes the predicted value (yellow = high, purple = low). Training points are overlaid as dots. A second panel shows the posterior standard deviation — brighter regions indicate higher model uncertainty, suggesting where additional trials would be most informative.</p>
+  <p>The two most important parameters (by kernel lengthscale) are selected by default.</p>
+  <p><b>Interactivity:</b></p>
+  <ul>
+    <li><b>Axis dropdowns</b> — choose which two parameters to plot</li>
+    <li><b>Outcome selector</b> — switch between objectives</li>
+    <li><b>Sliders</b> — adjust held-fixed values for non-plotted parameters</li>
+    <li><b>Pivoting</b> — click a training point to pivot: all sliders snap to that trial's parameter values and the surface redraws around that operating point. Nearby dots stay opaque; distant ones fade based on kernel correlation</li>
+  </ul>
+</details>
 <div class="controls">
   <label>File: <input type="file" id="fileInput" accept=".json"></label>
   <label>Mode: <select id="modeSelect">

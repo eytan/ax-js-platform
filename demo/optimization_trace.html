@@ -15,11 +15,26 @@
   label { font-size: 13px; color: #555; }
   select, input[type=file] { font-size: 13px; padding: 5px 10px;
     border-radius: 6px; border: 0.5px solid #d0d0d0; background: #fff; color: #333; cursor: pointer; outline: none; }
+  details.description { font-size: 13px; color: #555; line-height: 1.6; max-width: 720px; margin-bottom: 16px; }
+  details.description summary { cursor: pointer; color: #888; font-size: 12px; }
+  details.description p { margin: 8px 0; }
+  details.description ul { margin: 4px 0 4px 20px; }
+  details.description li { margin: 3px 0; }
+  details.description b { color: #333; }
 </style>
 </head>
 <body>
 <h1><a href="index.html" style="text-decoration:none"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="24" height="24" style="vertical-align:middle;margin-right:8px;margin-top:-2px;opacity:0.7"><path fill="#222" d="M761.76,600h0l200-346.16H550.12l-400,692.32H961.76ZM573.41,274H926.82L750.12,579.85ZM550.12,926H185.06L555.94,284.07,738.47,600Zm23.29,0L750.12,620.15,926.82,926Z"/></svg></a>Optimization Trace</h1>
 <div class="subtitle" id="subtitle">Trial progression — load a fixture with observations</div>
+<details class="description" open>
+  <summary>About this plot</summary>
+  <p>The observed outcome value at each trial, with a running "best so far" line showing optimization progress.</p>
+  <p>Each dot is one trial's observed value. The step line tracks the best value seen up to that trial. For multi-objective problems, "best" is determined per-outcome using the direction inferred from the optimization config (maximize or minimize).</p>
+  <p><b>Interactivity:</b></p>
+  <ul>
+    <li><b>Outcome selector</b> — switch between objectives to see convergence for each</li>
+  </ul>
+</details>
 <div class="controls">
   <label>File: <input type="file" id="fileInput" accept=".json"></label>
 </div>
