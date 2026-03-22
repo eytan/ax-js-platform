@@ -313,7 +313,7 @@ export function renderDeltoidPanel(
       const valStr = `${r.mean.toFixed(2)}\u00B1${(1.96 * r.sem).toFixed(2)}%`;
       s += `<text x="${handleW + labelW + pad + barW + pad * 2}" y="${cy + 4}" fill="${violated ? "#c66" : "#777"}" font-size="10" font-family="sans-serif">${valStr}</text>`;
       if (violated) {
-        s += `<text x="${handleW + labelW + pad + barW + pad * 2 + valW - 8}" y="${cy + 5}" fill="#d32f2f" font-size="13" font-weight="700" font-family="sans-serif">\u26A0</text>`;
+        s += `<text x="${handleW + labelW + pad + barW + pad * 2 + valW - 21}" y="${cy + 5}" fill="#d32f2f" font-size="13" font-weight="700" font-family="sans-serif">\u26A0</text>`;
       }
     } else {
       s += `<text x="${handleW + labelW + pad + barW / 2}" y="${cy + 4}" text-anchor="middle" fill="#999" font-size="10" font-style="italic" font-family="sans-serif">N/A</text>`;

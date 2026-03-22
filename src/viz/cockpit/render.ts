@@ -104,15 +104,15 @@ const COCKPIT_CSS = `
 }
 .axjs-cockpit .delete-btn:hover { background: #ffe0e0; color: #a44; }
 .axjs-cockpit .param-row {
-  display: flex; align-items: center; gap: 6px; margin-bottom: 5px;
+  display: flex; align-items: center; gap: 6px; margin-bottom: 7px;
 }
 .axjs-cockpit .param-row label {
-  font-size: 10px; color: #666; width: 100px; text-align: right; flex-shrink: 0;
+  font-size: 10px; color: #333; width: 100px; text-align: right; flex-shrink: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  position: relative; z-index: 1;
+  position: relative; z-index: 1; padding: 3px 4px 3px 0;
 }
 .axjs-cockpit .param-row .imp-bar {
-  position: absolute; right: 0; top: 1px; bottom: 1px; border-radius: 2px; z-index: -1;
+  position: absolute; right: 0; top: 0; bottom: 0; border-radius: 2px; z-index: -1;
 }
 .axjs-cockpit .param-row input[type=range] {
   flex: 1; height: 4px; -webkit-appearance: none; appearance: none;
@@ -186,7 +186,6 @@ interface DomRefs {
   selDistMode: HTMLSelectElement;
   fileInput: HTMLInputElement;
   btnExport: HTMLButtonElement;
-  btnCopy: HTMLButtonElement;
   btnPrev: HTMLButtonElement;
   btnNext: HTMLButtonElement;
 }
@@ -227,18 +226,11 @@ function buildDom(container: HTMLElement): DomRefs {
   btnNext.innerHTML = "&#9654;";
   btnNext.title = "Next arm";
 
-  const rpActions = document.createElement("div");
-  rpActions.className = "ck-rp-actions";
-  const btnCopy = document.createElement("button");
-  btnCopy.className = "ck-icon-btn";
-  btnCopy.title = "Copy as text";
-  btnCopy.innerHTML = COPY_ICON;
-  rpActions.appendChild(btnCopy);
-
+  // TODO: re-enable copy/export actions in rpActions (COPY_ICON is defined above)
   const navGroup = document.createElement("div");
   navGroup.style.cssText = "display:flex;gap:0;flex-shrink:0";
   navGroup.append(btnPrev, btnNext);
-  rpHeader.append(navGroup, rpTitle, rpActions);
+  rpHeader.append(navGroup, rpTitle);
 
   const rpBars = document.createElement("div");
   rpBars.className = "ck-bars";
@@ -325,7 +317,7 @@ function buildDom(container: HTMLElement): DomRefs {
 
   return {
     subtitleEl, rpTitle, rpBars, rpSliders, scatterSvg, legendEl,
-    selX, selY, selSQ, selDistMode, fileInput, btnExport, btnCopy,
+    selX, selY, selSQ, selDistMode, fileInput, btnExport,
     btnPrev, btnNext,
   };
 }
@@ -1075,23 +1067,6 @@ export function renderCockpit(
       }
     });
     dom.fileInput.value = "";
-  });
-
-  // ── Copy deltoid ──
-  dom.btnCopy.addEventListener("click", () => {
-    if (!data) return;
-    const item = selectedItem ?? hoveredItem;
-    if (!item) return;
-    const rd = item.type === "candidate" ? data.candidates[item.idx]?.relData : data.arms[item.idx]?.relData;
-    if (!rd) return;
-    const label = getItemLabel(item, data.arms, data.candidates, data.sqIdx);
-    const lines = [label, ""];
-    customMetricOrder.forEach((name) => {
-      const r = rd[name];
-      const txt = name + " " + (r ? `${r.mean >= 0 ? "+" : ""}${r.mean.toFixed(2)}% \u00B1 ${(r.sem * 1.96).toFixed(2)}%` : "n/a");
-      lines.push(txt);
-    });
-    void navigator.clipboard?.writeText(lines.join("\n").trim()).catch(() => {});
   });
 
   // ── Tooltips ──
